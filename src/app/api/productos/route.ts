@@ -1,0 +1,35 @@
+import { db } from "../../../../src/lib/db";
+
+import { NextResponse } from "next/server";
+
+export async function GET() {
+  try {
+    const [rows] = (await db.query(
+      `SELECT 
+    ART_IDArticulo AS id,
+    ART_DesArticulo AS nombre,
+    ART_PVP AS precio,
+    ART_StockArt AS stock,
+    ART_EsOferta AS oferta,
+    ART_EsNovedad AS novedad
+  FROM sige_art_articulo
+  WHERE ART_EstadoArt IS NULL OR ART_EstadoArt != 'B'
+  LIMIT 100`
+    )) as unknown as [any[]];
+
+    // Convertimos campos char en booleanos
+    const parsed = rows.map((p) => ({
+      ...p,
+      oferta: p.oferta === "S",
+      novedad: p.novedad === "S",
+    }));
+
+    return NextResponse.json(parsed);
+  } catch (error) {
+    console.error("Error al obtener productos:", error);
+    return NextResponse.json(
+      { error: "Error al obtener productos" },
+      { status: 500 }
+    );
+  }
+}
