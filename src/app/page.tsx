@@ -18,6 +18,11 @@ export default function Home() {
       descripcion: "Listar productos y artículos disponibles.",
       href: "/productos",
     },
+    {
+      titulo: "viajes",
+      descripcion: "Listar viajes y sus datos.",
+      href: "/viajes",
+    },
   ];
 
   return (
