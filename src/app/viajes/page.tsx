@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import ViajeModal from "../../components/ViajeModal"; // Asegurate de tenerlo creado
 
 interface Viaje {
   id: number;
@@ -18,6 +19,11 @@ interface Viaje {
   vendedor: string | null;
   articulo: string;
 }
+interface ViajeModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  viaje?: Viaje | null; // ← nuevo prop
+}
 
 export default function ViajesPage() {
   const [viajes, setViajes] = useState<Viaje[]>([]);
@@ -25,6 +31,8 @@ export default function ViajesPage() {
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
   const [minPendientes, setMinPendientes] = useState("");
+
+  const [isModalOpen, setIsModalOpen] = useState(false); // <-- Estado del modal
 
   useEffect(() => {
     const fetchData = async () => {
@@ -34,7 +42,7 @@ export default function ViajesPage() {
       if (fechaHasta) params.append("fechaHasta", fechaHasta);
       if (minPendientes) params.append("minPendientes", minPendientes);
 
-      const res = await fetch(`/api/viajes?${params.toString()}`);
+      const res = await fetch(`/api/viajes/GET?${params.toString()}`);
       const data = await res.json();
       setViajes(data);
     };
@@ -49,9 +57,17 @@ export default function ViajesPage() {
   return (
     <main className="min-h-screen p-6 bg-gray-50 dark:bg-neutral-900">
       <div className="max-w-7xl mx-auto bg-white dark:bg-neutral-800 shadow-md rounded-xl p-6">
-        <h1 className="text-2xl font-bold mb-4 text-neutral-900 dark:text-white">
-          Listado de Viajes
-        </h1>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">
+            Listado de Viajes
+          </h1>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md"
+          >
+            + Nuevo Viaje
+          </button>
+        </div>
 
         {/* Filtros */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -122,7 +138,6 @@ export default function ViajesPage() {
                     <td className="p-2">
                       {v.tarifa != null ? `$${v.tarifa.toLocaleString()}` : "-"}
                     </td>
-
                     <td className="p-2">{v.vendedor ?? "-"}</td>
                   </tr>
                 ))
@@ -140,6 +155,8 @@ export default function ViajesPage() {
           </table>
         </div>
       </div>
+
+      <ViajeModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </main>
   );
 }
