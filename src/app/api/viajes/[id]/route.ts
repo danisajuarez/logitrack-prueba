@@ -3,10 +3,11 @@ import { db } from "../../../../lib/db";
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const identifier = params.id;
+    const { id } = await params;
+    const identifier = id;
     
     // Intentar eliminar de la tabla nueva primero (por ID)
     if (!isNaN(Number(identifier))) {
@@ -41,10 +42,11 @@ export async function DELETE(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const identifier = params.id;
+    const { id } = await params;
+    const identifier = id;
     const body = await request.json();
     
     const {
