@@ -19,11 +19,6 @@ interface Viaje {
   vendedor: string | null;
   articulo: string;
 }
-interface ViajeModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  viaje?: Viaje | null; // ← nuevo prop
-}
 
 export default function ViajesPage() {
   const [viajes, setViajes] = useState<Viaje[]>([]);
@@ -31,6 +26,9 @@ export default function ViajesPage() {
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
   const [minPendientes, setMinPendientes] = useState("");
+  const [viajeSeleccionado, setViajeSeleccionado] = useState<Viaje | null>(
+    null
+  );
 
   const [isModalOpen, setIsModalOpen] = useState(false); // <-- Estado del modal
 
@@ -62,10 +60,16 @@ export default function ViajesPage() {
             Listado de Viajes
           </h1>
           <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md"
+            onClick={() => {
+              setViajeSeleccionado(null);
+              setIsModalOpen(true);
+            }}
+            className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-md hover:shadow-lg"
           >
-            + Nuevo Viaje
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Nuevo Viaje
           </button>
         </div>
 
@@ -119,44 +123,77 @@ export default function ViajesPage() {
               </tr>
             </thead>
             <tbody>
-              {filtrados.length > 0 ? (
-                filtrados.map((v) => (
-                  <tr
-                    key={v.id}
-                    className="border-t border-gray-200 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-800 transition"
-                  >
-                    <td className="p-2">{v.fecha.slice(0, 10)}</td>
-                    <td className="p-2">{v.numero}</td>
-                    <td className="p-2">{v.razonSocial}</td>
-                    <td className="p-2">{v.origen}</td>
-                    <td className="p-2">{v.destino}</td>
-                    <td className="p-2">{v.articulo}</td>
-                    <td className="p-2">{v.equipo}</td>
-                    <td className="p-2">{v.cupos}</td>
-                    <td className="p-2">{v.cuposReservados}</td>
-                    <td className="p-2">{v.cuposPendientes}</td>
-                    <td className="p-2">
-                      {v.tarifa != null ? `$${v.tarifa.toLocaleString()}` : "-"}
-                    </td>
-                    <td className="p-2">{v.vendedor ?? "-"}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={12}
-                    className="p-4 text-center text-gray-500 dark:text-neutral-400"
-                  >
-                    No se encontraron viajes.
+              {filtrados.map((v) => (
+                <tr
+                  key={`${v.id}-${v.numero}`} // combinación por si hay registros sin ID (de la tabla vieja)
+                  className="border-t border-gray-200 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-800 transition"
+                >
+                  <td className="p-2">{v.fecha?.slice(0, 10)}</td>
+                  <td className="p-2">{v.numero}</td>
+                  <td className="p-2">{v.razonSocial}</td>
+                  <td className="p-2">{v.origen}</td>
+                  <td className="p-2">{v.destino}</td>
+                  <td className="p-2">{v.articulo}</td>
+                  <td className="p-2">{v.equipo}</td>
+                  <td className="p-2">{v.cupos}</td>
+                  <td className="p-2">{v.cuposReservados}</td>
+                  <td className="p-2">{v.cuposPendientes}</td>
+                  <td className="p-2">
+                    {v.tarifa != null ? `$${v.tarifa.toLocaleString()}` : "-"}
+                  </td>
+                  <td className="p-2">
+                    <div className="flex flex-col gap-2">
+                      <span className="text-sm">{v.vendedor ?? "-"}</span>
+                      
+                      {/* Botones de acción para todos los viajes */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setViajeSeleccionado(v);
+                            setIsModalOpen(true);
+                          }}
+                          className="inline-flex items-center px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                        >
+                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          Editar
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (confirm("¿Eliminar este viaje?")) {
+                              const identifier = v.id || v.numero;
+                              await fetch(`/api/viajes/${identifier}`, {
+                                method: "DELETE",
+                              });
+                              window.location.reload();
+                            }
+                          }}
+                          className="inline-flex items-center px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+                        >
+                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
                   </td>
                 </tr>
-              )}
+              ))}
             </tbody>
           </table>
         </div>
       </div>
 
-      <ViajeModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <ViajeModal 
+        isOpen={isModalOpen} 
+        onClose={() => {
+          setIsModalOpen(false);
+          setViajeSeleccionado(null);
+        }}
+        viaje={viajeSeleccionado}
+      />
     </main>
   );
 }
