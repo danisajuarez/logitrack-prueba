@@ -38,7 +38,7 @@ export default function ViajesPage() {
 
       if (fechaDesde) params.append("fechaDesde", fechaDesde);
       if (fechaHasta) params.append("fechaHasta", fechaHasta);
-      if (minPendientes) params.append("minPendientes", minPendientes);
+      if (minPendientes) params.append("minCuposPendientes", minPendientes);
 
       const res = await fetch(`/api/viajes/GET?${params.toString()}`);
       const data = await res.json();
@@ -74,33 +74,98 @@ export default function ViajesPage() {
         </div>
 
         {/* Filtros */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <input
-            type="text"
-            placeholder="Buscar por Razón Social"
-            value={razonSearch}
-            onChange={(e) => setRazonSearch(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-900 text-black dark:text-white"
-          />
-          <input
-            type="date"
-            value={fechaDesde}
-            onChange={(e) => setFechaDesde(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-md"
-          />
-          <input
-            type="date"
-            value={fechaHasta}
-            onChange={(e) => setFechaHasta(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-md"
-          />
-          <input
-            type="number"
-            placeholder="Mín. Cupos Pendientes"
-            value={minPendientes}
-            onChange={(e) => setMinPendientes(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-md"
-          />
+        <div className="bg-gray-50 dark:bg-neutral-700 p-4 rounded-lg mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium text-neutral-900 dark:text-white">
+              Filtros de búsqueda
+            </h3>
+            <button
+              onClick={() => {
+                setRazonSearch("");
+                setFechaDesde("");
+                setFechaHasta("");
+                setMinPendientes("");
+              }}
+              className="inline-flex items-center px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-md transition-colors duration-200"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Limpiar
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                Razón Social
+              </label>
+              <input
+                type="text"
+                placeholder="Buscar por razón social..."
+                value={razonSearch}
+                onChange={(e) => setRazonSearch(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                Fecha desde
+              </label>
+              <input
+                type="date"
+                value={fechaDesde}
+                onChange={(e) => setFechaDesde(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                Fecha hasta
+              </label>
+              <input
+                type="date"
+                value={fechaHasta}
+                onChange={(e) => setFechaHasta(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                Mín. Cupos Pendientes
+              </label>
+              <input
+                type="number"
+                placeholder="0"
+                min="0"
+                value={minPendientes}
+                onChange={(e) => setMinPendientes(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+            </div>
+          </div>
+          
+          {/* Indicador de filtros activos */}
+          {(razonSearch || fechaDesde || fechaHasta || minPendientes) && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707v4.586l-4-2v-2.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              <span>Filtros aplicados:</span>
+              {razonSearch && <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">Razón: "{razonSearch}"</span>}
+              {fechaDesde && <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">Desde: {fechaDesde}</span>}
+              {fechaHasta && <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">Hasta: {fechaHasta}</span>}
+              {minPendientes && <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">Min. Pendientes: {minPendientes}</span>}
+            </div>
+          )}
+        </div>
+
+        {/* Contador de resultados */}
+        <div className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+          <span className="font-medium">{filtrados.length}</span> viaje{filtrados.length !== 1 ? 's' : ''} encontrado{filtrados.length !== 1 ? 's' : ''}
         </div>
 
         {/* Tabla */}

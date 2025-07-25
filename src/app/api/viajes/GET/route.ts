@@ -10,28 +10,50 @@ export async function GET(req: NextRequest) {
     const minCuposPendientes = searchParams.get("minCuposPendientes");
     const vendedor = searchParams.get("vendedor");
 
-    const filtros: string[] = [];
-    const params: any[] = [];
+    // Construir filtros para tabla nueva
+    const filtrosNuevos: string[] = [];
+    const paramsNuevos: any[] = [];
 
-    // Filtros para la tabla vieja
     if (fechaDesde) {
-      filtros.push(`e.ENT_Fecha >= ?`);
-      params.push(fechaDesde);
+      filtrosNuevos.push(`fecha >= ?`);
+      paramsNuevos.push(fechaDesde);
     }
     if (fechaHasta) {
-      filtros.push(`e.ENT_Fecha <= ?`);
-      params.push(fechaHasta);
+      filtrosNuevos.push(`fecha <= ?`);
+      paramsNuevos.push(fechaHasta);
     }
     if (minCuposPendientes) {
-      filtros.push(`e.ENT_CantCuposPend > ?`);
-      params.push(minCuposPendientes);
+      filtrosNuevos.push(`cuposPendientes >= ?`);
+      paramsNuevos.push(parseInt(minCuposPendientes));
     }
     if (vendedor) {
-      filtros.push(`v.VEN_NomVen LIKE ?`);
-      params.push(`%${vendedor}%`);
+      filtrosNuevos.push(`vendedor LIKE ?`);
+      paramsNuevos.push(`%${vendedor}%`);
     }
 
-    const whereClause = filtros.length ? `AND ${filtros.join(" AND ")}` : "";
+    // Construir filtros para tabla vieja
+    const filtrosViejos: string[] = [];
+    const paramsViejos: any[] = [];
+
+    if (fechaDesde) {
+      filtrosViejos.push(`e.ENT_Fecha >= ?`);
+      paramsViejos.push(fechaDesde);
+    }
+    if (fechaHasta) {
+      filtrosViejos.push(`e.ENT_Fecha <= ?`);
+      paramsViejos.push(fechaHasta);
+    }
+    if (minCuposPendientes) {
+      filtrosViejos.push(`e.ENT_CantCuposPend >= ?`);
+      paramsViejos.push(parseInt(minCuposPendientes));
+    }
+    if (vendedor) {
+      filtrosViejos.push(`v.VEN_NomVen LIKE ?`);
+      paramsViejos.push(`%${vendedor}%`);
+    }
+
+    const whereClauseNuevos = filtrosNuevos.length ? `WHERE ${filtrosNuevos.join(" AND ")}` : "";
+    const whereClauseViejos = filtrosViejos.length ? `AND ${filtrosViejos.join(" AND ")}` : "";
 
     const query = `
       SELECT 
@@ -49,6 +71,7 @@ export async function GET(req: NextRequest) {
         tarifa,
         vendedor
       FROM viajes_nuevos
+      ${whereClauseNuevos}
 
       UNION ALL
 
@@ -72,11 +95,13 @@ export async function GET(req: NextRequest) {
       INNER JOIN sige_equ_equipos eq ON e.EQU_IDEquipo = eq.EQU_IDEquipo
       LEFT JOIN sige_ven_vendedor v ON e.VEN_IdVendPostula = v.VEN_IdVendedor
       WHERE e.TER_IdTercero > 0
-      ${whereClause}
+      ${whereClauseViejos}
       ORDER BY fecha DESC
     `;
 
-    const [rows] = await db.query<RowDataPacket[]>(query, params);
+    const allParams = [...paramsNuevos, ...paramsViejos];
+
+    const [rows] = await db.query<RowDataPacket[]>(query, allParams);
     return NextResponse.json(rows);
   } catch (error) {
     console.error("Error al obtener viajes:", error);
