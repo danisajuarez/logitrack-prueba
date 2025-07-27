@@ -1,5 +1,59 @@
 "use client";
 import { useState, useEffect } from "react";
+import SearchableSelect from "./SearchableSelect";
+
+interface Tercero {
+  id: number;
+  razonSocial: string;
+  cuit: string;
+  telefono: string;
+  email: string;
+  tipo: string;
+  localidad: number;
+}
+
+// Interfaces adaptadas para SearchableSelect
+interface TerceroOption {
+  id: number;
+  nombre: string;
+}
+
+interface Producto {
+  id: number;
+  nombre: string;
+  precio: number;
+  stock: number;
+  oferta: boolean;
+  novedad: boolean;
+}
+
+interface ProductoOption {
+  id: number;
+  nombre: string;
+}
+
+interface Proveedor {
+  id: number;
+  razonSocial: string;
+  cuit: string;
+  telefono: string;
+  email: string;
+}
+
+interface ProveedorOption {
+  id: number;
+  nombre: string;
+}
+
+interface Vendedor {
+  id: number;
+  nombre: string;
+}
+
+interface Localidad {
+  id: number;
+  nombre: string;
+}
 
 interface Viaje {
   id: number;
@@ -16,6 +70,8 @@ interface Viaje {
   equipo: string;
   vendedor: string | null;
   articulo: string;
+  proveedorId?: number;
+  proveedorNombre?: string;
 }
 
 interface ViajeModalProps {
@@ -26,8 +82,6 @@ interface ViajeModalProps {
 
 export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) {
   const [form, setForm] = useState({
-    fecha: "",
-    numero: "",
     razonSocial: "",
     origen: "",
     destino: "",
@@ -38,13 +92,28 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
     pendientes: "",
     tarifa: "",
     vendedor: "",
+    proveedorId: "",
+    proveedor: "",
   });
+  const [terceros, setTerceros] = useState<Tercero[]>([]);
+  const [loadingTerceros, setLoadingTerceros] = useState(false);
+  const [productos, setProductos] = useState<Producto[]>([]);
+  const [loadingProductos, setLoadingProductos] = useState(false);
+  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
+  const [loadingProveedores, setLoadingProveedores] = useState(false);
+  
+  // Opciones formateadas para SearchableSelect
+  const [tercerosOptions, setTercerosOptions] = useState<TerceroOption[]>([]);
+  const [productosOptions, setProductosOptions] = useState<ProductoOption[]>([]);
+  const [proveedoresOptions, setProveedoresOptions] = useState<ProveedorOption[]>([]);
+  const [vendedores, setVendedores] = useState<Vendedor[]>([]);
+  const [loadingVendedores, setLoadingVendedores] = useState(false);
+  const [localidades, setLocalidades] = useState<Localidad[]>([]);
+  const [loadingLocalidades, setLoadingLocalidades] = useState(false);
 
   useEffect(() => {
     if (viaje) {
       setForm({
-        fecha: viaje.fecha?.slice(0, 10) || "",
-        numero: viaje.numero || "",
         razonSocial: viaje.razonSocial || "",
         origen: viaje.origen || "",
         destino: viaje.destino || "",
@@ -55,11 +124,11 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
         pendientes: viaje.cuposPendientes?.toString() || "",
         tarifa: viaje.tarifa?.toString() || "",
         vendedor: viaje.vendedor || "",
+        proveedorId: viaje.proveedorId?.toString() || "",
+        proveedor: viaje.proveedorNombre || "",
       });
     } else {
       setForm({
-        fecha: "",
-        numero: "",
         razonSocial: "",
         origen: "",
         destino: "",
@@ -70,14 +139,123 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
         pendientes: "",
         tarifa: "",
         vendedor: "",
+        proveedorId: "",
+        proveedor: "",
       });
     }
   }, [viaje]);
 
+  useEffect(() => {
+    if (isOpen) {
+      fetchTerceros();
+      fetchProductos();
+      fetchProveedores();
+      fetchVendedores();
+      fetchLocalidades();
+    }
+  }, [isOpen]);
+
+  const fetchTerceros = async () => {
+    setLoadingTerceros(true);
+    try {
+      const res = await fetch('/api/terceros');
+      if (res.ok) {
+        const data = await res.json();
+        setTerceros(data);
+        // Formatear para SearchableSelect
+        const options = data.map((tercero: Tercero) => ({
+          id: tercero.id,
+          nombre: tercero.razonSocial
+        }));
+        setTercerosOptions(options);
+      }
+    } catch (error) {
+      console.error('Error al obtener terceros:', error);
+    } finally {
+      setLoadingTerceros(false);
+    }
+  };
+
+  const fetchProductos = async () => {
+    setLoadingProductos(true);
+    try {
+      const res = await fetch('/api/productos');
+      if (res.ok) {
+        const data = await res.json();
+        setProductos(data);
+        // Formatear para SearchableSelect
+        const options = data.map((producto: Producto) => ({
+          id: producto.id,
+          nombre: producto.nombre
+        }));
+        setProductosOptions(options);
+      }
+    } catch (error) {
+      console.error('Error al obtener productos:', error);
+    } finally {
+      setLoadingProductos(false);
+    }
+  };
+
+  const fetchProveedores = async () => {
+    setLoadingProveedores(true);
+    try {
+      const res = await fetch('/api/proveedores');
+      if (res.ok) {
+        const data = await res.json();
+        setProveedores(data);
+        // Formatear para SearchableSelect
+        const options = data.map((proveedor: Proveedor) => ({
+          id: proveedor.id,
+          nombre: proveedor.razonSocial
+        }));
+        setProveedoresOptions(options);
+      }
+    } catch (error) {
+      console.error('Error al obtener proveedores:', error);
+    } finally {
+      setLoadingProveedores(false);
+    }
+  };
+
+  const fetchVendedores = async () => {
+    setLoadingVendedores(true);
+    try {
+      const res = await fetch('/api/vendedores');
+      if (res.ok) {
+        const data = await res.json();
+        setVendedores(data);
+      }
+    } catch (error) {
+      console.error('Error al obtener vendedores:', error);
+    } finally {
+      setLoadingVendedores(false);
+    }
+  };
+
+  const fetchLocalidades = async () => {
+    setLoadingLocalidades(true);
+    try {
+      const res = await fetch('/api/localidades');
+      if (res.ok) {
+        const data = await res.json();
+        setLocalidades(data);
+      }
+    } catch (error) {
+      console.error('Error al obtener localidades:', error);
+    } finally {
+      setLoadingLocalidades(false);
+    }
+  };
+
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSearchableSelectChange = (name: string, value: string) => {
+    setForm({ ...form, [name]: value });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -119,58 +297,60 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
           onSubmit={handleSubmit}
           className="grid grid-cols-1 sm:grid-cols-2 gap-4 gap-y-6"
         >
-          <input
-            type="text"
-            name="fecha"
-            value={form.fecha}
-            onChange={handleChange}
-            placeholder="Fecha"
-            className="input w-full"
-          />
+          {viaje && (
+            <div className="col-span-full bg-neutral-800 p-3 rounded-lg">
+              <span className="text-sm text-neutral-400">Fecha de creación: </span>
+              <span className="text-white">{new Date(viaje.fecha).toLocaleString('es-ES')}</span>
+              <br />
+              <span className="text-sm text-neutral-400">Número: </span>
+              <span className="text-white">{viaje.numero}</span>
+            </div>
+          )}
 
-          <input
-            type="text"
-            name="numero"
-            value={form.numero}
-            onChange={handleChange}
-            placeholder="N°"
-            className="input w-full"
-          />
+          {!viaje && (
+            <div className="col-span-full bg-neutral-700 p-3 rounded-lg text-center">
+              <span className="text-sm text-neutral-300">El número de viaje se generará automáticamente</span>
+            </div>
+          )}
 
-          <input
-            type="text"
-            name="razonSocial"
+          <SearchableSelect
+            options={tercerosOptions}
             value={form.razonSocial}
-            onChange={handleChange}
-            placeholder="Razón Social"
-            className="input w-full"
+            onChange={(value) => handleSearchableSelectChange('razonSocial', value)}
+            placeholder="Seleccionar Cliente"
+            name="razonSocial"
+            required
+            loading={loadingTerceros}
           />
 
-          <input
-            type="text"
-            name="origen"
+          <SearchableSelect
+            options={localidades}
             value={form.origen}
-            onChange={handleChange}
-            placeholder="Origen"
-            className="input w-full"
+            onChange={(value) => handleSearchableSelectChange('origen', value)}
+            placeholder="Seleccionar Origen"
+            name="origen"
+            required
+            loading={loadingLocalidades}
           />
 
-          <input
-            type="text"
-            name="destino"
+          <SearchableSelect
+            options={localidades}
             value={form.destino}
-            onChange={handleChange}
-            placeholder="Destino"
-            className="input w-full"
+            onChange={(value) => handleSearchableSelectChange('destino', value)}
+            placeholder="Seleccionar Destino"
+            name="destino"
+            required
+            loading={loadingLocalidades}
           />
 
-          <input
-            type="text"
-            name="articulo"
+          <SearchableSelect
+            options={productosOptions}
             value={form.articulo}
-            onChange={handleChange}
-            placeholder="Artículo"
-            className="input w-full"
+            onChange={(value) => handleSearchableSelectChange('articulo', value)}
+            placeholder="Seleccionar Producto"
+            name="articulo"
+            required
+            loading={loadingProductos}
           />
 
           <input
@@ -218,13 +398,28 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
             className="input w-full"
           />
 
-          <input
-            type="text"
-            name="vendedor"
+          <SearchableSelect
+            options={vendedores}
             value={form.vendedor}
-            onChange={handleChange}
-            placeholder="Vendedor"
-            className="input w-full"
+            onChange={(value) => handleSearchableSelectChange('vendedor', value)}
+            placeholder="Seleccionar Vendedor"
+            name="vendedor"
+            loading={loadingVendedores}
+          />
+
+          <SearchableSelect
+            options={proveedoresOptions}
+            value={form.proveedor}
+            onChange={(value) => {
+              // Encontrar el proveedor seleccionado para obtener su ID
+              const proveedorSeleccionado = proveedores.find(p => p.razonSocial === value);
+              handleSearchableSelectChange('proveedorId', proveedorSeleccionado?.id.toString() || '');
+              handleSearchableSelectChange('proveedor', value);
+            }}
+            placeholder="Seleccionar Proveedor"
+            name="proveedor"
+            required
+            loading={loadingProveedores}
           />
 
           {/* Botones */}

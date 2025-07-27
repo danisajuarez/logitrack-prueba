@@ -13,8 +13,11 @@ export async function GET() {
     ART_EsOferta AS oferta,
     ART_EsNovedad AS novedad
   FROM sige_art_articulo
-  WHERE ART_EstadoArt IS NULL OR ART_EstadoArt != 'B'
-  LIMIT 100`
+  WHERE (ART_EstadoArt IS NULL OR ART_EstadoArt != 'B')
+    AND ART_DesArticulo IS NOT NULL 
+    AND ART_DesArticulo != ''
+  ORDER BY ART_DesArticulo ASC
+  LIMIT 500`
     )) as unknown as [any[]];
 
     // Convertimos campos char en booleanos

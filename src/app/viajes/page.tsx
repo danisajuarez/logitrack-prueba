@@ -18,6 +18,8 @@ interface Viaje {
   equipo: string;
   vendedor: string | null;
   articulo: string;
+  proveedorId?: number;
+  proveedorNombre?: string;
 }
 
 export default function ViajesPage() {
@@ -34,23 +36,35 @@ export default function ViajesPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const params = new URLSearchParams();
+      try {
+        const params = new URLSearchParams();
 
-      if (fechaDesde) params.append("fechaDesde", fechaDesde);
-      if (fechaHasta) params.append("fechaHasta", fechaHasta);
-      if (minPendientes) params.append("minCuposPendientes", minPendientes);
+        if (fechaDesde) params.append("fechaDesde", fechaDesde);
+        if (fechaHasta) params.append("fechaHasta", fechaHasta);
+        if (minPendientes) params.append("minCuposPendientes", minPendientes);
 
-      const res = await fetch(`/api/viajes/GET?${params.toString()}`);
-      const data = await res.json();
-      setViajes(data);
+        const res = await fetch(`/api/viajes/GET?${params.toString()}`);
+        const data = await res.json();
+        
+        // Validar que data sea un array
+        if (Array.isArray(data)) {
+          setViajes(data);
+        } else {
+          console.error('La respuesta no es un array:', data);
+          setViajes([]);
+        }
+      } catch (error) {
+        console.error('Error al obtener viajes:', error);
+        setViajes([]);
+      }
     };
 
     fetchData();
   }, [fechaDesde, fechaHasta, minPendientes]);
 
-  const filtrados = viajes.filter((v) =>
+  const filtrados = Array.isArray(viajes) ? viajes.filter((v) =>
     v.razonSocial?.toLowerCase().includes(razonSearch.toLowerCase())
-  );
+  ) : [];
 
   return (
     <main className="min-h-screen p-6 bg-gray-50 dark:bg-neutral-900">
@@ -184,13 +198,14 @@ export default function ViajesPage() {
                 <th className="p-2">Reservados</th>
                 <th className="p-2">Pendientes</th>
                 <th className="p-2">Tarifa</th>
+                <th className="p-2">Proveedor</th>
                 <th className="p-2">Vendedor</th>
               </tr>
             </thead>
             <tbody>
-              {filtrados.map((v) => (
+              {filtrados.map((v, index) => (
                 <tr
-                  key={`${v.id}-${v.numero}`} // combinación por si hay registros sin ID (de la tabla vieja)
+                  key={v.id ? `id-${v.id}` : `numero-${v.numero}-${index}`} // Garantiza unicidad
                   className="border-t border-gray-200 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-800 transition"
                 >
                   <td className="p-2">{v.fecha?.slice(0, 10)}</td>
@@ -205,6 +220,9 @@ export default function ViajesPage() {
                   <td className="p-2">{v.cuposPendientes}</td>
                   <td className="p-2">
                     {v.tarifa != null ? `$${v.tarifa.toLocaleString()}` : "-"}
+                  </td>
+                  <td className="p-2">
+                    <span className="text-sm">{v.proveedorNombre ?? "-"}</span>
                   </td>
                   <td className="p-2">
                     <div className="flex flex-col gap-2">
