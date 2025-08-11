@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(rm:*)",
-      "Bash(yarn build)"
+      "Bash(yarn build)",
+      "Bash(mysql:*)",
+      "Bash(node:*)",
+      "Bash(yarn dev)",
+      "Bash(npm run dev:*)"
     ],
     "deny": []
   }
