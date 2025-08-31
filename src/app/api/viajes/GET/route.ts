@@ -1,39 +1,32 @@
-import { db } from "../../../../lib/db";
+import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { RowDataPacket } from "mysql2";
+
+export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const fechaDesde = searchParams.get("fechaDesde");
+    let fechaDesde = searchParams.get("fechaDesde");
     const fechaHasta = searchParams.get("fechaHasta");
     const minCuposPendientes = searchParams.get("minCuposPendientes");
     const vendedor = searchParams.get("vendedor");
 
-    // Construir filtros para tabla nueva
-    const filtrosNuevos: string[] = [];
-    const paramsNuevos: any[] = [];
-
-    if (fechaDesde) {
-      filtrosNuevos.push(`fecha >= ?`);
-      paramsNuevos.push(fechaDesde);
-    }
-    if (fechaHasta) {
-      filtrosNuevos.push(`fecha <= ?`);
-      paramsNuevos.push(fechaHasta);
-    }
-    if (minCuposPendientes) {
-      filtrosNuevos.push(`(cupos - cuposReservados) >= ?`);
-      paramsNuevos.push(parseInt(minCuposPendientes));
-    }
-    if (vendedor) {
-      filtrosNuevos.push(`vendedor LIKE ?`);
-      paramsNuevos.push(`%${vendedor}%`);
+    // Por defecto, traer desde ayer si no se especifica
+    if (!fechaDesde) {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      fechaDesde = `${yyyy}-${mm}-${dd}`;
     }
 
-    // Construir filtros para tabla vieja
     const filtrosViejos: string[] = [];
     const paramsViejos: any[] = [];
+
+    const filtrosNuevos: string[] = [];
+    const paramsNuevos: any[] = [];
 
     if (fechaDesde) {
       filtrosViejos.push(`e.ENT_Fecha >= ?`);
@@ -52,13 +45,47 @@ export async function GET(req: NextRequest) {
       paramsViejos.push(`%${vendedor}%`);
     }
 
-    const whereClauseNuevos = filtrosNuevos.length ? `WHERE ${filtrosNuevos.join(" AND ")}` : "";
+    // Filtros para la tabla nueva (viajes_nuevos)
+    if (fechaDesde) {
+      filtrosNuevos.push(`n.fecha >= ?`);
+      paramsNuevos.push(fechaDesde);
+    }
+    if (fechaHasta) {
+      filtrosNuevos.push(`n.fecha <= ?`);
+      paramsNuevos.push(fechaHasta);
+    }
+    if (minCuposPendientes) {
+      filtrosNuevos.push(`n.cuposPendientes >= ?`);
+      paramsNuevos.push(parseInt(minCuposPendientes));
+    }
+    if (vendedor) {
+      filtrosNuevos.push(`n.vendedor LIKE ?`);
+      paramsNuevos.push(`%${vendedor}%`);
+    }
+
     const whereClauseViejos = filtrosViejos.length ? `AND ${filtrosViejos.join(" AND ")}` : "";
+    const whereClauseNuevos = filtrosNuevos.length ? `WHERE ${filtrosNuevos.join(" AND ")}` : "";
 
-    const allParams = [...paramsNuevos, ...paramsViejos];
-
-    // Solo usar la tabla sige_ent_encnegtra que existe
     const query = `
+      SELECT 
+        n.id AS id,
+        n.numero AS numero,
+        n.fecha AS fecha,
+        n.razonSocial AS razonSocial,
+        n.origen AS origen,
+        n.destino AS destino,
+        n.articulo AS articulo,
+        n.equipo AS equipo,
+        n.cupos AS cupos,
+        n.cuposReservados AS cuposReservados,
+        n.cuposPendientes AS cuposPendientes,
+        n.tarifa AS tarifa,
+        n.vendedor AS vendedor,
+        n.proveedorId AS proveedorId,
+        n.proveedorNombre AS proveedorNombre
+      FROM viajes_nuevos n
+      ${whereClauseNuevos}
+      UNION ALL
       SELECT 
         NULL AS id,
         e.ENT_Numero AS numero,
@@ -82,10 +109,11 @@ export async function GET(req: NextRequest) {
       LEFT JOIN sige_ven_vendedor v ON e.VEN_IdVendPostula = v.VEN_IdVendedor
       WHERE e.TER_IdTercero > 0
       ${whereClauseViejos}
-      ORDER BY e.ENT_Fecha DESC
+      ORDER BY fecha DESC
     `;
 
-    const [rows] = await db.query<RowDataPacket[]>(query, paramsViejos);
+    const paramsAll = [...paramsNuevos, ...paramsViejos];
+    const [rows] = await db.query<RowDataPacket[]>(query, paramsAll);
     return NextResponse.json(rows);
   } catch (error) {
     console.error("Error al obtener viajes:", error);
@@ -95,3 +123,25 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+    // Asegurar que la tabla nueva exista para evitar errores en la UNION
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS viajes_nuevos (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        fecha DATETIME NOT NULL,
+        numero VARCHAR(32) NOT NULL,
+        razonSocial VARCHAR(255) NOT NULL,
+        origen VARCHAR(255),
+        destino VARCHAR(255),
+        articulo VARCHAR(255),
+        equipo VARCHAR(255),
+        cupos INT,
+        cuposReservados INT,
+        cuposPendientes INT,
+        tarifa DECIMAL(12,2),
+        vendedor VARCHAR(255),
+        proveedorId INT NULL,
+        proveedorNombre VARCHAR(255) NULL,
+        INDEX idx_fecha (fecha),
+        INDEX idx_numero (numero)
+      );
+    `);

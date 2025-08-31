@@ -8,8 +8,12 @@ interface Option {
 
 interface SearchableSelectProps {
   options: Option[];
-  value: string;
-  onChange: (value: string) => void;
+  // Legacy API (por nombre)
+  value?: string;
+  onChange?: (value: string) => void;
+  // Nueva API (por ID)
+  valueId?: string | number | null;
+  onChangeId?: (id: string | number, option: Option) => void;
   placeholder: string;
   name: string;
   required?: boolean;
@@ -20,6 +24,8 @@ export default function SearchableSelect({
   options,
   value,
   onChange,
+  valueId = null,
+  onChangeId,
   placeholder,
   name,
   required = false,
@@ -30,20 +36,24 @@ export default function SearchableSelect({
   const [displayValue, setDisplayValue] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Filtrar opciones basado en el término de búsqueda
   const filteredOptions = options.filter((option) =>
     option.nombre.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Encontrar la opción seleccionada y mostrar su nombre
+  // Mostrar nombre según valueId (nuevo) o value (legacy)
   useEffect(() => {
+    if (valueId !== null && valueId !== undefined) {
+      const selectedById = options.find((o) => String(o.id) === String(valueId));
+      setDisplayValue(selectedById ? selectedById.nombre : "");
+      return;
+    }
     if (value) {
-      const selectedOption = options.find((option) => option.nombre === value);
-      setDisplayValue(selectedOption ? selectedOption.nombre : value);
+      const selectedByName = options.find((o) => o.nombre === value);
+      setDisplayValue(selectedByName ? selectedByName.nombre : value);
     } else {
       setDisplayValue("");
     }
-  }, [value, options]);
+  }, [valueId, value, options]);
 
   // Cerrar dropdown cuando se hace click fuera
   useEffect(() => {
@@ -69,7 +79,11 @@ export default function SearchableSelect({
   };
 
   const handleOptionSelect = (option: Option) => {
-    onChange(option.nombre);
+    if (onChangeId) {
+      onChangeId(option.id, option);
+    } else if (onChange) {
+      onChange(option.nombre);
+    }
     setDisplayValue(option.nombre);
     setSearchTerm("");
     setIsOpen(false);
@@ -97,8 +111,7 @@ export default function SearchableSelect({
         disabled={loading}
         autoComplete="off"
       />
-      
-      {/* Icono de dropdown */}
+
       <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
         <svg
           className={`w-4 h-4 text-gray-400 transition-transform ${
@@ -108,16 +121,10 @@ export default function SearchableSelect({
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 9l-7 7-7-7"
-          />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </div>
 
-      {/* Dropdown */}
       {isOpen && !loading && (
         <div className="absolute z-50 w-full mt-1 bg-white dark:bg-neutral-800 border border-gray-300 dark:border-neutral-600 rounded-md shadow-lg max-h-60 overflow-auto">
           {filteredOptions.length > 0 ? (
@@ -131,12 +138,11 @@ export default function SearchableSelect({
               </div>
             ))
           ) : (
-            <div className="px-3 py-2 text-gray-500 dark:text-neutral-400">
-              No se encontraron resultados
-            </div>
+            <div className="px-3 py-2 text-gray-500 dark:text-neutral-400">No se encontraron resultados</div>
           )}
         </div>
       )}
     </div>
   );
 }
+

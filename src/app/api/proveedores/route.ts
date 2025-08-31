@@ -1,5 +1,7 @@
-import { db } from "../../../../src/lib/db";
+import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
+
+export const runtime = "nodejs";
 
 export async function GET() {
   try {

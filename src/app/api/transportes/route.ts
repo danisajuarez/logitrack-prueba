@@ -1,19 +1,20 @@
 import { NextResponse } from "next/server";
-import { db } from "../../../../src/lib/db"; // Asegurate de exportar `db` como conexión MySQL desde acá
+import { db } from "@/lib/db";
+
+export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const [rows] = await db.query(`
-      SELECT 
+    const [rows] = await db.query(
+      `SELECT 
         TRA_IDTransporte,
         TRA_NomTrans,
         TRA_DirTrans,
         TRA_TelTrans,
         TRA_CUITTrans
-      FROM sige_tra_transport
-    `);
+      FROM sige_tra_transport`
+    );
 
-    // Mapeamos para usar nombres claros en el frontend
     const data = (rows as any[]).map((row) => ({
       id: row.TRA_IDTransporte,
       nombre: row.TRA_NomTrans,
@@ -31,3 +32,4 @@ export async function GET() {
     );
   }
 }
+

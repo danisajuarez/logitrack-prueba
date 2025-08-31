@@ -25,7 +25,14 @@ interface Viaje {
 export default function ViajesPage() {
   const [viajes, setViajes] = useState<Viaje[]>([]);
   const [razonSearch, setRazonSearch] = useState("");
-  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaDesde, setFechaDesde] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  });
   const [fechaHasta, setFechaHasta] = useState("");
   const [minPendientes, setMinPendientes] = useState("");
   const [viajeSeleccionado, setViajeSeleccionado] = useState<Viaje | null>(
@@ -33,6 +40,14 @@ export default function ViajesPage() {
   );
 
   const [isModalOpen, setIsModalOpen] = useState(false); // <-- Estado del modal
+  const [fallbackUsado, setFallbackUsado] = useState(false); // ampliar rango si no hay resultados
+
+  const dateToYMD = (d: Date) => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -45,9 +60,16 @@ export default function ViajesPage() {
 
         const res = await fetch(`/api/viajes/GET?${params.toString()}`);
         const data = await res.json();
-        
         // Validar que data sea un array
         if (Array.isArray(data)) {
+          if (data.length === 0 && !fallbackUsado) {
+            // Ampliar automáticamente a últimos 30 días si no hay desde ayer
+            const d = new Date();
+            d.setDate(d.getDate() - 30);
+            setFechaDesde(dateToYMD(d));
+            setFallbackUsado(true);
+            return; // disparará un nuevo fetch
+          }
           setViajes(data);
         } else {
           console.error('La respuesta no es un array:', data);
@@ -85,6 +107,11 @@ export default function ViajesPage() {
             </svg>
             Nuevo Viaje
           </button>
+          {fallbackUsado && (
+            <div className="mt-2 text-xs text-amber-700 bg-amber-100 dark:text-amber-200 dark:bg-amber-900/40 px-2 py-1 rounded">
+              No había viajes desde ayer. Mostrando últimos 30 días.
+            </div>
+          )}
         </div>
 
         {/* Filtros */}
@@ -244,11 +271,31 @@ export default function ViajesPage() {
                         </button>
                         <button
                           onClick={async () => {
+                            const reservados = Number(v.cuposReservados || 0);
+                            const cupos = Number(v.cupos || 0);
+                            const pendientesCalc = cupos - reservados;
+                            const pendientes = Number(v.cuposPendientes ?? pendientesCalc);
+
+                            if (reservados > 0) {
+                              alert('No se puede eliminar: el viaje tiene reservas.');
+                              return;
+                            }
+
+                            if (pendientes !== pendientesCalc) {
+                              alert('No se puede eliminar: los pendientes no coinciden con el cálculo (cupos - reservados).');
+                              return;
+                            }
+
                             if (confirm("¿Eliminar este viaje?")) {
                               const identifier = v.id || v.numero;
-                              await fetch(`/api/viajes/${identifier}`, {
+                              const res = await fetch(`/api/viajes/${identifier}`, {
                                 method: "DELETE",
                               });
+                              if (!res.ok) {
+                                const msg = await res.json().catch(() => ({} as any));
+                                alert(msg?.error || 'No se pudo eliminar el viaje');
+                                return;
+                              }
                               window.location.reload();
                             }
                           }}

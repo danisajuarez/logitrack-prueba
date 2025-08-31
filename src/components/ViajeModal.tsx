@@ -86,7 +86,7 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
     origen: "",
     destino: "",
     articulo: "",
-    equipo: "",
+    equipo: "0",
     cupos: "",
     reservados: "",
     pendientes: "",
@@ -118,7 +118,7 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
         origen: viaje.origen || "",
         destino: viaje.destino || "",
         articulo: viaje.articulo || "",
-        equipo: viaje.equipo || "",
+        equipo: "0",
         cupos: viaje.cupos?.toString() || "",
         reservados: viaje.cuposReservados?.toString() || "",
         pendientes: viaje.cuposPendientes?.toString() || "",
@@ -133,7 +133,7 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
         origen: "",
         destino: "",
         articulo: "",
-        equipo: "",
+        equipo: "0",
         cupos: "",
         reservados: "",
         pendientes: "",
@@ -307,7 +307,7 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
             </div>
           )}
 
-          {!viaje && (
+          {false && (
             <div className="col-span-full bg-neutral-700 p-3 rounded-lg text-center">
               <span className="text-sm text-neutral-300">El número de viaje se generará automáticamente</span>
             </div>
@@ -353,14 +353,7 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
             loading={loadingProductos}
           />
 
-          <input
-            type="text"
-            name="equipo"
-            value={form.equipo}
-            onChange={handleChange}
-            placeholder="Equipo"
-            className="input w-full"
-          />
+          {/* Equipo oculto en UI; el servidor lo fija en '0' */}
 
           <input
             type="number"
@@ -380,14 +373,7 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
             className="input w-full"
           />
 
-          <input
-            type="number"
-            name="pendientes"
-            value={form.pendientes}
-            onChange={handleChange}
-            placeholder="Pendientes"
-            className="input w-full"
-          />
+          {/* Pendientes se calcula (cupos - reservados); no editable */}
 
           <input
             type="number"
