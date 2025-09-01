@@ -6,28 +6,6 @@ export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   try {
-    // Asegurar que la tabla nueva exista (idempotente)
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS viajes_nuevos (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        fecha DATETIME NOT NULL,
-        numero VARCHAR(32) NOT NULL,
-        razonSocial VARCHAR(255) NOT NULL,
-        origen VARCHAR(255),
-        destino VARCHAR(255),
-        articulo VARCHAR(255),
-        equipo VARCHAR(255),
-        cupos INT,
-        cuposReservados INT,
-        cuposPendientes INT,
-        tarifa DECIMAL(12,2),
-        vendedor VARCHAR(255),
-        proveedorId INT NULL,
-        proveedorNombre VARCHAR(255) NULL,
-        INDEX idx_fecha (fecha),
-        INDEX idx_numero (numero)
-      );
-    `);
     const { searchParams } = new URL(req.url);
     let fechaDesde = searchParams.get("fechaDesde");
     const fechaHasta = searchParams.get("fechaHasta");
@@ -133,10 +111,46 @@ export async function GET(req: NextRequest) {
       ${whereClauseViejos}
       ORDER BY fecha DESC
     `;
-
     const paramsAll = [...paramsNuevos, ...paramsViejos];
-    const [rows] = (await db.query(query, paramsAll)) as unknown as [RowDataPacket[]];
-    return NextResponse.json(rows);
+
+    try {
+      const [rows] = (await db.query(query, paramsAll)) as unknown as [RowDataPacket[]];
+      return NextResponse.json(rows);
+    } catch (err: any) {
+      // Si la tabla viajes_nuevos no existe o no hay permisos, caer a la tabla vieja solamente
+      if (err?.code === "ER_NO_SUCH_TABLE" || err?.code === "ER_TABLEACCESS_DENIED_ERROR" || err?.code === "ER_DBACCESS_DENIED_ERROR") {
+        const onlyOldQuery = `
+          SELECT 
+            NULL AS id,
+            e.ENT_Numero AS numero,
+            e.ENT_Fecha AS fecha,
+            e.TER_RazonSocialTer AS razonSocial,
+            e.LOC_NomLocalidadOrig AS origen,
+            e.LOC_NomLocalidadDest AS destino,
+            d.ART_DesArticulo AS articulo,
+            eq.EQU_DesEquipo AS equipo,
+            e.ENT_CantCupos AS cupos,
+            e.ENT_CantCuposReser AS cuposReservados,
+            (e.ENT_CantCupos - e.ENT_CantCuposReser) AS cuposPendientes,
+            e.ENT_Tarifa AS tarifa,
+            v.VEN_NomVen AS vendedor,
+            NULL AS proveedorId,
+            NULL AS proveedorNombre
+          FROM sige_ent_encnegtra e
+          INNER JOIN sige_dnt_detnegtra d ON e.ENT_IdEnt = d.ENT_IdEnt
+          INNER JOIN sige_usu_usuario u ON e.USU_IdUsuario = u.USU_IdUsuario
+          INNER JOIN sige_equ_equipos eq ON e.EQU_IDEquipo = eq.EQU_IDEquipo
+          LEFT JOIN sige_ven_vendedor v ON e.VEN_IdVendPostula = v.VEN_IdVendedor
+          WHERE e.TER_IdTercero > 0
+          ${whereClauseViejos}
+          ORDER BY fecha DESC
+        `;
+        const [rows] = (await db.query(onlyOldQuery, paramsViejos)) as unknown as [RowDataPacket[]];
+        return NextResponse.json(rows);
+      }
+      console.error("Error en consulta de viajes:", err);
+      throw err;
+    }
   } catch (error) {
     console.error("Error al obtener viajes:", error);
     return NextResponse.json(
