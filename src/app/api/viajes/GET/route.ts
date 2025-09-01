@@ -6,6 +6,28 @@ export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   try {
+    // Asegurar que la tabla nueva exista (idempotente)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS viajes_nuevos (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        fecha DATETIME NOT NULL,
+        numero VARCHAR(32) NOT NULL,
+        razonSocial VARCHAR(255) NOT NULL,
+        origen VARCHAR(255),
+        destino VARCHAR(255),
+        articulo VARCHAR(255),
+        equipo VARCHAR(255),
+        cupos INT,
+        cuposReservados INT,
+        cuposPendientes INT,
+        tarifa DECIMAL(12,2),
+        vendedor VARCHAR(255),
+        proveedorId INT NULL,
+        proveedorNombre VARCHAR(255) NULL,
+        INDEX idx_fecha (fecha),
+        INDEX idx_numero (numero)
+      );
+    `);
     const { searchParams } = new URL(req.url);
     let fechaDesde = searchParams.get("fechaDesde");
     const fechaHasta = searchParams.get("fechaHasta");
@@ -113,7 +135,7 @@ export async function GET(req: NextRequest) {
     `;
 
     const paramsAll = [...paramsNuevos, ...paramsViejos];
-    const [rows] = await db.query<RowDataPacket[]>(query, paramsAll);
+    const [rows] = (await db.query(query, paramsAll)) as unknown as [RowDataPacket[]];
     return NextResponse.json(rows);
   } catch (error) {
     console.error("Error al obtener viajes:", error);
@@ -123,25 +145,4 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-    // Asegurar que la tabla nueva exista para evitar errores en la UNION
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS viajes_nuevos (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        fecha DATETIME NOT NULL,
-        numero VARCHAR(32) NOT NULL,
-        razonSocial VARCHAR(255) NOT NULL,
-        origen VARCHAR(255),
-        destino VARCHAR(255),
-        articulo VARCHAR(255),
-        equipo VARCHAR(255),
-        cupos INT,
-        cuposReservados INT,
-        cuposPendientes INT,
-        tarifa DECIMAL(12,2),
-        vendedor VARCHAR(255),
-        proveedorId INT NULL,
-        proveedorNombre VARCHAR(255) NULL,
-        INDEX idx_fecha (fecha),
-        INDEX idx_numero (numero)
-      );
-    `);
+    

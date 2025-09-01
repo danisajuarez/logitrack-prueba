@@ -1,6 +1,7 @@
 // lib/db.ts
 import mysql from "mysql2/promise";
 
+// Lazy DB pool to prevent build-time crashes when envs are missing
 function readEnv(name: string, fallback?: string) {
   const raw = process.env[name];
   if (raw == null || raw === "") return fallback;
@@ -8,28 +9,49 @@ function readEnv(name: string, fallback?: string) {
   return raw.trim().replace(/^"|"$/g, "").replace(/^'|'$/g, "");
 }
 
-const host = readEnv("DB_HOST");
-const user = readEnv("DB_USER");
-const password = readEnv("DB_PASSWORD", readEnv("DB_PASS", ""));
-const portStr = readEnv("DB_PORT");
-const database = readEnv("DB_NAME", readEnv("DB_DATABASE", "lt"));
+let pool: mysql.Pool | null = null;
 
-const port = portStr ? parseInt(portStr, 10) : 3307; // default preserved from previous config
+async function getPool(): Promise<mysql.Pool> {
+  if (pool) return pool;
 
-if (!host || !user || !database) {
-  throw new Error(
-    "Missing DB env vars. Please set DB_HOST, DB_USER, DB_NAME (and optional DB_PASSWORD/DB_PASS, DB_PORT)."
-  );
+  const host = readEnv("DB_HOST");
+  const user = readEnv("DB_USER");
+  const password = readEnv("DB_PASSWORD", readEnv("DB_PASS", ""));
+  const portStr = readEnv("DB_PORT");
+  const database = readEnv("DB_NAME", readEnv("DB_DATABASE", "lt"));
+  const port = portStr ? parseInt(portStr, 10) : 3307; // default preserved from previous config
+
+  if (!host || !user || !database) {
+    throw new Error(
+      "Missing DB env vars. Please set DB_HOST, DB_USER, DB_NAME (and optional DB_PASSWORD/DB_PASS, DB_PORT)."
+    );
+  }
+
+  pool = mysql.createPool({
+    host,
+    user,
+    password,
+    port,
+    database,
+    connectTimeout: 120000,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+  });
+
+  return pool;
 }
 
-export const db = mysql.createPool({
-  host,
-  user,
-  password,
-  port,
-  database,
-  connectTimeout: 120000,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-});
+export const db = {
+  // Use loose typings to support mysql2 overloads (1 or 2 args)
+  query: async (...args: any[]) => {
+    const pool = await getPool();
+    return (pool.query as any)(...args);
+  },
+  execute: async (...args: any[]) => {
+    const pool = await getPool();
+    return (pool.execute as any)(...args);
+  },
+};
+
+export { getPool };
