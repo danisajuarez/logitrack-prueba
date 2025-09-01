@@ -5,10 +5,10 @@ export const runtime = "nodejs";
 
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await ctx.params;
     const identifier = id;
 
     if (!isNaN(Number(identifier))) {
@@ -47,10 +47,10 @@ export async function DELETE(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await ctx.params;
     const identifier = id;
     const body = await request.json();
 
