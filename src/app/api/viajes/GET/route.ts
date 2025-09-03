@@ -153,10 +153,11 @@ export async function GET(req: NextRequest) {
     }
   } catch (error) {
     console.error("Error al obtener viajes:", error);
-    return NextResponse.json(
-      { error: "Error al obtener los viajes" },
-      { status: 500 }
-    );
+    const expose = process.env.EXPOSE_ERRORS === "1";
+    const body = expose
+      ? { error: "Error al obtener los viajes", code: (error as any)?.code, message: (error as any)?.message }
+      : { error: "Error al obtener los viajes" };
+    return NextResponse.json(body, { status: 500 });
   }
 }
     
