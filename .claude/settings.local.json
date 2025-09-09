@@ -6,7 +6,9 @@
       "Bash(mysql:*)",
       "Bash(node:*)",
       "Bash(yarn dev)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(npm run lint)",
+      "Bash(curl:*)"
     ],
     "deny": []
   }

@@ -27,7 +27,6 @@ export default function ViajesPage() {
   const [razonSearch, setRazonSearch] = useState("");
   const [fechaDesde, setFechaDesde] = useState(() => {
     const d = new Date();
-    d.setDate(d.getDate() - 1);
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
@@ -40,7 +39,7 @@ export default function ViajesPage() {
   );
 
   const [isModalOpen, setIsModalOpen] = useState(false); // <-- Estado del modal
-  const [fallbackUsado, setFallbackUsado] = useState(false); // ampliar rango si no hay resultados
+  const [noHayViajes, setNoHayViajes] = useState(false); // mostrar mensaje si no hay viajes
 
   const dateToYMD = (d: Date) => {
     const yyyy = d.getFullYear();
@@ -57,20 +56,14 @@ export default function ViajesPage() {
         if (fechaDesde) params.append("fechaDesde", fechaDesde);
         if (fechaHasta) params.append("fechaHasta", fechaHasta);
         if (minPendientes) params.append("minCuposPendientes", minPendientes);
+        if (razonSearch) params.append("razonSocial", razonSearch);
 
         const res = await fetch(`/api/viajes/GET?${params.toString()}`);
         const data = await res.json();
         // Validar que data sea un array
         if (Array.isArray(data)) {
-          if (data.length === 0 && !fallbackUsado) {
-            // Ampliar automáticamente a últimos 30 días si no hay desde ayer
-            const d = new Date();
-            d.setDate(d.getDate() - 30);
-            setFechaDesde(dateToYMD(d));
-            setFallbackUsado(true);
-            return; // disparará un nuevo fetch
-          }
           setViajes(data);
+          setNoHayViajes(data.length === 0);
         } else {
           console.error('La respuesta no es un array:', data);
           setViajes([]);
@@ -82,11 +75,9 @@ export default function ViajesPage() {
     };
 
     fetchData();
-  }, [fechaDesde, fechaHasta, minPendientes]);
+  }, [fechaDesde, fechaHasta, minPendientes, razonSearch]);
 
-  const filtrados = Array.isArray(viajes) ? viajes.filter((v) =>
-    v.razonSocial?.toLowerCase().includes(razonSearch.toLowerCase())
-  ) : [];
+  const filtrados = Array.isArray(viajes) ? viajes : [];
 
   return (
     <main className="min-h-screen p-6 bg-gray-50 dark:bg-neutral-900">
@@ -107,9 +98,9 @@ export default function ViajesPage() {
             </svg>
             Nuevo Viaje
           </button>
-          {fallbackUsado && (
+          {noHayViajes && filtrados.length === 0 && (
             <div className="mt-2 text-xs text-amber-700 bg-amber-100 dark:text-amber-200 dark:bg-amber-900/40 px-2 py-1 rounded">
-              No había viajes desde ayer. Mostrando últimos 30 días.
+              No hay viajes para la fecha seleccionada.
             </div>
           )}
         </div>
@@ -126,6 +117,7 @@ export default function ViajesPage() {
                 setFechaDesde("");
                 setFechaHasta("");
                 setMinPendientes("");
+                setNoHayViajes(false);
               }}
               className="inline-flex items-center px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-md transition-colors duration-200"
             >
@@ -220,13 +212,9 @@ export default function ViajesPage() {
                 <th className="p-2">Origen</th>
                 <th className="p-2">Destino</th>
                 <th className="p-2">Artículo</th>
-                <th className="p-2">Equipo</th>
-                <th className="p-2">Cupos</th>
-                <th className="p-2">Reservados</th>
                 <th className="p-2">Pendientes</th>
-                <th className="p-2">Tarifa</th>
                 <th className="p-2">Proveedor</th>
-                <th className="p-2">Vendedor</th>
+                <th className="p-2">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -235,78 +223,68 @@ export default function ViajesPage() {
                   key={v.id ? `id-${v.id}` : `numero-${v.numero}-${index}`} // Garantiza unicidad
                   className="border-t border-gray-200 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-800 transition"
                 >
-                  <td className="p-2">{v.fecha?.slice(0, 10)}</td>
+                  <td className="p-2">{v.fecha ? new Date(v.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}</td>
                   <td className="p-2">{v.numero}</td>
                   <td className="p-2">{v.razonSocial}</td>
                   <td className="p-2">{v.origen}</td>
                   <td className="p-2">{v.destino}</td>
                   <td className="p-2">{v.articulo}</td>
-                  <td className="p-2">{v.equipo}</td>
-                  <td className="p-2">{v.cupos}</td>
-                  <td className="p-2">{v.cuposReservados}</td>
                   <td className="p-2">{v.cuposPendientes}</td>
-                  <td className="p-2">
-                    {v.tarifa != null ? `$${v.tarifa.toLocaleString()}` : "-"}
-                  </td>
                   <td className="p-2">
                     <span className="text-sm">{v.proveedorNombre ?? "-"}</span>
                   </td>
                   <td className="p-2">
-                    <div className="flex flex-col gap-2">
-                      <span className="text-sm">{v.vendedor ?? "-"}</span>
-                      
-                      {/* Botones de acción para todos los viajes */}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            setViajeSeleccionado(v);
-                            setIsModalOpen(true);
-                          }}
-                          className="inline-flex items-center px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
-                        >
-                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                          Editar
-                        </button>
-                        <button
-                          onClick={async () => {
-                            const reservados = Number(v.cuposReservados || 0);
-                            const cupos = Number(v.cupos || 0);
-                            const pendientesCalc = cupos - reservados;
-                            const pendientes = Number(v.cuposPendientes ?? pendientesCalc);
+                    {/* Botones de acción para todos los viajes */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setViajeSeleccionado(v);
+                          setIsModalOpen(true);
+                        }}
+                        className="inline-flex items-center px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                      >
+                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Editar
+                      </button>
+                      <button
+                        onClick={async () => {
+                          const reservados = Number(v.cuposReservados || 0);
+                          const cupos = Number(v.cupos || 0);
+                          const pendientesCalc = cupos - reservados;
+                          const pendientes = Number(v.cuposPendientes ?? pendientesCalc);
 
-                            if (reservados > 0) {
-                              alert('No se puede eliminar: el viaje tiene reservas.');
+                          if (reservados > 0) {
+                            alert('No se puede eliminar: el viaje tiene reservas.');
+                            return;
+                          }
+
+                          if (pendientes !== pendientesCalc) {
+                            alert('No se puede eliminar: los pendientes no coinciden con el cálculo (cupos - reservados).');
+                            return;
+                          }
+
+                          if (confirm("¿Eliminar este viaje?")) {
+                            const identifier = v.id || v.numero;
+                            const res = await fetch(`/api/viajes/${identifier}`, {
+                              method: "DELETE",
+                            });
+                            if (!res.ok) {
+                              const msg = await res.json().catch(() => ({} as any));
+                              alert(msg?.error || 'No se pudo eliminar el viaje');
                               return;
                             }
-
-                            if (pendientes !== pendientesCalc) {
-                              alert('No se puede eliminar: los pendientes no coinciden con el cálculo (cupos - reservados).');
-                              return;
-                            }
-
-                            if (confirm("¿Eliminar este viaje?")) {
-                              const identifier = v.id || v.numero;
-                              const res = await fetch(`/api/viajes/${identifier}`, {
-                                method: "DELETE",
-                              });
-                              if (!res.ok) {
-                                const msg = await res.json().catch(() => ({} as any));
-                                alert(msg?.error || 'No se pudo eliminar el viaje');
-                                return;
-                              }
-                              window.location.reload();
-                            }
-                          }}
-                          className="inline-flex items-center px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
-                        >
-                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                          Eliminar
-                        </button>
-                      </div>
+                            window.location.reload();
+                          }
+                        }}
+                        className="inline-flex items-center px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+                      >
+                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Eliminar
+                      </button>
                     </div>
                   </td>
                 </tr>

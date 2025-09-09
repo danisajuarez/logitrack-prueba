@@ -149,11 +149,11 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
     if (isOpen) {
       fetchTerceros();
       fetchProductos();
-      fetchProveedores();
+      fetchProveedores2();
       fetchVendedores();
       fetchLocalidades();
     }
-  }, [isOpen]);
+  }, [isOpen, viaje]);
 
   const fetchTerceros = async () => {
     setLoadingTerceros(true);
@@ -200,19 +200,59 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
   const fetchProveedores = async () => {
     setLoadingProveedores(true);
     try {
+      console.log('🔄 Obteniendo proveedores...');
       const res = await fetch('/api/proveedores');
+      
       if (res.ok) {
-        const data = await res.json();
-        setProveedores(data);
-        // Formatear para SearchableSelect
-        const options = data.map((proveedor: Proveedor) => ({
-          id: proveedor.id,
-          nombre: proveedor.razonSocial
-        }));
-        setProveedoresOptions(options);
+        const textResponse = await res.text();
+        console.log('📄 Respuesta raw:', textResponse);
+        
+        // Verificar que la respuesta no esté vacía antes de parsear
+        if (textResponse.trim()) {
+          const data = JSON.parse(textResponse);
+          console.log('✅ Proveedores parseados:', data);
+          
+          setProveedores(Array.isArray(data) ? data : []);
+          // Formatear para SearchableSelect
+          const options = Array.isArray(data) ? data.map((proveedor: any) => ({
+            id: proveedor.id,
+            nombre: proveedor.razonSocial
+          })) : [];
+          setProveedoresOptions(options);
+        } else {
+          console.warn('⚠️ Respuesta vacía del servidor');
+          setProveedores([]);
+          setProveedoresOptions([]);
+        }
+      } else {
+        console.error('❌ Error HTTP:', res.status, res.statusText);
+        setProveedores([]);
+        setProveedoresOptions([]);
       }
     } catch (error) {
+      console.error('💥 Error al obtener proveedores:', error);
+      setProveedores([]);
+      setProveedoresOptions([]);
+    } finally {
+      setLoadingProveedores(false);
+    }
+  };
+
+  // Nueva versión confiable usando JSON directo
+  const fetchProveedores2 = async () => {
+    setLoadingProveedores(true);
+    try {
+      const res = await fetch('/api/proveedores');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const arr = Array.isArray(data) ? data : [];
+      setProveedores(arr);
+      const options = arr.map((p: any) => ({ id: p.id, nombre: p.razonSocial }));
+      setProveedoresOptions(options);
+    } catch (error) {
       console.error('Error al obtener proveedores:', error);
+      setProveedores([]);
+      setProveedoresOptions([]);
     } finally {
       setLoadingProveedores(false);
     }
@@ -247,6 +287,7 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
       setLoadingLocalidades(false);
     }
   };
+
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -300,14 +341,14 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
           {viaje && (
             <div className="col-span-full bg-neutral-800 p-3 rounded-lg">
               <span className="text-sm text-neutral-400">Fecha de creación: </span>
-              <span className="text-white">{new Date(viaje.fecha).toLocaleString('es-ES')}</span>
+              <span className="text-white">{new Date(viaje.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
               <br />
               <span className="text-sm text-neutral-400">Número: </span>
               <span className="text-white">{viaje.numero}</span>
             </div>
           )}
 
-          {false && (
+          {!viaje && (
             <div className="col-span-full bg-neutral-700 p-3 rounded-lg text-center">
               <span className="text-sm text-neutral-300">El número de viaje se generará automáticamente</span>
             </div>
@@ -395,16 +436,16 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
 
           <SearchableSelect
             options={proveedoresOptions}
-            value={form.proveedor}
-            onChange={(value) => {
-              // Encontrar el proveedor seleccionado para obtener su ID
-              const proveedorSeleccionado = proveedores.find(p => p.razonSocial === value);
-              handleSearchableSelectChange('proveedorId', proveedorSeleccionado?.id.toString() || '');
-              handleSearchableSelectChange('proveedor', value);
+            valueId={form.proveedorId || null}
+            onChangeId={(id, option) => {
+              setForm({
+                ...form,
+                proveedorId: String(id ?? ''),
+                proveedor: option?.nombre || '',
+              });
             }}
             placeholder="Seleccionar Proveedor"
             name="proveedor"
-            required
             loading={loadingProveedores}
           />
 
