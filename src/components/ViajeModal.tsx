@@ -327,6 +327,9 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
           )}
 
           <div className="col-span-full">
+            <label className="block text-sm font-medium text-neutral-300 mb-2">
+              Cliente *
+            </label>
             <SearchableSelect
               options={tercerosOptions}
               value={form.razonSocial}
@@ -338,57 +341,85 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
             />
           </div>
 
-          <SearchableSelect
-            options={localidades}
-            value={form.origen}
-            onChange={(value) => handleSearchableSelectChange('origen', value)}
-            placeholder="Seleccionar Origen"
-            name="origen"
-            required
-            loading={loadingLocalidades}
-          />
+          <div>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">
+              Origen *
+            </label>
+            <SearchableSelect
+              options={localidades}
+              value={form.origen}
+              onChange={(value) => handleSearchableSelectChange('origen', value)}
+              placeholder="Seleccionar Origen"
+              name="origen"
+              required
+              loading={loadingLocalidades}
+            />
+          </div>
 
-          <SearchableSelect
-            options={localidades}
-            value={form.destino}
-            onChange={(value) => handleSearchableSelectChange('destino', value)}
-            placeholder="Seleccionar Destino"
-            name="destino"
-            required
-            loading={loadingLocalidades}
-          />
+          <div>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">
+              Destino *
+            </label>
+            <SearchableSelect
+              options={localidades}
+              value={form.destino}
+              onChange={(value) => handleSearchableSelectChange('destino', value)}
+              placeholder="Seleccionar Destino"
+              name="destino"
+              required
+              loading={loadingLocalidades}
+            />
+          </div>
 
-          <SearchableSelect
-            options={productosOptions}
-            value={form.articulo}
-            onChange={(value) => handleSearchableSelectChange('articulo', value)}
-            placeholder="Seleccionar Producto"
-            name="articulo"
-            required
-            loading={loadingProductos}
-          />
+          <div>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">
+              Producto *
+            </label>
+            <SearchableSelect
+              options={productosOptions}
+              value={form.articulo}
+              onChange={(value) => handleSearchableSelectChange('articulo', value)}
+              placeholder="Seleccionar Producto"
+              name="articulo"
+              required
+              loading={loadingProductos}
+            />
+          </div>
 
           {/* Equipo oculto en UI; el servidor lo fija en '0' */}
 
-          <input
-            type="number"
-            name="cupos"
-            value={form.cupos}
-            onChange={handleChange}
-            placeholder="Cupos"
-            className="input w-full"
-          />
+          <div>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">
+              Cupos
+            </label>
+            <input
+              type="number"
+              name="cupos"
+              value={form.cupos}
+              onChange={handleChange}
+              placeholder="Cupos"
+              className="input w-full"
+            />
+          </div>
 
-          <input
-            type="number"
-            name="reservados"
-            value={form.reservados}
-            onChange={handleChange}
-            placeholder="Reservados"
-            className="input w-full"
-          />
+          <div>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">
+              Reservados
+            </label>
+            <input
+              type="number"
+              name="reservados"
+              value={form.reservados}
+              onChange={handleChange}
+              placeholder="Reservados"
+              className="input w-full"
+            />
+          </div>
 
-          <div className="flex items-center">
+          <div>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">
+              Pendientes (calculado automáticamente)
+            </label>
             <input
               type="number"
               name="pendientes"
@@ -399,28 +430,38 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
             />
           </div>
 
-          <input
-            type="number"
-            name="tarifa"
-            value={form.tarifa}
-            onChange={handleChange}
-            placeholder="Tarifa"
-            className="input w-full"
-          />
+          <div>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">
+              Tarifa
+            </label>
+            <input
+              type="number"
+              name="tarifa"
+              value={form.tarifa}
+              onChange={handleChange}
+              placeholder="Tarifa"
+              className="input w-full"
+            />
+          </div>
 
-          <SearchableSelect
-            options={vendedores}
-            valueId={form.vendedor ? parseInt(form.vendedor) : null}
-            onChangeId={(id, option) => {
-              setForm({
-                ...form,
-                vendedor: String(id ?? ''),
-              });
-            }}
-            placeholder="Seleccionar Vendedor"
-            name="vendedor"
-            loading={loadingVendedores}
-          />
+          <div>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">
+              Vendedor (opcional)
+            </label>
+            <SearchableSelect
+              options={vendedores}
+              valueId={form.vendedor ? parseInt(form.vendedor) : null}
+              onChangeId={(id, option) => {
+                setForm({
+                  ...form,
+                  vendedor: String(id ?? ''),
+                });
+              }}
+              placeholder="Seleccionar Vendedor"
+              name="vendedor"
+              loading={loadingVendedores}
+            />
+          </div>
 
 
           {/* Botones */}
