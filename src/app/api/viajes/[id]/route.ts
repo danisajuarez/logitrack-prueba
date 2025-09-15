@@ -120,22 +120,36 @@ export async function PUT(
     // 2) Actualizar en tabla vieja por ENT_IdEnt si es numérico; caso contrario por ENT_Numero
     const whereColumn = isNumeric ? "ENT_IdEnt" : "ENT_Numero";
     const whereValue: any = isNumeric ? idNum : identifier;
+
+    // Intentar actualizar todos los campos disponibles
     const [updOld] = await db.execute(
       `UPDATE sige_ent_encnegtra SET
-        ENT_CantCupos = ?, ENT_CantCuposReser = ?,
-        ENT_CantCuposPend = ?, ENT_Tarifa = ?
+        TER_RazonSocialTer = ?,
+        LOC_NomLocalidadOrig = ?,
+        LOC_NomLocalidadDest = ?,
+        TVP_Caracteristicas = ?,
+        ENT_CantCupos = ?,
+        ENT_CantCuposReser = ?,
+        ENT_CantCuposPend = ?,
+        ENT_Tarifa = ?,
+        VEN_IdVendPostula = ?
       WHERE ${whereColumn} = ?`,
       [
+        razonSocial,
+        origen,
+        destino,
+        articulo,
         cupos,
         reservados,
         pendientes != null ? pendientes : pendientesCalc,
         tarifa,
+        vendedor ? parseInt(vendedor) : null,
         whereValue,
       ]
     );
 
     if ((updOld as any).affectedRows > 0) {
-      return NextResponse.json({ message: "Viaje actualizado correctamente (campos limitados)" });
+      return NextResponse.json({ message: "Viaje actualizado correctamente" });
     }
 
     return NextResponse.json(

@@ -215,7 +215,16 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const newForm = { ...form, [e.target.name]: e.target.value };
+
+    // Auto-calcular pendientes cuando cambian cupos o reservados
+    if (e.target.name === 'cupos' || e.target.name === 'reservados') {
+      const cupos = Number(e.target.name === 'cupos' ? e.target.value : newForm.cupos) || 0;
+      const reservados = Number(e.target.name === 'reservados' ? e.target.value : newForm.reservados) || 0;
+      newForm.pendientes = String(Math.max(0, cupos - reservados));
+    }
+
+    setForm(newForm);
   };
 
   const handleSearchableSelectChange = (name: string, value: string) => {
@@ -379,7 +388,16 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
             className="input w-full"
           />
 
-          {/* Pendientes se calcula (cupos - reservados); no editable */}
+          <div className="flex items-center">
+            <input
+              type="number"
+              name="pendientes"
+              value={form.pendientes}
+              readOnly
+              placeholder="Pendientes (calculado)"
+              className="input w-full bg-gray-100 dark:bg-neutral-700 text-gray-600 dark:text-neutral-400 cursor-not-allowed"
+            />
+          </div>
 
           <input
             type="number"
