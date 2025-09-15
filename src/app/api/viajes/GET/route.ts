@@ -48,8 +48,60 @@ export async function GET(req: NextRequest) {
 
     const whereClauseViejos = filtrosViejos.length ? `AND ${filtrosViejos.join(" AND ")}` : "";
 
+    // Consultar primero la tabla nueva si existe
+    let rowsNuevos: RowDataPacket[] = [];
+    try {
+      const filtrosNuevos: string[] = [];
+      const paramsNuevos: any[] = [];
+
+      if (fechaDesde) {
+        filtrosNuevos.push(`DATE(fecha) >= ?`);
+        paramsNuevos.push(fechaDesde);
+      }
+      if (fechaHasta) {
+        filtrosNuevos.push(`DATE(fecha) <= ?`);
+        paramsNuevos.push(fechaHasta);
+      }
+      if (minCuposPendientes) {
+        filtrosNuevos.push(`cuposPendientes >= ?`);
+        paramsNuevos.push(parseInt(minCuposPendientes));
+      }
+      if (razonSocial) {
+        filtrosNuevos.push(`razonSocial LIKE ?`);
+        paramsNuevos.push(`%${razonSocial}%`);
+      }
+
+      const whereClauseNuevos = filtrosNuevos.length ? `WHERE ${filtrosNuevos.join(" AND ")}` : "";
+
+      const queryNuevos = `
+        SELECT
+          id,
+          numero,
+          fecha,
+          razonSocial,
+          origen,
+          destino,
+          articulo,
+          equipo,
+          cupos,
+          cuposReservados,
+          cuposPendientes,
+          tarifa,
+          vendedor
+        FROM viajes_nuevos
+        ${whereClauseNuevos}
+        ORDER BY fecha DESC, numero DESC
+      `;
+      const [rows] = (await db.query(queryNuevos, paramsNuevos)) as unknown as [RowDataPacket[]];
+      rowsNuevos = rows || [];
+    } catch (error) {
+      // Si la tabla no existe, continuar con la tabla vieja
+      console.log('Tabla viajes_nuevos no disponible, usando tabla legacy');
+    }
+
+    // Consultar tabla vieja
     const query = `
-      SELECT 
+      SELECT
         e.ENT_IdEnt AS id,
         e.ENT_Numero AS numero,
         e.ENT_Fecha AS fecha,
@@ -62,9 +114,7 @@ export async function GET(req: NextRequest) {
         e.ENT_CantCuposReser AS cuposReservados,
         e.ENT_CantCuposPend AS cuposPendientes,
         e.ENT_Tarifa AS tarifa,
-        COALESCE(v.VEN_NomVen, CAST(e.VEN_IdVendedor AS CHAR)) AS vendedor,
-        e.TER_IdTercero AS proveedorId,
-        e.TER_RazonSocialTer AS proveedorNombre
+        e.VEN_IdVendPostula AS vendedor
       FROM sige_ent_encnegtra e
       LEFT JOIN sige_dnt_detnegtra d ON e.ENT_IdEnt = d.ENT_IdEnt
       LEFT JOIN sige_equ_equipos eq ON e.EQU_IDEquipo = eq.EQU_IDEquipo
@@ -73,7 +123,16 @@ export async function GET(req: NextRequest) {
       ${whereClauseViejos.replace('AND', 'AND')}
       ORDER BY e.ENT_Fecha DESC, e.ENT_Numero DESC
     `;
-    const [rows] = (await db.query(query, paramsViejos)) as unknown as [RowDataPacket[]];
+    const [rowsViejos] = (await db.query(query, paramsViejos)) as unknown as [RowDataPacket[]];
+
+    // Combinar ambas tablas y ordenar por fecha
+    const allRows = [...rowsNuevos, ...(rowsViejos || [])];
+    const rows = allRows.sort((a, b) => {
+      const dateA = new Date(a.fecha).getTime();
+      const dateB = new Date(b.fecha).getTime();
+      if (dateB - dateA !== 0) return dateB - dateA; // Fecha DESC
+      return b.numero.localeCompare(a.numero); // Numero DESC
+    });
     return NextResponse.json(rows);
   } catch (error) {
     console.error("Error al obtener viajes:", error);

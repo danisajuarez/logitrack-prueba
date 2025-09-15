@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -10,45 +10,32 @@ export async function DELETE(
   try {
     const { id } = await ctx.params;
     const identifier = id;
-    const idNum = Number(identifier);
-    const isNumeric = !Number.isNaN(idNum);
 
-    // 1) Intentar borrar en tabla nueva por id
-    if (isNumeric) {
-      const [delNew] = await db.execute(
+    if (!isNaN(Number(identifier))) {
+      // Solo permitir eliminar si no tiene reservados
+      const [result] = await db.execute(
         "DELETE FROM viajes_nuevos WHERE id = ? AND COALESCE(cuposReservados,0) = 0",
-        [idNum]
+        [identifier]
       );
-      if ((delNew as any).affectedRows > 0) {
+      if ((result as any).affectedRows > 0) {
         return NextResponse.json({ message: "Viaje eliminado correctamente" });
       }
     }
 
-    // 2) Intentar borrar en tabla vieja por ENT_IdEnt si es numérico
-    if (isNumeric) {
-      const [delOldById] = await db.execute(
-        "DELETE FROM sige_ent_encnegtra WHERE ENT_IdEnt = ? AND IFNULL(ENT_CantCuposReser,0) = 0",
-        [idNum]
-      );
-      if ((delOldById as any).affectedRows > 0) {
-        return NextResponse.json({ message: "Viaje eliminado correctamente" });
-      }
-    }
-
-    // 3) Último intento: borrar por ENT_Numero
-    const [delOldByNumero] = await db.execute(
+    // Para viajes de la tabla vieja: sÃ³lo si no tienen reservados
+    const [result] = await db.execute(
       "DELETE FROM sige_ent_encnegtra WHERE ENT_Numero = ? AND IFNULL(ENT_CantCuposReser,0) = 0",
       [identifier]
     );
 
-    if ((delOldByNumero as any).affectedRows > 0) {
+    if ((result as any).affectedRows > 0) {
       return NextResponse.json({ message: "Viaje eliminado correctamente" });
+    } else {
+      return NextResponse.json(
+        { error: "No se puede eliminar: tiene reservas o no existe" },
+        { status: 400 }
+      );
     }
-
-    return NextResponse.json(
-      { error: "No se puede eliminar: tiene reservas o no existe" },
-      { status: 400 }
-    );
   } catch (error) {
     console.error("Error al eliminar viaje:", error);
     return NextResponse.json(
@@ -65,8 +52,6 @@ export async function PUT(
   try {
     const { id } = await ctx.params;
     const identifier = id;
-    const idNum = Number(identifier);
-    const isNumeric = !Number.isNaN(idNum);
     const body = await request.json();
 
     const {
@@ -82,14 +67,14 @@ export async function PUT(
       vendedor,
     } = body;
 
-    // Calcular pendientes si no viene informado
-    const pendientesCalc =
-      (cupos != null ? Number(cupos) : 0) - (reservados != null ? Number(reservados) : 0);
-
-    // 1) Intentar actualizar en tabla nueva por id
-    if (isNumeric) {
+    if (!isNaN(Number(identifier))) {
       try {
-        const [updNew] = await db.execute(
+
+        // Calcular pendientes si no viene informado
+        const pendientesCalc =
+          (cupos != null ? Number(cupos) : 0) - (reservados != null ? Number(reservados) : 0);
+
+        const [result] = await db.execute(
           `UPDATE viajes_nuevos SET
             razonSocial = ?, origen = ?, destino = ?,
             articulo = ?, equipo = ?, cupos = ?, cuposReservados = ?,
@@ -106,10 +91,11 @@ export async function PUT(
             pendientes != null ? pendientes : pendientesCalc,
             tarifa,
             vendedor,
-            idNum,
+            identifier,
           ]
         );
-        if ((updNew as any).affectedRows > 0) {
+
+        if ((result as any).affectedRows > 0) {
           return NextResponse.json({ message: "Viaje actualizado correctamente" });
         }
       } catch (err) {
@@ -117,31 +103,22 @@ export async function PUT(
       }
     }
 
-    // 2) Actualizar en tabla vieja por ENT_IdEnt si es numérico; caso contrario por ENT_Numero
-    const whereColumn = isNumeric ? "ENT_IdEnt" : "ENT_Numero";
-    const whereValue: any = isNumeric ? idNum : identifier;
-    const [updOld] = await db.execute(
+    const [result] = await db.execute(
       `UPDATE sige_ent_encnegtra SET
         ENT_CantCupos = ?, ENT_CantCuposReser = ?,
         ENT_CantCuposPend = ?, ENT_Tarifa = ?
-      WHERE ${whereColumn} = ?`,
-      [
-        cupos,
-        reservados,
-        pendientes != null ? pendientes : pendientesCalc,
-        tarifa,
-        whereValue,
-      ]
+      WHERE ENT_Numero = ?`,
+      [cupos, reservados, pendientes, tarifa, identifier]
     );
 
-    if ((updOld as any).affectedRows > 0) {
+    if ((result as any).affectedRows > 0) {
       return NextResponse.json({ message: "Viaje actualizado correctamente (campos limitados)" });
+    } else {
+      return NextResponse.json(
+        { error: "Viaje no encontrado" },
+        { status: 404 }
+      );
     }
-
-    return NextResponse.json(
-      { error: "Viaje no encontrado" },
-      { status: 404 }
-    );
   } catch (error) {
     console.error("Error al actualizar viaje:", error);
     return NextResponse.json(
@@ -150,4 +127,3 @@ export async function PUT(
     );
   }
 }
-

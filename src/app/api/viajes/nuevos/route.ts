@@ -95,9 +95,7 @@ export async function GET(req: NextRequest) {
         n.cuposReservados AS cuposReservados,
         n.cuposPendientes AS cuposPendientes,
         n.tarifa AS tarifa,
-        n.vendedor AS vendedor,
-        n.proveedorId AS proveedorId,
-        n.proveedorNombre AS proveedorNombre
+        n.vendedor AS vendedor
       FROM viajes_nuevos n
       ${whereClauseNuevos}
       UNION ALL
@@ -114,9 +112,7 @@ export async function GET(req: NextRequest) {
         e.ENT_CantCuposReser AS cuposReservados,
         (e.ENT_CantCupos - e.ENT_CantCuposReser) AS cuposPendientes,
         e.ENT_Tarifa AS tarifa,
-        v.VEN_NomVen AS vendedor,
-        NULL AS proveedorId,
-        NULL AS proveedorNombre
+        e.VEN_IdVendPostula AS vendedor
       FROM sige_ent_encnegtra e
       INNER JOIN sige_dnt_detnegtra d ON e.ENT_IdEnt = d.ENT_IdEnt
       INNER JOIN sige_usu_usuario u ON e.USU_IdUsuario = u.USU_IdUsuario
@@ -148,9 +144,7 @@ export async function GET(req: NextRequest) {
             e.ENT_CantCuposReser AS cuposReservados,
             (e.ENT_CantCupos - e.ENT_CantCuposReser) AS cuposPendientes,
             e.ENT_Tarifa AS tarifa,
-            v.VEN_NomVen AS vendedor,
-            NULL AS proveedorId,
-            NULL AS proveedorNombre
+            e.VEN_IdVendPostula AS vendedor
           FROM sige_ent_encnegtra e
           INNER JOIN sige_dnt_detnegtra d ON e.ENT_IdEnt = d.ENT_IdEnt
           INNER JOIN sige_usu_usuario u ON e.USU_IdUsuario = u.USU_IdUsuario

@@ -5,7 +5,7 @@ export default function Home() {
   const opciones = [
     {
       titulo: "Terceros",
-      descripcion: "Ver listado de clientes, proveedores y transportistas.",
+      descripcion: "Ver listado de clientes y transportistas.",
       href: "/terceros",
     },
     {

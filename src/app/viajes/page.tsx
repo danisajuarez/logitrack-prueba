@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import ViajeModal from "../../components/ViajeModal"; // Asegurate de tenerlo creado
+import Notification from "../../components/Notification";
 
 interface Viaje {
   id: number;
@@ -18,8 +19,6 @@ interface Viaje {
   equipo: string;
   vendedor: string | null;
   articulo: string;
-  proveedorId?: number;
-  proveedorNombre?: string;
 }
 
 export default function ViajesPage() {
@@ -40,6 +39,12 @@ export default function ViajesPage() {
 
   const [isModalOpen, setIsModalOpen] = useState(false); // <-- Estado del modal
   const [noHayViajes, setNoHayViajes] = useState(false); // mostrar mensaje si no hay viajes
+  const [notification, setNotification] = useState<{
+    type: "success" | "error" | "warning" | "info";
+    title: string;
+    message?: string;
+    isVisible: boolean;
+  }>({ type: "success", title: "", message: "", isVisible: false });
 
   const dateToYMD = (d: Date) => {
     const yyyy = d.getFullYear();
@@ -213,7 +218,6 @@ export default function ViajesPage() {
                 <th className="p-2">Destino</th>
                 <th className="p-2">Artículo</th>
                 <th className="p-2">Pendientes</th>
-                <th className="p-2">Proveedor</th>
                 <th className="p-2">Acciones</th>
               </tr>
             </thead>
@@ -230,9 +234,6 @@ export default function ViajesPage() {
                   <td className="p-2">{v.destino}</td>
                   <td className="p-2">{v.articulo}</td>
                   <td className="p-2">{v.cuposPendientes}</td>
-                  <td className="p-2">
-                    <span className="text-sm">{v.proveedorNombre ?? "-"}</span>
-                  </td>
                   <td className="p-2">
                     {/* Botones de acción para todos los viajes */}
                     <div className="flex gap-2">
@@ -256,12 +257,22 @@ export default function ViajesPage() {
                           const pendientes = Number(v.cuposPendientes ?? pendientesCalc);
 
                           if (reservados > 0) {
-                            alert('No se puede eliminar: el viaje tiene reservas.');
+                            setNotification({
+                              type: "warning",
+                              title: "No se puede eliminar el viaje",
+                              message: "El viaje tiene reservas activas",
+                              isVisible: true,
+                            });
                             return;
                           }
 
                           if (pendientes !== pendientesCalc) {
-                            alert('No se puede eliminar: los pendientes no coinciden con el cálculo (cupos - reservados).');
+                            setNotification({
+                              type: "warning",
+                              title: "No se puede eliminar el viaje",
+                              message: "Los cupos pendientes no coinciden con el cálculo",
+                              isVisible: true,
+                            });
                             return;
                           }
 
@@ -272,10 +283,23 @@ export default function ViajesPage() {
                             });
                             if (!res.ok) {
                               const msg = await res.json().catch(() => ({} as any));
-                              alert(msg?.error || 'No se pudo eliminar el viaje');
+                              setNotification({
+                                type: "error",
+                                title: "Error al eliminar el viaje",
+                                message: msg?.error || 'No se pudo eliminar el viaje',
+                                isVisible: true,
+                              });
                               return;
                             }
-                            window.location.reload();
+                            setNotification({
+                              type: "success",
+                              title: "¡Viaje eliminado con éxito!",
+                              message: "El viaje se ha eliminado correctamente",
+                              isVisible: true,
+                            });
+                            setTimeout(() => {
+                              window.location.reload();
+                            }, 1500);
                           }
                         }}
                         className="inline-flex items-center px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
@@ -294,13 +318,21 @@ export default function ViajesPage() {
         </div>
       </div>
 
-      <ViajeModal 
-        isOpen={isModalOpen} 
+      <ViajeModal
+        isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
           setViajeSeleccionado(null);
         }}
         viaje={viajeSeleccionado}
+      />
+
+      <Notification
+        type={notification.type}
+        title={notification.title}
+        message={notification.message}
+        isVisible={notification.isVisible}
+        onClose={() => setNotification(prev => ({ ...prev, isVisible: false }))}
       />
     </main>
   );

@@ -17,8 +17,6 @@ interface Viaje {
   equipo: string | null;
   vendedor: string | null;
   articulo: string | null;
-  proveedorId?: number | null;
-  proveedorNombre?: string | null;
 }
 
 export default function ViajesNuevosPage() {
@@ -83,7 +81,6 @@ export default function ViajesNuevosPage() {
                   <th className="p-2">Reservados</th>
                   <th className="p-2">Pendientes</th>
                   <th className="p-2">Tarifa</th>
-                  <th className="p-2">Proveedor</th>
                   <th className="p-2">Vendedor</th>
                 </tr>
               </thead>
@@ -101,7 +98,6 @@ export default function ViajesNuevosPage() {
                     <td className="p-2">{v.cuposReservados}</td>
                     <td className="p-2">{v.cuposPendientes}</td>
                     <td className="p-2">{v.tarifa != null ? `$${v.tarifa.toLocaleString()}` : "-"}</td>
-                    <td className="p-2">{v.proveedorNombre || "-"}</td>
                     <td className="p-2">{v.vendedor || "-"}</td>
                   </tr>
                 ))}

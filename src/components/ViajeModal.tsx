@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import SearchableSelect from "./SearchableSelect";
+import Notification from "./Notification";
 
 interface Tercero {
   id: number;
@@ -32,18 +33,6 @@ interface ProductoOption {
   nombre: string;
 }
 
-interface Proveedor {
-  id: number;
-  razonSocial: string;
-  cuit: string;
-  telefono: string;
-  email: string;
-}
-
-interface ProveedorOption {
-  id: number;
-  nombre: string;
-}
 
 interface Vendedor {
   id: number;
@@ -70,8 +59,6 @@ interface Viaje {
   equipo: string;
   vendedor: string | null;
   articulo: string;
-  proveedorId?: number;
-  proveedorNombre?: string;
 }
 
 interface ViajeModalProps {
@@ -92,24 +79,25 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
     pendientes: "",
     tarifa: "",
     vendedor: "",
-    proveedorId: "",
-    proveedor: "",
   });
   const [terceros, setTerceros] = useState<Tercero[]>([]);
   const [loadingTerceros, setLoadingTerceros] = useState(false);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [loadingProductos, setLoadingProductos] = useState(false);
-  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
-  const [loadingProveedores, setLoadingProveedores] = useState(false);
   
   // Opciones formateadas para SearchableSelect
   const [tercerosOptions, setTercerosOptions] = useState<TerceroOption[]>([]);
   const [productosOptions, setProductosOptions] = useState<ProductoOption[]>([]);
-  const [proveedoresOptions, setProveedoresOptions] = useState<ProveedorOption[]>([]);
   const [vendedores, setVendedores] = useState<Vendedor[]>([]);
   const [loadingVendedores, setLoadingVendedores] = useState(false);
   const [localidades, setLocalidades] = useState<Localidad[]>([]);
   const [loadingLocalidades, setLoadingLocalidades] = useState(false);
+  const [notification, setNotification] = useState<{
+    type: "success" | "error" | "warning" | "info";
+    title: string;
+    message?: string;
+    isVisible: boolean;
+  }>({ type: "success", title: "", message: "", isVisible: false });
 
   useEffect(() => {
     if (viaje) {
@@ -124,8 +112,6 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
         pendientes: viaje.cuposPendientes?.toString() || "",
         tarifa: viaje.tarifa?.toString() || "",
         vendedor: viaje.vendedor || "",
-        proveedorId: viaje.proveedorId?.toString() || "",
-        proveedor: viaje.proveedorNombre || "",
       });
     } else {
       setForm({
@@ -139,8 +125,6 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
         pendientes: "",
         tarifa: "",
         vendedor: "",
-        proveedorId: "",
-        proveedor: "",
       });
     }
   }, [viaje]);
@@ -149,7 +133,6 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
     if (isOpen) {
       fetchTerceros();
       fetchProductos();
-      fetchProveedores2();
       fetchVendedores();
       fetchLocalidades();
     }
@@ -197,66 +180,6 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
     }
   };
 
-  const fetchProveedores = async () => {
-    setLoadingProveedores(true);
-    try {
-      console.log('🔄 Obteniendo proveedores...');
-      const res = await fetch('/api/proveedores');
-      
-      if (res.ok) {
-        const textResponse = await res.text();
-        console.log('📄 Respuesta raw:', textResponse);
-        
-        // Verificar que la respuesta no esté vacía antes de parsear
-        if (textResponse.trim()) {
-          const data = JSON.parse(textResponse);
-          console.log('✅ Proveedores parseados:', data);
-          
-          setProveedores(Array.isArray(data) ? data : []);
-          // Formatear para SearchableSelect
-          const options = Array.isArray(data) ? data.map((proveedor: any) => ({
-            id: proveedor.id,
-            nombre: proveedor.razonSocial
-          })) : [];
-          setProveedoresOptions(options);
-        } else {
-          console.warn('⚠️ Respuesta vacía del servidor');
-          setProveedores([]);
-          setProveedoresOptions([]);
-        }
-      } else {
-        console.error('❌ Error HTTP:', res.status, res.statusText);
-        setProveedores([]);
-        setProveedoresOptions([]);
-      }
-    } catch (error) {
-      console.error('💥 Error al obtener proveedores:', error);
-      setProveedores([]);
-      setProveedoresOptions([]);
-    } finally {
-      setLoadingProveedores(false);
-    }
-  };
-
-  // Nueva versión confiable usando JSON directo
-  const fetchProveedores2 = async () => {
-    setLoadingProveedores(true);
-    try {
-      const res = await fetch('/api/proveedores');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const arr = Array.isArray(data) ? data : [];
-      setProveedores(arr);
-      const options = arr.map((p: any) => ({ id: p.id, nombre: p.razonSocial }));
-      setProveedoresOptions(options);
-    } catch (error) {
-      console.error('Error al obtener proveedores:', error);
-      setProveedores([]);
-      setProveedoresOptions([]);
-    } finally {
-      setLoadingProveedores(false);
-    }
-  };
 
   const fetchVendedores = async () => {
     setLoadingVendedores(true);
@@ -314,14 +237,54 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
         body: JSON.stringify(form),
       });
 
-      if (!res.ok) throw new Error(`No se pudo ${viaje ? 'actualizar' : 'guardar'} el viaje`);
+      let data: any = null;
+      try { data = await res.json(); } catch {}
+
+      if (!res.ok) {
+        const msg = data?.details || data?.error || `No se pudo ${viaje ? 'actualizar' : 'guardar'} el viaje`;
+        throw new Error(msg);
+      }
+
+      if (!viaje) {
+        const numero = data?.numero as string | undefined;
+        if (numero) {
+          setNotification({
+            type: "success",
+            title: "¡Viaje creado con éxito!",
+            message: `Número de viaje asignado: ${numero}`,
+            isVisible: true,
+          });
+        } else {
+          setNotification({
+            type: "success",
+            title: "¡Viaje creado con éxito!",
+            isVisible: true,
+          });
+        }
+      } else {
+        setNotification({
+          type: "success",
+          title: "¡Viaje actualizado con éxito!",
+          message: "Los cambios se han guardado correctamente",
+          isVisible: true,
+        });
+      }
 
       console.log(`Viaje ${viaje ? 'actualizado' : 'guardado'} con éxito`);
-      onClose();
-      window.location.reload();
+
+      // Cerrar el modal y recargar después de un breve delay para que se vea la notificación
+      setTimeout(() => {
+        onClose();
+        window.location.reload();
+      }, 1500);
     } catch (err) {
       console.error("Error al guardar:", err);
-      alert(`Ocurrió un error al ${viaje ? 'actualizar' : 'guardar'} el viaje`);
+      setNotification({
+        type: "error",
+        title: "Error al guardar el viaje",
+        message: (err as any)?.message || `Ocurrió un error al ${viaje ? 'actualizar' : 'guardar'} el viaje`,
+        isVisible: true,
+      });
     }
   };
 
@@ -354,15 +317,17 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
             </div>
           )}
 
-          <SearchableSelect
-            options={tercerosOptions}
-            value={form.razonSocial}
-            onChange={(value) => handleSearchableSelectChange('razonSocial', value)}
-            placeholder="Seleccionar Cliente"
-            name="razonSocial"
-            required
-            loading={loadingTerceros}
-          />
+          <div className="col-span-full">
+            <SearchableSelect
+              options={tercerosOptions}
+              value={form.razonSocial}
+              onChange={(value) => handleSearchableSelectChange('razonSocial', value)}
+              placeholder="Seleccionar Cliente"
+              name="razonSocial"
+              required
+              loading={loadingTerceros}
+            />
+          </div>
 
           <SearchableSelect
             options={localidades}
@@ -427,27 +392,18 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
 
           <SearchableSelect
             options={vendedores}
-            value={form.vendedor}
-            onChange={(value) => handleSearchableSelectChange('vendedor', value)}
+            valueId={form.vendedor ? parseInt(form.vendedor) : null}
+            onChangeId={(id, option) => {
+              setForm({
+                ...form,
+                vendedor: String(id ?? ''),
+              });
+            }}
             placeholder="Seleccionar Vendedor"
             name="vendedor"
             loading={loadingVendedores}
           />
 
-          <SearchableSelect
-            options={proveedoresOptions}
-            valueId={form.proveedorId || null}
-            onChangeId={(id, option) => {
-              setForm({
-                ...form,
-                proveedorId: String(id ?? ''),
-                proveedor: option?.nombre || '',
-              });
-            }}
-            placeholder="Seleccionar Proveedor"
-            name="proveedor"
-            loading={loadingProveedores}
-          />
 
           {/* Botones */}
           <div className="flex justify-end col-span-full gap-4 pt-2">
@@ -467,6 +423,14 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
           </div>
         </form>
       </div>
+
+      <Notification
+        type={notification.type}
+        title={notification.title}
+        message={notification.message}
+        isVisible={notification.isVisible}
+        onClose={() => setNotification(prev => ({ ...prev, isVisible: false }))}
+      />
     </div>
   );
 }
