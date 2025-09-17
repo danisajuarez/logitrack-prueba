@@ -65,9 +65,10 @@ interface ViajeModalProps {
   isOpen: boolean;
   onClose: () => void;
   viaje?: Viaje | null;
+  onDelete?: (viaje: Viaje) => void;
 }
 
-export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) {
+export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeModalProps) {
   const [form, setForm] = useState({
     razonSocial: "",
     origen: "",
@@ -297,6 +298,75 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
     }
   };
 
+  const handleDelete = async () => {
+    if (!viaje) return;
+
+    const reservados = Number(viaje.cuposReservados || 0);
+    const cupos = Number(viaje.cupos || 0);
+    const pendientesCalc = cupos - reservados;
+    const pendientes = Number(viaje.cuposPendientes ?? pendientesCalc);
+
+    if (reservados > 0) {
+      setNotification({
+        type: "warning",
+        title: "No se puede eliminar el viaje",
+        message: "El viaje tiene reservas activas",
+        isVisible: true,
+      });
+      return;
+    }
+
+    if (pendientes !== pendientesCalc) {
+      setNotification({
+        type: "warning",
+        title: "No se puede eliminar el viaje",
+        message: "Los cupos pendientes no coinciden con el cálculo",
+        isVisible: true,
+      });
+      return;
+    }
+
+    if (confirm("¿Estás seguro de que quieres eliminar este viaje?")) {
+      try {
+        const identifier = viaje.id || viaje.numero;
+        const res = await fetch(`/api/viajes/${identifier}`, {
+          method: "DELETE",
+        });
+
+        if (!res.ok) {
+          const msg = await res.json().catch(() => ({} as any));
+          setNotification({
+            type: "error",
+            title: "Error al eliminar el viaje",
+            message: msg?.error || 'No se pudo eliminar el viaje',
+            isVisible: true,
+          });
+          return;
+        }
+
+        setNotification({
+          type: "success",
+          title: "¡Viaje eliminado con éxito!",
+          message: "El viaje se ha eliminado correctamente",
+          isVisible: true,
+        });
+
+        setTimeout(() => {
+          onClose();
+          window.location.reload();
+        }, 1500);
+
+      } catch (error) {
+        setNotification({
+          type: "error",
+          title: "Error al eliminar el viaje",
+          message: "Ocurrió un error inesperado",
+          isVisible: true,
+        });
+      }
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -465,20 +535,34 @@ export default function ViajeModal({ isOpen, onClose, viaje }: ViajeModalProps) 
 
 
           {/* Botones */}
-          <div className="flex justify-end col-span-full gap-4 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-white"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white"
-            >
-              {viaje ? "Actualizar" : "Guardar"}
-            </button>
+          <div className="flex justify-between col-span-full pt-2">
+            {viaje && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Eliminar
+              </button>
+            )}
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-white"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white"
+              >
+                {viaje ? "Actualizar" : "Guardar"}
+              </button>
+            </div>
           </div>
         </form>
       </div>

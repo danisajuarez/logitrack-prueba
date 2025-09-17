@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import ViajeModal from "../../components/ViajeModal"; // Asegurate de tenerlo creado
+import ChoferModal from "../../components/ChoferModal";
 import Notification from "../../components/Notification";
 
 interface Viaje {
@@ -38,6 +39,8 @@ export default function ViajesPage() {
   );
 
   const [isModalOpen, setIsModalOpen] = useState(false); // <-- Estado del modal
+  const [isChoferModalOpen, setIsChoferModalOpen] = useState(false); // <-- Estado del modal de chofer
+  const [viajeParaChofer, setViajeParaChofer] = useState<Viaje | null>(null); // <-- Viaje seleccionado para asignar chofer
   const [noHayViajes, setNoHayViajes] = useState(false); // mostrar mensaje si no hay viajes
   const [notification, setNotification] = useState<{
     type: "success" | "error" | "warning" | "info";
@@ -242,72 +245,24 @@ export default function ViajesPage() {
                           setViajeSeleccionado(v);
                           setIsModalOpen(true);
                         }}
-                        className="inline-flex items-center px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                        className="inline-flex items-center p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                        title="Editar viaje"
                       >
-                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
-                        Editar
                       </button>
                       <button
-                        onClick={async () => {
-                          const reservados = Number(v.cuposReservados || 0);
-                          const cupos = Number(v.cupos || 0);
-                          const pendientesCalc = cupos - reservados;
-                          const pendientes = Number(v.cuposPendientes ?? pendientesCalc);
-
-                          if (reservados > 0) {
-                            setNotification({
-                              type: "warning",
-                              title: "No se puede eliminar el viaje",
-                              message: "El viaje tiene reservas activas",
-                              isVisible: true,
-                            });
-                            return;
-                          }
-
-                          if (pendientes !== pendientesCalc) {
-                            setNotification({
-                              type: "warning",
-                              title: "No se puede eliminar el viaje",
-                              message: "Los cupos pendientes no coinciden con el cálculo",
-                              isVisible: true,
-                            });
-                            return;
-                          }
-
-                          if (confirm("¿Eliminar este viaje?")) {
-                            const identifier = v.id || v.numero;
-                            const res = await fetch(`/api/viajes/${identifier}`, {
-                              method: "DELETE",
-                            });
-                            if (!res.ok) {
-                              const msg = await res.json().catch(() => ({} as any));
-                              setNotification({
-                                type: "error",
-                                title: "Error al eliminar el viaje",
-                                message: msg?.error || 'No se pudo eliminar el viaje',
-                                isVisible: true,
-                              });
-                              return;
-                            }
-                            setNotification({
-                              type: "success",
-                              title: "¡Viaje eliminado con éxito!",
-                              message: "El viaje se ha eliminado correctamente",
-                              isVisible: true,
-                            });
-                            setTimeout(() => {
-                              window.location.reload();
-                            }, 1500);
-                          }
+                        onClick={() => {
+                          setViajeParaChofer(v);
+                          setIsChoferModalOpen(true);
                         }}
-                        className="inline-flex items-center px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+                        className="inline-flex items-center p-1.5 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"
+                        title="Postular chofer"
                       >
-                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
-                        Eliminar
                       </button>
                     </div>
                   </td>
@@ -325,6 +280,15 @@ export default function ViajesPage() {
           setViajeSeleccionado(null);
         }}
         viaje={viajeSeleccionado}
+      />
+
+      <ChoferModal
+        isOpen={isChoferModalOpen}
+        onClose={() => {
+          setIsChoferModalOpen(false);
+          setViajeParaChofer(null);
+        }}
+        viaje={viajeParaChofer}
       />
 
       <Notification
