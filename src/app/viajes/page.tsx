@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ViajeModal from "../../components/ViajeModal"; // Asegurate de tenerlo creado
 import ChoferModal from "../../components/ChoferModal";
 import Notification from "../../components/Notification";
@@ -16,6 +16,7 @@ interface Viaje {
   cupos: number;
   cuposReservados: number;
   cuposPendientes: number;
+  postulados?: number;
   usuario: string;
   equipo: string;
   vendedor: string | null;
@@ -56,34 +57,33 @@ export default function ViajesPage() {
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const params = new URLSearchParams();
+  const loadViajes = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
 
-        if (fechaDesde) params.append("fechaDesde", fechaDesde);
-        if (fechaHasta) params.append("fechaHasta", fechaHasta);
-        if (minPendientes) params.append("minCuposPendientes", minPendientes);
-        if (razonSearch) params.append("razonSocial", razonSearch);
+      if (fechaDesde) params.append("fechaDesde", fechaDesde);
+      if (fechaHasta) params.append("fechaHasta", fechaHasta);
+      if (minPendientes) params.append("minCuposPendientes", minPendientes);
+      if (razonSearch) params.append("razonSocial", razonSearch);
 
-        const res = await fetch(`/api/viajes/GET?${params.toString()}`);
-        const data = await res.json();
-        // Validar que data sea un array
-        if (Array.isArray(data)) {
-          setViajes(data);
-          setNoHayViajes(data.length === 0);
-        } else {
-          console.error('La respuesta no es un array:', data);
-          setViajes([]);
-        }
-      } catch (error) {
-        console.error('Error al obtener viajes:', error);
+      const res = await fetch(`/api/viajes/GET?${params.toString()}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setViajes(data);
+        setNoHayViajes(data.length === 0);
+      } else {
+        console.error('La respuesta no es un array:', data);
         setViajes([]);
       }
-    };
-
-    fetchData();
+    } catch (error) {
+      console.error('Error al obtener viajes:', error);
+      setViajes([]);
+    }
   }, [fechaDesde, fechaHasta, minPendientes, razonSearch]);
+
+  useEffect(() => {
+    loadViajes();
+  }, [loadViajes]);
 
   const filtrados = Array.isArray(viajes) ? viajes : [];
 
@@ -239,8 +239,12 @@ export default function ViajesPage() {
                   <td className="p-2">{v.cuposPendientes}</td>
                   <td className="p-2">
                     {/* Botones de acción para todos los viajes */}
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-mono text-neutral-500 dark:text-neutral-400">
+                        {`${v.cupos ?? 0}/${v.cuposReservados ?? 0}/${v.postulados ?? 0}`}
+                      </span>
                       <button
+                        type="button"
                         onClick={() => {
                           setViajeSeleccionado(v);
                           setIsModalOpen(true);
@@ -253,12 +257,14 @@ export default function ViajesPage() {
                         </svg>
                       </button>
                       <button
+                        type="button"
                         onClick={() => {
                           setViajeParaChofer(v);
                           setIsChoferModalOpen(true);
                         }}
-                        className="inline-flex items-center p-1.5 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"
-                        title="Postular chofer"
+                        className="inline-flex items-center p-1.5 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 disabled:bg-neutral-600 disabled:text-neutral-300 disabled:cursor-not-allowed"
+                        title={`Cupos: ${v.cupos ?? 0} | Reservados: ${v.cuposReservados ?? 0} | Postulados: ${v.postulados ?? 0} | Pendientes: ${v.cuposPendientes ?? 0}`}
+                        disabled={(v.cuposPendientes ?? 0) <= 0}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -289,6 +295,7 @@ export default function ViajesPage() {
           setViajeParaChofer(null);
         }}
         viaje={viajeParaChofer}
+        onPostulado={loadViajes}
       />
 
       <Notification

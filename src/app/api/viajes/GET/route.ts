@@ -125,9 +125,61 @@ export async function GET(req: NextRequest) {
     `;
     const [rowsViejos] = (await db.query(query, paramsViejos)) as unknown as [RowDataPacket[]];
 
-    // Combinar ambas tablas y ordenar por fecha
+    // Combinar ambas tablas y enriquecer métricas
     const allRows = [...rowsNuevos, ...(rowsViejos || [])];
-    const rows = allRows.sort((a, b) => {
+
+    const uniqueIds = Array.from(
+      new Set(
+        allRows
+          .map((row: any) => Number(row?.id))
+          .filter((value) => Number.isInteger(value) && value > 0)
+      )
+    );
+
+    let postuladosPorViaje = new Map<number, number>();
+
+    if (uniqueIds.length > 0) {
+      const placeholders = uniqueIds.map(() => "?").join(", ");
+      try {
+        const [postuladosRows] = await db.query(
+          `SELECT viaje_id, COUNT(*) AS total
+           FROM viajes_choferes
+           WHERE viaje_id IN (${placeholders})
+           GROUP BY viaje_id`,
+          uniqueIds
+        ) as unknown as [RowDataPacket[]];
+        if (Array.isArray(postuladosRows)) {
+          postuladosPorViaje = new Map(
+            postuladosRows.map((row: any) => [
+              Number(row.viaje_id ?? row.viajeId ?? row.viajeid),
+              Number(row.total) || 0,
+            ])
+          );
+        }
+      } catch (postuladosError: any) {
+        if (postuladosError?.code !== "ER_NO_SUCH_TABLE") {
+          throw postuladosError;
+        }
+      }
+    }
+
+    const enrichedRows = allRows.map((row: any) => {
+      const id = Number(row?.id) || 0;
+      const cupos = Number(row?.cupos ?? 0) || 0;
+      const reservados = Number(row?.cuposReservados ?? 0) || 0;
+      const postulados = postuladosPorViaje.get(id) ?? 0;
+      const pendientes = Math.max(cupos - reservados - postulados, 0);
+
+      return {
+        ...row,
+        cupos,
+        cuposReservados: reservados,
+        postulados,
+        cuposPendientes: pendientes,
+      };
+    });
+
+    const rows = enrichedRows.sort((a, b) => {
       const dateA = new Date(a.fecha).getTime();
       const dateB = new Date(b.fecha).getTime();
       if (dateB - dateA !== 0) return dateB - dateA; // Fecha DESC
