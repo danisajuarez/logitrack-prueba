@@ -316,10 +316,10 @@ export async function obtenerRelacionActivaChofer(
 
   if (!transportistaNombre || !transportistaCuit || !transportistaTelefono) {
     const fallback = await fetchTransportistaFallback(runner, elegido.transportistaId);
-    transportistaNombre ??= fallback.transportistaNombre;
-    transportistaCuit ??= fallback.transportistaCuit;
-    transportistaTelefono ??= fallback.transportistaTelefono;
-    transportistaDireccion ??= fallback.transportistaDireccion;
+    transportistaNombre = transportistaNombre || fallback.transportistaNombre;
+    transportistaCuit = transportistaCuit || fallback.transportistaCuit;
+    transportistaTelefono = transportistaTelefono || fallback.transportistaTelefono;
+    transportistaDireccion = transportistaDireccion || fallback.transportistaDireccion;
   }
 
   return {
