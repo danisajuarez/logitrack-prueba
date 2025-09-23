@@ -68,7 +68,6 @@ interface ProductoOption {
   nombre: string;
 }
 
-
 interface Vendedor {
   id: number;
   nombre: string;
@@ -103,7 +102,12 @@ interface ViajeModalProps {
   onDelete?: (viaje: Viaje) => void;
 }
 
-export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeModalProps) {
+export default function ViajeModal({
+  isOpen,
+  onClose,
+  viaje,
+  onDelete,
+}: ViajeModalProps) {
   const [form, setForm] = useState({
     razonSocial: "",
     origen: "",
@@ -124,16 +128,25 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
   const [loadingProductos, setLoadingProductos] = useState(false);
 
   // Datos de relaciones chofer-transportista
-  const [relaciones, setRelaciones] = useState<RelacionChoferTransportista[]>([]);
+  const [relaciones, setRelaciones] = useState<RelacionChoferTransportista[]>(
+    []
+  );
   const [loadingRelaciones, setLoadingRelaciones] = useState(false);
-  const [relacionSeleccionada, setRelacionSeleccionada] = useState<RelacionChoferTransportista | null>(null);
+  const [relacionSeleccionada, setRelacionSeleccionada] =
+    useState<RelacionChoferTransportista | null>(null);
 
   // Opciones formateadas para SearchableSelect
   const [tercerosOptions, setTercerosOptions] = useState<TerceroOption[]>([]);
-  const [productosOptions, setProductosOptions] = useState<ProductoOption[]>([]);
+  const [productosOptions, setProductosOptions] = useState<ProductoOption[]>(
+    []
+  );
   const [choferesOptions, setChoferesOptions] = useState<ChoferOption[]>([]);
-  const [transportistasOptions, setTransportistasOptions] = useState<TransportistaOption[]>([]);
-  const [choferesDisponibles, setChoferesDisponibles] = useState<ChoferOption[]>([]);
+  const [transportistasOptions, setTransportistasOptions] = useState<
+    TransportistaOption[]
+  >([]);
+  const [choferesDisponibles, setChoferesDisponibles] = useState<
+    ChoferOption[]
+  >([]);
   const [vendedores, setVendedores] = useState<Vendedor[]>([]);
   const [loadingVendedores, setLoadingVendedores] = useState(false);
   const [localidades, setLocalidades] = useState<Localidad[]>([]);
@@ -194,19 +207,19 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
   const fetchTerceros = async () => {
     setLoadingTerceros(true);
     try {
-      const res = await fetch('/api/terceros');
+      const res = await fetch("/api/terceros");
       if (res.ok) {
         const data = await res.json();
         setTerceros(data);
         // Formatear para SearchableSelect
         const options = data.map((tercero: Tercero) => ({
           id: tercero.id,
-          nombre: tercero.razonSocial
+          nombre: tercero.razonSocial,
         }));
         setTercerosOptions(options);
       }
     } catch (error) {
-      console.error('Error al obtener terceros:', error);
+      console.error("Error al obtener terceros:", error);
     } finally {
       setLoadingTerceros(false);
     }
@@ -215,35 +228,34 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
   const fetchProductos = async () => {
     setLoadingProductos(true);
     try {
-      const res = await fetch('/api/productos');
+      const res = await fetch("/api/productos");
       if (res.ok) {
         const data = await res.json();
         setProductos(data);
         // Formatear para SearchableSelect
         const options = data.map((producto: Producto) => ({
           id: producto.id,
-          nombre: producto.nombre
+          nombre: producto.nombre,
         }));
         setProductosOptions(options);
       }
     } catch (error) {
-      console.error('Error al obtener productos:', error);
+      console.error("Error al obtener productos:", error);
     } finally {
       setLoadingProductos(false);
     }
   };
 
-
   const fetchVendedores = async () => {
     setLoadingVendedores(true);
     try {
-      const res = await fetch('/api/vendedores');
+      const res = await fetch("/api/vendedores");
       if (res.ok) {
         const data = await res.json();
         setVendedores(data);
       }
     } catch (error) {
-      console.error('Error al obtener vendedores:', error);
+      console.error("Error al obtener vendedores:", error);
     } finally {
       setLoadingVendedores(false);
     }
@@ -252,13 +264,13 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
   const fetchLocalidades = async () => {
     setLoadingLocalidades(true);
     try {
-      const res = await fetch('/api/localidades');
+      const res = await fetch("/api/localidades");
       if (res.ok) {
         const data = await res.json();
         setLocalidades(data);
       }
     } catch (error) {
-      console.error('Error al obtener localidades:', error);
+      console.error("Error al obtener localidades:", error);
     } finally {
       setLoadingLocalidades(false);
     }
@@ -267,52 +279,66 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
   const fetchRelaciones = async () => {
     setLoadingRelaciones(true);
     try {
-      const res = await fetch('/api/relaciones-chofer-transportista');
+      const res = await fetch("/api/relaciones-chofer-transportista");
       if (res.ok) {
         const data = await res.json();
         setRelaciones(data);
 
         // Extraer choferes únicos
-        const choferesUnicos = data.reduce((acc: ChoferOption[], relacion: RelacionChoferTransportista) => {
-          if (!acc.find(c => c.id === relacion.chofer.id)) {
-            acc.push({
-              id: relacion.chofer.id,
-              nombre: relacion.chofer.nombre
-            });
-          }
-          return acc;
-        }, []);
+        const choferesUnicos = data.reduce(
+          (acc: ChoferOption[], relacion: RelacionChoferTransportista) => {
+            if (!acc.find((c) => c.id === relacion.chofer.id)) {
+              acc.push({
+                id: relacion.chofer.id,
+                nombre: relacion.chofer.nombre,
+              });
+            }
+            return acc;
+          },
+          []
+        );
         setChoferesOptions(choferesUnicos);
 
         // Extraer transportistas únicos
-        const transportistasUnicos = data.reduce((acc: TransportistaOption[], relacion: RelacionChoferTransportista) => {
-          if (!acc.find(t => t.id === relacion.transportista.id)) {
-            acc.push({
-              id: relacion.transportista.id,
-              nombre: relacion.transportista.nombre
-            });
-          }
-          return acc;
-        }, []);
+        const transportistasUnicos = data.reduce(
+          (
+            acc: TransportistaOption[],
+            relacion: RelacionChoferTransportista
+          ) => {
+            if (!acc.find((t) => t.id === relacion.transportista.id)) {
+              acc.push({
+                id: relacion.transportista.id,
+                nombre: relacion.transportista.nombre,
+              });
+            }
+            return acc;
+          },
+          []
+        );
         setTransportistasOptions(transportistasUnicos);
       }
     } catch (error) {
-      console.error('Error al obtener relaciones:', error);
+      console.error("Error al obtener relaciones:", error);
     } finally {
       setLoadingRelaciones(false);
     }
   };
 
-
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => {
     const newForm = { ...form, [e.target.name]: e.target.value };
 
     // Auto-calcular pendientes cuando cambian cupos o reservados
-    if (e.target.name === 'cupos' || e.target.name === 'reservados') {
-      const cupos = Number(e.target.name === 'cupos' ? e.target.value : newForm.cupos) || 0;
-      const reservados = Number(e.target.name === 'reservados' ? e.target.value : newForm.reservados) || 0;
+    if (e.target.name === "cupos" || e.target.name === "reservados") {
+      const cupos =
+        Number(e.target.name === "cupos" ? e.target.value : newForm.cupos) || 0;
+      const reservados =
+        Number(
+          e.target.name === "reservados" ? e.target.value : newForm.reservados
+        ) || 0;
       newForm.pendientes = String(Math.max(0, cupos - reservados));
     }
 
@@ -329,11 +355,15 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
 
     if (choferId) {
       // Buscar la relación del chofer seleccionado
-      const relacion = relaciones.find(r => r.chofer.id === choferId);
+      const relacion = relaciones.find((r) => r.chofer.id === choferId);
       if (relacion) {
         setRelacionSeleccionada(relacion);
         // Auto-seleccionar el transportista
-        setForm(prev => ({ ...prev, chofer: choferIdStr, transportista: relacion.transportista.id.toString() }));
+        setForm((prev) => ({
+          ...prev,
+          chofer: choferIdStr,
+          transportista: relacion.transportista.id.toString(),
+        }));
         // Limpiar choferes disponibles ya que se seleccionó por chofer
         setChoferesDisponibles([]);
       } else {
@@ -346,16 +376,18 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
   };
 
   const handleTransportistaChange = (transportistaId: number | null) => {
-    const transportistaIdStr = transportistaId ? transportistaId.toString() : "";
+    const transportistaIdStr = transportistaId
+      ? transportistaId.toString()
+      : "";
     setForm({ ...form, transportista: transportistaIdStr, chofer: "" });
 
     if (transportistaId) {
       // Filtrar choferes que pertenecen a este transportista
       const choferesDelTransportista = relaciones
-        .filter(r => r.transportista.id === transportistaId)
-        .map(r => ({
+        .filter((r) => r.transportista.id === transportistaId)
+        .map((r) => ({
           id: r.chofer.id,
-          nombre: r.chofer.nombre
+          nombre: r.chofer.nombre,
         }));
       setChoferesDisponibles(choferesDelTransportista);
       setRelacionSeleccionada(null);
@@ -371,8 +403,10 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
 
     if (choferId && form.transportista) {
       // Buscar la relación específica
-      const relacion = relaciones.find(r =>
-        r.chofer.id === choferId && r.transportista.id === parseInt(form.transportista)
+      const relacion = relaciones.find(
+        (r) =>
+          r.chofer.id === choferId &&
+          r.transportista.id === parseInt(form.transportista)
       );
       if (relacion) {
         setRelacionSeleccionada(relacion);
@@ -381,6 +415,8 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
       setRelacionSeleccionada(null);
     }
   };
+  const toNumberOrNull = (v: string | number | null | undefined) =>
+    typeof v === "number" ? v : v != null && v !== "" ? Number(v) : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -388,7 +424,7 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
     try {
       const url = viaje ? `/api/viajes/${viaje.id}` : "/api/viajes/POST";
       const method = viaje ? "PUT" : "POST";
-      
+
       const res = await fetch(url, {
         method,
         headers: {
@@ -398,10 +434,15 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
       });
 
       let data: any = null;
-      try { data = await res.json(); } catch {}
+      try {
+        data = await res.json();
+      } catch {}
 
       if (!res.ok) {
-        const msg = data?.details || data?.error || `No se pudo ${viaje ? 'actualizar' : 'guardar'} el viaje`;
+        const msg =
+          data?.details ||
+          data?.error ||
+          `No se pudo ${viaje ? "actualizar" : "guardar"} el viaje`;
         throw new Error(msg);
       }
 
@@ -430,7 +471,7 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
         });
       }
 
-      console.log(`Viaje ${viaje ? 'actualizado' : 'guardado'} con éxito`);
+      console.log(`Viaje ${viaje ? "actualizado" : "guardado"} con éxito`);
 
       // Cerrar el modal y recargar después de un breve delay para que se vea la notificación
       setTimeout(() => {
@@ -442,7 +483,9 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
       setNotification({
         type: "error",
         title: "Error al guardar el viaje",
-        message: (err as any)?.message || `Ocurrió un error al ${viaje ? 'actualizar' : 'guardar'} el viaje`,
+        message:
+          (err as any)?.message ||
+          `Ocurrió un error al ${viaje ? "actualizar" : "guardar"} el viaje`,
         isVisible: true,
       });
     }
@@ -488,7 +531,7 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
           setNotification({
             type: "error",
             title: "Error al eliminar el viaje",
-            message: msg?.error || 'No se pudo eliminar el viaje',
+            message: msg?.error || "No se pudo eliminar el viaje",
             isVisible: true,
           });
           return;
@@ -505,7 +548,6 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
           onClose();
           window.location.reload();
         }, 1500);
-
       } catch (error) {
         setNotification({
           type: "error",
@@ -532,8 +574,16 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
         >
           {viaje && (
             <div className="col-span-full bg-neutral-800 p-3 rounded-lg">
-              <span className="text-sm text-neutral-400">Fecha de creación: </span>
-              <span className="text-white">{new Date(viaje.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+              <span className="text-sm text-neutral-400">
+                Fecha de creación:{" "}
+              </span>
+              <span className="text-white">
+                {new Date(viaje.fecha).toLocaleDateString("es-ES", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })}
+              </span>
               <br />
               <span className="text-sm text-neutral-400">Número: </span>
               <span className="text-white">{viaje.numero}</span>
@@ -542,7 +592,9 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
 
           {!viaje && (
             <div className="col-span-full bg-neutral-700 p-3 rounded-lg text-center">
-              <span className="text-sm text-neutral-300">El número de viaje se generará automáticamente</span>
+              <span className="text-sm text-neutral-300">
+                El número de viaje se generará automáticamente
+              </span>
             </div>
           )}
 
@@ -553,7 +605,9 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
             <SearchableSelect
               options={tercerosOptions}
               value={form.razonSocial}
-              onChange={(value) => handleSearchableSelectChange('razonSocial', value)}
+              onChange={(value) =>
+                handleSearchableSelectChange("razonSocial", value)
+              }
               placeholder="Seleccionar Cliente"
               name="razonSocial"
               required
@@ -568,7 +622,9 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
             <SearchableSelect
               options={localidades}
               value={form.origen}
-              onChange={(value) => handleSearchableSelectChange('origen', value)}
+              onChange={(value) =>
+                handleSearchableSelectChange("origen", value)
+              }
               placeholder="Seleccionar Origen"
               name="origen"
               required
@@ -583,7 +639,9 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
             <SearchableSelect
               options={localidades}
               value={form.destino}
-              onChange={(value) => handleSearchableSelectChange('destino', value)}
+              onChange={(value) =>
+                handleSearchableSelectChange("destino", value)
+              }
               placeholder="Seleccionar Destino"
               name="destino"
               required
@@ -598,7 +656,9 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
             <SearchableSelect
               options={productosOptions}
               value={form.articulo}
-              onChange={(value) => handleSearchableSelectChange('articulo', value)}
+              onChange={(value) =>
+                handleSearchableSelectChange("articulo", value)
+              }
               placeholder="Seleccionar Producto"
               name="articulo"
               required
@@ -671,12 +731,7 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
             <SearchableSelect
               options={vendedores}
               valueId={form.vendedor ? parseInt(form.vendedor) : null}
-              onChangeId={(id, option) => {
-                setForm({
-                  ...form,
-                  vendedor: String(id ?? ''),
-                });
-              }}
+              onChangeId={(raw) => handleChoferChange(toNumberOrNull(raw))}
               placeholder="Seleccionar Vendedor"
               name="vendedor"
               loading={loadingVendedores}
@@ -685,41 +740,49 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
 
           {/* Sección de selección de transporte */}
           <div className="col-span-full bg-neutral-800 p-4 rounded-lg">
-            <h3 className="text-sm font-medium text-neutral-300 mb-4">Selección de Transporte</h3>
+            <h3 className="text-sm font-medium text-neutral-300 mb-4">
+              Selección de Transporte
+            </h3>
             <p className="text-xs text-neutral-400 mb-4">
-              Puedes elegir primero el chofer (se asignará automáticamente su transportista) o elegir primero el transportista (luego seleccionar uno de sus choferes).
+              Puedes elegir primero el chofer (se asignará automáticamente su
+              transportista) o elegir primero el transportista (luego
+              seleccionar uno de sus choferes).
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-300 mb-2">
-                  Chofer {!form.transportista && '*'}
+                  Chofer {!form.transportista && "*"}
                 </label>
                 <SearchableSelect
                   options={choferesOptions}
-                  valueId={form.chofer ? parseInt(form.chofer) : null}
-                  onChangeId={(id) => handleChoferChange(id)}
+                  valueId={toNumberOrNull(form.chofer)}
+                  onChangeId={(raw) => handleChoferChange(toNumberOrNull(raw))}
                   placeholder="Seleccionar Chofer"
                   name="chofer"
                   required={!form.transportista}
-                  loading={loadingRelaciones}
-                  disabled={!!form.transportista && choferesDisponibles.length > 0}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-neutral-300 mb-2">
-                  Transportista {!form.chofer && '*'}
+                  Transportista {!form.chofer && "*"}
                 </label>
                 <SearchableSelect
-                  options={transportistasOptions}
-                  valueId={form.transportista ? parseInt(form.transportista) : null}
-                  onChangeId={(id) => handleTransportistaChange(id)}
-                  placeholder="Seleccionar Transportista"
-                  name="transportista"
-                  required={!form.chofer}
-                  loading={loadingRelaciones}
-                  disabled={!!form.chofer}
+                  options={choferesOptions}
+                  valueId={form.chofer ? parseInt(form.chofer) : null}
+                  onChangeId={(raw) => {
+                    const id =
+                      typeof raw === "number"
+                        ? raw
+                        : raw != null && raw !== ""
+                        ? Number(raw)
+                        : null; // convierte "" o undefined en null
+                    handleChoferChange(id);
+                  }}
+                  placeholder="Seleccionar Chofer"
+                  name="chofer"
+                  required={!form.transportista}
                 />
               </div>
             </div>
@@ -733,7 +796,7 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
                 <SearchableSelect
                   options={choferesDisponibles}
                   valueId={form.chofer ? parseInt(form.chofer) : null}
-                  onChangeId={(id) => handleChoferDeTransportistaChange(id)}
+                  onChangeId={(raw) => handleChoferChange(toNumberOrNull(raw))}
                   placeholder="Seleccionar Chofer"
                   name="choferDeTransportista"
                   required
@@ -745,50 +808,66 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
           {/* Información de la relación seleccionada */}
           {relacionSeleccionada && (
             <div className="col-span-full bg-green-900/20 border border-green-600/30 p-4 rounded-lg">
-              <h3 className="text-sm font-medium text-green-300 mb-3">✅ Relación Confirmada</h3>
+              <h3 className="text-sm font-medium text-green-300 mb-3">
+                ✅ Relación Confirmada
+              </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                 <div>
                   <span className="text-neutral-400">Chofer: </span>
-                  <span className="text-white">{relacionSeleccionada.chofer.nombre}</span>
+                  <span className="text-white">
+                    {relacionSeleccionada.chofer.nombre}
+                  </span>
                 </div>
                 <div>
                   <span className="text-neutral-400">Transportista: </span>
-                  <span className="text-white">{relacionSeleccionada.transportista.nombre}</span>
+                  <span className="text-white">
+                    {relacionSeleccionada.transportista.nombre}
+                  </span>
                 </div>
                 <div>
                   <span className="text-neutral-400">CUIT Chofer: </span>
-                  <span className="text-white">{relacionSeleccionada.chofer.cuit}</span>
+                  <span className="text-white">
+                    {relacionSeleccionada.chofer.cuit}
+                  </span>
                 </div>
                 <div>
                   <span className="text-neutral-400">Teléfono Chofer: </span>
-                  <span className="text-white">{relacionSeleccionada.chofer.telefono}</span>
+                  <span className="text-white">
+                    {relacionSeleccionada.chofer.telefono}
+                  </span>
                 </div>
                 {relacionSeleccionada.vehiculo.patenteChasis && (
                   <div>
                     <span className="text-neutral-400">Patente Chasis: </span>
-                    <span className="text-white">{relacionSeleccionada.vehiculo.patenteChasis}</span>
+                    <span className="text-white">
+                      {relacionSeleccionada.vehiculo.patenteChasis}
+                    </span>
                   </div>
                 )}
                 {relacionSeleccionada.vehiculo.patenteAcoplado && (
                   <div>
                     <span className="text-neutral-400">Patente Acoplado: </span>
-                    <span className="text-white">{relacionSeleccionada.vehiculo.patenteAcoplado}</span>
+                    <span className="text-white">
+                      {relacionSeleccionada.vehiculo.patenteAcoplado}
+                    </span>
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {(form.chofer || form.transportista) && !relacionSeleccionada && !loadingRelaciones && (
-            <div className="col-span-full bg-yellow-600/20 border border-yellow-600/30 p-3 rounded-lg">
-              <div className="text-sm text-yellow-200">
-                ⚠️ {form.transportista && !form.chofer
-                  ? 'Selecciona un chofer del transportista para completar la asignación.'
-                  : 'No se encontró una relación válida. Verifica la selección.'}
+          {(form.chofer || form.transportista) &&
+            !relacionSeleccionada &&
+            !loadingRelaciones && (
+              <div className="col-span-full bg-yellow-600/20 border border-yellow-600/30 p-3 rounded-lg">
+                <div className="text-sm text-yellow-200">
+                  ⚠️{" "}
+                  {form.transportista && !form.chofer
+                    ? "Selecciona un chofer del transportista para completar la asignación."
+                    : "No se encontró una relación válida. Verifica la selección."}
+                </div>
               </div>
-            </div>
-          )}
-
+            )}
 
           {/* Botones */}
           <div className="flex justify-between col-span-full pt-2">
@@ -798,8 +877,18 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
                 onClick={handleDelete}
                 className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white flex items-center gap-2"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
                 </svg>
                 Eliminar
               </button>
@@ -828,7 +917,9 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
         title={notification.title}
         message={notification.message}
         isVisible={notification.isVisible}
-        onClose={() => setNotification(prev => ({ ...prev, isVisible: false }))}
+        onClose={() =>
+          setNotification((prev) => ({ ...prev, isVisible: false }))
+        }
       />
     </div>
   );
