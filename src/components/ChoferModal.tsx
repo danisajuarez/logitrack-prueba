@@ -5,10 +5,11 @@ import Notification from "./Notification";
 
 interface Chofer {
   id: number;
-  razonSocial: string;
-  cuit: string;
-  telefono: string;
-  email: string;
+  nombre: string; // ← antes razonSocial
+  // si en el futuro necesitás más datos, agregalos como opcionales
+  cuit?: string | null;
+  telefono?: string | null;
+  email?: string | null;
 }
 
 interface ChoferOption {
@@ -85,7 +86,12 @@ interface ChoferModalProps {
 const formatPatente = (value: string | null | undefined) =>
   value && value.trim().length ? value.toUpperCase() : "Sin acoplado";
 
-export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: ChoferModalProps) {
+export default function ChoferModal({
+  isOpen,
+  onClose,
+  viaje,
+  onPostulado,
+}: ChoferModalProps) {
   const viajeId = viaje?.id ?? null;
 
   const [choferes, setChoferes] = useState<Chofer[]>([]);
@@ -99,7 +105,9 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
 
   const [selectedChofer, setSelectedChofer] = useState<number | null>(null);
   const [selectedVendedor, setSelectedVendedor] = useState<number | null>(null);
-  const [transportista, setTransportista] = useState<TransportistaInfo | null>(null);
+  const [transportista, setTransportista] = useState<TransportistaInfo | null>(
+    null
+  );
   const [patChasis, setPatChasis] = useState<string>("");
   const [patAcoplado, setPatAcoplado] = useState<string | null>(null);
   const [sendEmail, setSendEmail] = useState(false);
@@ -113,11 +121,6 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
     message?: string;
     isVisible: boolean;
   }>({ type: "success", title: "", message: "", isVisible: false });
-
-  const selectedChoferFull = useMemo(
-    () => choferes.find((c) => c.id === selectedChofer) || null,
-    [choferes, selectedChofer]
-  );
 
   const loadPostulaciones = useCallback(async () => {
     if (!viajeId) {
@@ -167,14 +170,15 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
         ]);
 
         if (!rChoferes.ok) throw new Error("No se pudieron obtener choferes");
-        if (!rVendedores.ok) throw new Error("No se pudieron obtener vendedores");
+        if (!rVendedores.ok)
+          throw new Error("No se pudieron obtener vendedores");
 
         const choferesData: Chofer[] = await rChoferes.json();
         setChoferes(choferesData);
         setChoferOptions(
           choferesData.map((c) => ({
             id: c.id,
-            nombre: c.razonSocial,
+            nombre: c.nombre,
           }))
         );
 
@@ -207,10 +211,14 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
     (async () => {
       setLoadingRelacion(true);
       try {
-        const res = await fetch(`/api/choferes/relacion?choferId=${selectedChofer}`);
+        const res = await fetch(
+          `/api/choferes/relacion?choferId=${selectedChofer}`
+        );
         const data = await res.json();
         if (!res.ok) {
-          throw new Error(data?.error || "No se pudo obtener la relacion del chofer");
+          throw new Error(
+            data?.error || "No se pudo obtener la relacion del chofer"
+          );
         }
 
         const choferData = data as ChoferRelacionResponse;
@@ -221,7 +229,8 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
           setNotification({
             type: "warning",
             title: "Relacion inactiva",
-            message: "El chofer no tiene una relacion activa con un transportista o vehiculo",
+            message:
+              "El chofer no tiene una relacion activa con un transportista o vehiculo",
             isVisible: true,
           });
           return;
@@ -235,7 +244,9 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
           direccion: choferData.transportista.direccion,
         });
         setPatChasis(choferData.patChasis?.toUpperCase?.() || "");
-        setPatAcoplado(choferData.patAcoplado ? choferData.patAcoplado.toUpperCase() : null);
+        setPatAcoplado(
+          choferData.patAcoplado ? choferData.patAcoplado.toUpperCase() : null
+        );
       } catch (err: any) {
         console.error(err);
         setTransportista(null);
@@ -298,7 +309,8 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
       setNotification({
         type: "warning",
         title: "Falta transportista",
-        message: "No se pudo determinar el transportista para el chofer seleccionado",
+        message:
+          "No se pudo determinar el transportista para el chofer seleccionado",
         isVisible: true,
       });
       return;
@@ -357,7 +369,10 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
         try {
           await Promise.resolve(onPostulado());
         } catch (callbackError) {
-          console.error("Error al actualizar la lista de viajes:", callbackError);
+          console.error(
+            "Error al actualizar la lista de viajes:",
+            callbackError
+          );
         }
       }
 
@@ -395,7 +410,8 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
         method: "DELETE",
       });
       const data = await res.json().catch(() => ({} as any));
-      if (!res.ok) throw new Error(data?.error || "No se pudo eliminar la postulacion");
+      if (!res.ok)
+        throw new Error(data?.error || "No se pudo eliminar la postulacion");
 
       setNotification({
         type: "info",
@@ -409,7 +425,10 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
         try {
           await Promise.resolve(onPostulado());
         } catch (callbackError) {
-          console.error("Error al actualizar la lista de viajes:", callbackError);
+          console.error(
+            "Error al actualizar la lista de viajes:",
+            callbackError
+          );
         }
       }
     } catch (err: any) {
@@ -439,8 +458,12 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
       >
         <div className="flex items-start justify-between mb-3 sticky top-0 bg-gradient-to-br from-neutral-900 to-neutral-800 z-10 pb-2">
           <div className="flex-1">
-            <h2 className="text-lg md:text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Choferes</h2>
-            <p className="text-xs text-neutral-400 mt-0.5 hidden md:block">Gestiona los choferes para este viaje</p>
+            <h2 className="text-lg md:text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              Choferes
+            </h2>
+            <p className="text-xs text-neutral-400 mt-0.5 hidden md:block">
+              Gestiona los choferes para este viaje
+            </p>
           </div>
           <button
             type="button"
@@ -454,28 +477,46 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-3 md:mb-4">
           <div className="bg-neutral-800/50 rounded-md p-2 md:p-3 border border-neutral-700">
             <span className="text-xs text-blue-400 font-medium">Total</span>
-            <div className="text-lg md:text-xl font-bold text-white">{viaje.cupos ?? 0}</div>
+            <div className="text-lg md:text-xl font-bold text-white">
+              {viaje.cupos ?? 0}
+            </div>
           </div>
           <div className="bg-neutral-800/50 rounded-md p-2 md:p-3 border border-neutral-700">
-            <span className="text-xs text-orange-400 font-medium">Reservados</span>
-            <div className="text-lg md:text-xl font-bold text-white">{viaje.cuposReservados ?? 0}</div>
+            <span className="text-xs text-orange-400 font-medium">
+              Reservados
+            </span>
+            <div className="text-lg md:text-xl font-bold text-white">
+              {viaje.cuposReservados ?? 0}
+            </div>
           </div>
           <div className="bg-neutral-800/50 rounded-md p-2 md:p-3 border border-neutral-700">
-            <span className="text-xs text-purple-400 font-medium">Postulados</span>
-            <div className="text-lg md:text-xl font-bold text-white">{postuladosActuales}</div>
+            <span className="text-xs text-purple-400 font-medium">
+              Postulados
+            </span>
+            <div className="text-lg md:text-xl font-bold text-white">
+              {postuladosActuales}
+            </div>
           </div>
           <div className="bg-neutral-800/50 rounded-md p-2 md:p-3 border border-neutral-700">
-            <span className="text-xs text-green-400 font-medium">Disponibles</span>
-            <div className={`text-lg md:text-xl font-bold ${
-              pendientesCalculados > 0 ? 'text-green-400' : 'text-red-400'
-            }`}>{pendientesCalculados}</div>
+            <span className="text-xs text-green-400 font-medium">
+              Disponibles
+            </span>
+            <div
+              className={`text-lg md:text-xl font-bold ${
+                pendientesCalculados > 0 ? "text-green-400" : "text-red-400"
+              }`}
+            >
+              {pendientesCalculados}
+            </div>
           </div>
         </div>
 
         <div className="bg-gradient-to-r from-neutral-800/40 to-neutral-700/40 border border-neutral-600 rounded-md p-2 md:p-3 mb-3 md:mb-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-3 text-sm">
             <div className="flex items-center justify-between md:block">
-              <span className="text-neutral-400 text-xs">Viaje #{viaje.numero}</span>
+              <span className="text-neutral-400 text-xs">
+                Viaje #{viaje.numero}
+              </span>
               <div className="font-medium text-white text-sm">
                 {new Date(viaje.fecha).toLocaleDateString("es-ES", {
                   day: "2-digit",
@@ -487,13 +528,19 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
                   <span className="text-neutral-400 text-xs">Cliente</span>
-                  <div className="font-medium text-white text-sm truncate" title={viaje.razonSocial}>
+                  <div
+                    className="font-medium text-white text-sm truncate"
+                    title={viaje.razonSocial}
+                  >
                     {viaje.razonSocial}
                   </div>
                 </div>
                 <div>
                   <span className="text-neutral-400 text-xs">Ruta</span>
-                  <div className="font-medium text-white text-sm truncate" title={`${viaje.origen} → ${viaje.destino}`}>
+                  <div
+                    className="font-medium text-white text-sm truncate"
+                    title={`${viaje.origen} → ${viaje.destino}`}
+                  >
                     {viaje.origen} → {viaje.destino}
                   </div>
                 </div>
@@ -507,30 +554,44 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
           <div className="hidden md:block bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-600/30 rounded-md p-3 mb-3">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-sm font-medium text-blue-300 truncate">
-                🚚 {transportista.nombre || `Transportista ID: ${transportista.id}`}
+                🚚{" "}
+                {transportista.nombre ||
+                  `Transportista ID: ${transportista.id}`}
               </span>
-              {loadingRelacion && <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin shrink-0"></div>}
+              {loadingRelacion && (
+                <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin shrink-0"></div>
+              )}
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
               <div>
                 <span className="text-blue-400">ID:</span>
-                <div className="font-mono text-white text-xs">{transportista.id}</div>
+                <div className="font-mono text-white text-xs">
+                  {transportista.id}
+                </div>
               </div>
               <div>
                 <span className="text-blue-400">CUIT:</span>
-                <div className="font-mono text-white text-xs">{transportista.cuit || 'N/A'}</div>
+                <div className="font-mono text-white text-xs">
+                  {transportista.cuit || "N/A"}
+                </div>
               </div>
               <div>
                 <span className="text-blue-400">Tel:</span>
-                <div className="font-medium text-white text-xs">{transportista.telefono || 'N/A'}</div>
+                <div className="font-medium text-white text-xs">
+                  {transportista.telefono || "N/A"}
+                </div>
               </div>
               <div>
                 <span className="text-blue-400">Chasis:</span>
-                <div className="font-mono font-bold text-green-400 text-sm">{patChasis || 'N/A'}</div>
+                <div className="font-mono font-bold text-green-400 text-sm">
+                  {patChasis || "N/A"}
+                </div>
               </div>
               <div>
                 <span className="text-blue-400">Acoplado:</span>
-                <div className="font-mono font-bold text-green-400 text-sm">{formatPatente(patAcoplado)}</div>
+                <div className="font-mono font-bold text-green-400 text-sm">
+                  {formatPatente(patAcoplado)}
+                </div>
               </div>
             </div>
           </div>
@@ -540,7 +601,10 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
         {selectedChofer && !transportista && !loadingRelacion && (
           <div className="hidden md:block bg-gradient-to-r from-yellow-900/20 to-orange-900/20 border border-yellow-600/30 rounded-md p-2 mb-3">
             <div className="flex items-center gap-2 text-sm">
-              ⚠️ <span className="text-yellow-300 font-medium">Sin relación activa</span>
+              ⚠️{" "}
+              <span className="text-yellow-300 font-medium">
+                Sin relación activa
+              </span>
             </div>
           </div>
         )}
@@ -568,10 +632,16 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-neutral-400 text-xs">#{index + 1}</span>
+                    <span className="text-neutral-400 text-xs">
+                      #{index + 1}
+                    </span>
                     <div>
-                      <div className="text-white font-medium text-sm">{row.choferNombre ?? "Sin datos"}</div>
-                      <div className="text-neutral-400 text-xs">ID: {row.choferId}</div>
+                      <div className="text-white font-medium text-sm">
+                        {row.choferNombre ?? "Sin datos"}
+                      </div>
+                      <div className="text-neutral-400 text-xs">
+                        ID: {row.choferId}
+                      </div>
                     </div>
                   </div>
                   <button
@@ -586,29 +656,45 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
                 <div className="grid grid-cols-2 gap-2 text-xs mb-2">
                   <div>
                     <span className="text-neutral-400">Transportista:</span>
-                    <div className="text-white font-medium">{row.transportistaNombre ?? "Sin datos"}</div>
+                    <div className="text-white font-medium">
+                      {row.transportistaNombre ?? "Sin datos"}
+                    </div>
                   </div>
                   <div>
                     <span className="text-neutral-400">ID Trans:</span>
-                    <div className="text-neutral-300">{row.transporteId ?? "N/A"}</div>
+                    <div className="text-neutral-300">
+                      {row.transporteId ?? "N/A"}
+                    </div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <span className="text-neutral-400">Chasis:</span>
-                    <div className="font-mono text-green-400">{formatPatente(row.patChasis)}</div>
+                    <div className="font-mono text-green-400">
+                      {formatPatente(row.patChasis)}
+                    </div>
                   </div>
                   <div>
                     <span className="text-neutral-400">Acoplado:</span>
-                    <div className="font-mono text-blue-400">{formatPatente(row.patAcoplado)}</div>
+                    <div className="font-mono text-blue-400">
+                      {formatPatente(row.patAcoplado)}
+                    </div>
                   </div>
                   <div>
                     <span className="text-neutral-400">Vendedor:</span>
-                    <div className="text-white">{row.vendedorNombre ?? "-"}</div>
+                    <div className="text-white">
+                      {row.vendedorNombre ?? "-"}
+                    </div>
                   </div>
                   <div className="flex items-center gap-1">
                     <span className="text-neutral-400">Email:</span>
-                    <input type="checkbox" checked={row.sendEmail} readOnly disabled className="scale-75" />
+                    <input
+                      type="checkbox"
+                      checked={row.sendEmail}
+                      readOnly
+                      disabled
+                      className="scale-75"
+                    />
                   </div>
                 </div>
               </div>
@@ -619,30 +705,44 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
               <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-600/30 rounded-md p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-sm font-medium text-blue-300 truncate">
-                    🚚 {transportista.nombre || `Transportista ID: ${transportista.id}`}
+                    🚚{" "}
+                    {transportista.nombre ||
+                      `Transportista ID: ${transportista.id}`}
                   </span>
-                  {loadingRelacion && <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin shrink-0"></div>}
+                  {loadingRelacion && (
+                    <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin shrink-0"></div>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <span className="text-blue-400">ID:</span>
-                    <div className="font-mono text-white text-xs">{transportista.id}</div>
+                    <div className="font-mono text-white text-xs">
+                      {transportista.id}
+                    </div>
                   </div>
                   <div>
                     <span className="text-blue-400">CUIT:</span>
-                    <div className="font-mono text-white text-xs">{transportista.cuit || 'N/A'}</div>
+                    <div className="font-mono text-white text-xs">
+                      {transportista.cuit || "N/A"}
+                    </div>
                   </div>
                   <div>
                     <span className="text-blue-400">Tel:</span>
-                    <div className="font-medium text-white text-xs">{transportista.telefono || 'N/A'}</div>
+                    <div className="font-medium text-white text-xs">
+                      {transportista.telefono || "N/A"}
+                    </div>
                   </div>
                   <div>
                     <span className="text-blue-400">Chasis:</span>
-                    <div className="font-mono font-bold text-green-400 text-sm">{patChasis || 'N/A'}</div>
+                    <div className="font-mono font-bold text-green-400 text-sm">
+                      {patChasis || "N/A"}
+                    </div>
                   </div>
                   <div>
                     <span className="text-blue-400">Acoplado:</span>
-                    <div className="font-mono font-bold text-green-400 text-sm">{formatPatente(patAcoplado)}</div>
+                    <div className="font-mono font-bold text-green-400 text-sm">
+                      {formatPatente(patAcoplado)}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -652,7 +752,10 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
             {selectedChofer && !transportista && !loadingRelacion && (
               <div className="bg-gradient-to-r from-yellow-900/20 to-orange-900/20 border border-yellow-600/30 rounded-md p-2">
                 <div className="flex items-center gap-2 text-xs">
-                  ⚠️ <span className="text-yellow-300 font-medium">Sin relación activa</span>
+                  ⚠️{" "}
+                  <span className="text-yellow-300 font-medium">
+                    Sin relación activa
+                  </span>
                 </div>
               </div>
             )}
@@ -665,11 +768,15 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
                 <tr>
                   <th className="px-2 py-2 text-left w-8 font-medium">#</th>
                   <th className="px-2 py-2 text-left font-medium">Chofer</th>
-                  <th className="px-2 py-2 text-left font-medium">Transportista</th>
+                  <th className="px-2 py-2 text-left font-medium">
+                    Transportista
+                  </th>
                   <th className="px-2 py-2 text-left font-medium">Patentes</th>
                   <th className="px-2 py-2 text-center font-medium">Email</th>
                   <th className="px-2 py-2 text-left font-medium">Vendedor</th>
-                  <th className="px-2 py-2 text-center font-medium">Acciones</th>
+                  <th className="px-2 py-2 text-center font-medium">
+                    Acciones
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -688,21 +795,41 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
                     key={`postulacion-${row.id}`}
                     className="border-t border-neutral-700 bg-neutral-900/60 hover:bg-neutral-800/80 transition-colors duration-200"
                   >
-                    <td className="px-2 py-2 align-middle text-neutral-300">{index + 1}</td>
-                    <td className="px-2 py-2 align-middle">
-                      <div className="text-neutral-200 font-medium">{row.choferNombre ?? "Sin datos"}</div>
-                      <div className="text-neutral-400 text-xs">ID: {row.choferId}</div>
+                    <td className="px-2 py-2 align-middle text-neutral-300">
+                      {index + 1}
                     </td>
                     <td className="px-2 py-2 align-middle">
-                      <div className="text-neutral-200 font-medium text-xs">{row.transportistaNombre ?? "Sin datos"}</div>
-                      <div className="text-neutral-400 text-xs">ID: {row.transporteId ?? "N/A"}</div>
+                      <div className="text-neutral-200 font-medium">
+                        {row.choferNombre ?? "Sin datos"}
+                      </div>
+                      <div className="text-neutral-400 text-xs">
+                        ID: {row.choferId}
+                      </div>
                     </td>
                     <td className="px-2 py-2 align-middle">
-                      <div className="font-mono text-xs text-green-400">{formatPatente(row.patChasis)}</div>
-                      <div className="font-mono text-xs text-blue-400">{formatPatente(row.patAcoplado)}</div>
+                      <div className="text-neutral-200 font-medium text-xs">
+                        {row.transportistaNombre ?? "Sin datos"}
+                      </div>
+                      <div className="text-neutral-400 text-xs">
+                        ID: {row.transporteId ?? "N/A"}
+                      </div>
+                    </td>
+                    <td className="px-2 py-2 align-middle">
+                      <div className="font-mono text-xs text-green-400">
+                        {formatPatente(row.patChasis)}
+                      </div>
+                      <div className="font-mono text-xs text-blue-400">
+                        {formatPatente(row.patAcoplado)}
+                      </div>
                     </td>
                     <td className="px-2 py-2 align-middle text-center">
-                      <input type="checkbox" checked={row.sendEmail} readOnly disabled className="scale-75" />
+                      <input
+                        type="checkbox"
+                        checked={row.sendEmail}
+                        readOnly
+                        disabled
+                        className="scale-75"
+                      />
                     </td>
                     <td className="px-2 py-2 align-middle text-neutral-200 text-xs">
                       {row.vendedorNombre ?? "-"}
@@ -729,25 +856,37 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
                       options={choferOptions}
                       valueId={selectedChofer}
                       onChangeId={(id) => setSelectedChofer(Number(id))}
-                      placeholder={loadingCatalogos ? "Cargando..." : "Seleccionar chofer"}
+                      placeholder={
+                        loadingCatalogos ? "Cargando..." : "Seleccionar chofer"
+                      }
                       name="chofer"
                       required
                       loading={loadingCatalogos}
                     />
                     {selectedChofer && loadingRelacion && (
-                      <div className="mt-1 text-xs text-blue-400">Verificando...</div>
+                      <div className="mt-1 text-xs text-blue-400">
+                        Verificando...
+                      </div>
                     )}
                   </td>
                   <td className="px-2 py-2 align-top">
                     <div className="text-xs space-y-1">
-                      <div className="text-neutral-200 font-medium">{transportista?.nombre ?? "Selecciona chofer"}</div>
-                      <div className="text-neutral-400">ID: {transportista?.id ?? "N/A"}</div>
+                      <div className="text-neutral-200 font-medium">
+                        {transportista?.nombre ?? "Selecciona chofer"}
+                      </div>
+                      <div className="text-neutral-400">
+                        ID: {transportista?.id ?? "N/A"}
+                      </div>
                     </div>
                   </td>
                   <td className="px-2 py-2 align-top">
                     <div className="text-xs space-y-1">
-                      <div className="font-mono text-green-400">{patChasis || 'Auto'}</div>
-                      <div className="font-mono text-blue-400">{formatPatente(patAcoplado)}</div>
+                      <div className="font-mono text-green-400">
+                        {patChasis || "Auto"}
+                      </div>
+                      <div className="font-mono text-blue-400">
+                        {formatPatente(patAcoplado)}
+                      </div>
                     </div>
                   </td>
                   <td className="px-2 py-2 align-top text-center">
@@ -762,7 +901,11 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
                     <select
                       className="w-full rounded bg-neutral-900 border border-neutral-700 px-2 py-1 text-xs"
                       value={selectedVendedor ?? ""}
-                      onChange={(e) => setSelectedVendedor(e.target.value ? Number(e.target.value) : null)}
+                      onChange={(e) =>
+                        setSelectedVendedor(
+                          e.target.value ? Number(e.target.value) : null
+                        )
+                      }
                     >
                       <option value="" disabled>
                         {loadingCatalogos ? "Cargando..." : "Vendedor"}
@@ -809,18 +952,24 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
           <div className="md:hidden bg-gradient-to-r from-blue-900/10 to-purple-900/10 border-2 border-blue-600/30 rounded-md p-3">
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-neutral-400 mb-1 block">Chofer</label>
+                <label className="text-xs text-neutral-400 mb-1 block">
+                  Chofer
+                </label>
                 <SearchableSelect
                   options={choferOptions}
                   valueId={selectedChofer}
                   onChangeId={(id) => setSelectedChofer(Number(id))}
-                  placeholder={loadingCatalogos ? "Cargando..." : "Seleccionar chofer"}
+                  placeholder={
+                    loadingCatalogos ? "Cargando..." : "Seleccionar chofer"
+                  }
                   name="chofer"
                   required
                   loading={loadingCatalogos}
                 />
                 {selectedChofer && loadingRelacion && (
-                  <div className="mt-1 text-xs text-blue-400">Verificando...</div>
+                  <div className="mt-1 text-xs text-blue-400">
+                    Verificando...
+                  </div>
                 )}
               </div>
 
@@ -828,22 +977,32 @@ export default function ChoferModal({ isOpen, onClose, viaje, onPostulado }: Cho
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <span className="text-xs text-neutral-400">Chasis</span>
-                    <div className="font-mono text-green-400 text-sm">{patChasis}</div>
+                    <div className="font-mono text-green-400 text-sm">
+                      {patChasis}
+                    </div>
                   </div>
                   <div>
                     <span className="text-xs text-neutral-400">Acoplado</span>
-                    <div className="font-mono text-blue-400 text-sm">{formatPatente(patAcoplado)}</div>
+                    <div className="font-mono text-blue-400 text-sm">
+                      {formatPatente(patAcoplado)}
+                    </div>
                   </div>
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Vendedor</label>
+                  <label className="text-xs text-neutral-400 mb-1 block">
+                    Vendedor
+                  </label>
                   <select
                     className="w-full rounded bg-neutral-900 border border-neutral-700 px-3 py-3 text-sm min-h-[44px] touch-manipulation"
                     value={selectedVendedor ?? ""}
-                    onChange={(e) => setSelectedVendedor(e.target.value ? Number(e.target.value) : null)}
+                    onChange={(e) =>
+                      setSelectedVendedor(
+                        e.target.value ? Number(e.target.value) : null
+                      )
+                    }
                   >
                     <option value="" disabled>
                       {loadingCatalogos ? "Cargando..." : "Vendedor"}

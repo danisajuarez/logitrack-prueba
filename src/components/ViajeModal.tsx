@@ -13,8 +13,43 @@ interface Tercero {
   localidad: number;
 }
 
+interface Chofer {
+  id: number;
+  razonSocial: string;
+  cuit: string;
+  telefono: string;
+  email: string;
+}
+
+interface RelacionChoferTransportista {
+  transportista: {
+    id: number;
+    nombre: string;
+  };
+  chofer: {
+    id: number;
+    nombre: string;
+    cuit: string;
+    telefono: string;
+  };
+  vehiculo: {
+    patenteChasis: string;
+    patenteAcoplado: string;
+  };
+}
+
+interface TransportistaOption {
+  id: number;
+  nombre: string;
+}
+
 // Interfaces adaptadas para SearchableSelect
 interface TerceroOption {
+  id: number;
+  nombre: string;
+}
+
+interface ChoferOption {
   id: number;
   nombre: string;
 }
@@ -80,15 +115,25 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
     pendientes: "",
     tarifa: "",
     vendedor: "",
+    chofer: "",
+    transportista: "",
   });
   const [terceros, setTerceros] = useState<Tercero[]>([]);
   const [loadingTerceros, setLoadingTerceros] = useState(false);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [loadingProductos, setLoadingProductos] = useState(false);
-  
+
+  // Datos de relaciones chofer-transportista
+  const [relaciones, setRelaciones] = useState<RelacionChoferTransportista[]>([]);
+  const [loadingRelaciones, setLoadingRelaciones] = useState(false);
+  const [relacionSeleccionada, setRelacionSeleccionada] = useState<RelacionChoferTransportista | null>(null);
+
   // Opciones formateadas para SearchableSelect
   const [tercerosOptions, setTercerosOptions] = useState<TerceroOption[]>([]);
   const [productosOptions, setProductosOptions] = useState<ProductoOption[]>([]);
+  const [choferesOptions, setChoferesOptions] = useState<ChoferOption[]>([]);
+  const [transportistasOptions, setTransportistasOptions] = useState<TransportistaOption[]>([]);
+  const [choferesDisponibles, setChoferesDisponibles] = useState<ChoferOption[]>([]);
   const [vendedores, setVendedores] = useState<Vendedor[]>([]);
   const [loadingVendedores, setLoadingVendedores] = useState(false);
   const [localidades, setLocalidades] = useState<Localidad[]>([]);
@@ -113,6 +158,8 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
         pendientes: viaje.cuposPendientes?.toString() || "",
         tarifa: viaje.tarifa?.toString() || "",
         vendedor: viaje.vendedor || "",
+        chofer: "",
+        transportista: "",
       });
     } else {
       setForm({
@@ -126,8 +173,12 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
         pendientes: "",
         tarifa: "",
         vendedor: "",
+        chofer: "",
+        transportista: "",
       });
     }
+    // Limpiar selección cuando cambie el viaje
+    setRelacionSeleccionada(null);
   }, [viaje]);
 
   useEffect(() => {
@@ -136,6 +187,7 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
       fetchProductos();
       fetchVendedores();
       fetchLocalidades();
+      fetchRelaciones();
     }
   }, [isOpen, viaje]);
 
@@ -212,6 +264,45 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
     }
   };
 
+  const fetchRelaciones = async () => {
+    setLoadingRelaciones(true);
+    try {
+      const res = await fetch('/api/relaciones-chofer-transportista');
+      if (res.ok) {
+        const data = await res.json();
+        setRelaciones(data);
+
+        // Extraer choferes únicos
+        const choferesUnicos = data.reduce((acc: ChoferOption[], relacion: RelacionChoferTransportista) => {
+          if (!acc.find(c => c.id === relacion.chofer.id)) {
+            acc.push({
+              id: relacion.chofer.id,
+              nombre: relacion.chofer.nombre
+            });
+          }
+          return acc;
+        }, []);
+        setChoferesOptions(choferesUnicos);
+
+        // Extraer transportistas únicos
+        const transportistasUnicos = data.reduce((acc: TransportistaOption[], relacion: RelacionChoferTransportista) => {
+          if (!acc.find(t => t.id === relacion.transportista.id)) {
+            acc.push({
+              id: relacion.transportista.id,
+              nombre: relacion.transportista.nombre
+            });
+          }
+          return acc;
+        }, []);
+        setTransportistasOptions(transportistasUnicos);
+      }
+    } catch (error) {
+      console.error('Error al obtener relaciones:', error);
+    } finally {
+      setLoadingRelaciones(false);
+    }
+  };
+
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -230,6 +321,65 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
 
   const handleSearchableSelectChange = (name: string, value: string) => {
     setForm({ ...form, [name]: value });
+  };
+
+  const handleChoferChange = (choferId: number | null) => {
+    const choferIdStr = choferId ? choferId.toString() : "";
+    setForm({ ...form, chofer: choferIdStr, transportista: "" });
+
+    if (choferId) {
+      // Buscar la relación del chofer seleccionado
+      const relacion = relaciones.find(r => r.chofer.id === choferId);
+      if (relacion) {
+        setRelacionSeleccionada(relacion);
+        // Auto-seleccionar el transportista
+        setForm(prev => ({ ...prev, chofer: choferIdStr, transportista: relacion.transportista.id.toString() }));
+        // Limpiar choferes disponibles ya que se seleccionó por chofer
+        setChoferesDisponibles([]);
+      } else {
+        setRelacionSeleccionada(null);
+      }
+    } else {
+      setRelacionSeleccionada(null);
+      setChoferesDisponibles([]);
+    }
+  };
+
+  const handleTransportistaChange = (transportistaId: number | null) => {
+    const transportistaIdStr = transportistaId ? transportistaId.toString() : "";
+    setForm({ ...form, transportista: transportistaIdStr, chofer: "" });
+
+    if (transportistaId) {
+      // Filtrar choferes que pertenecen a este transportista
+      const choferesDelTransportista = relaciones
+        .filter(r => r.transportista.id === transportistaId)
+        .map(r => ({
+          id: r.chofer.id,
+          nombre: r.chofer.nombre
+        }));
+      setChoferesDisponibles(choferesDelTransportista);
+      setRelacionSeleccionada(null);
+    } else {
+      setChoferesDisponibles([]);
+      setRelacionSeleccionada(null);
+    }
+  };
+
+  const handleChoferDeTransportistaChange = (choferId: number | null) => {
+    const choferIdStr = choferId ? choferId.toString() : "";
+    setForm({ ...form, chofer: choferIdStr });
+
+    if (choferId && form.transportista) {
+      // Buscar la relación específica
+      const relacion = relaciones.find(r =>
+        r.chofer.id === choferId && r.transportista.id === parseInt(form.transportista)
+      );
+      if (relacion) {
+        setRelacionSeleccionada(relacion);
+      }
+    } else {
+      setRelacionSeleccionada(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -532,6 +682,112 @@ export default function ViajeModal({ isOpen, onClose, viaje, onDelete }: ViajeMo
               loading={loadingVendedores}
             />
           </div>
+
+          {/* Sección de selección de transporte */}
+          <div className="col-span-full bg-neutral-800 p-4 rounded-lg">
+            <h3 className="text-sm font-medium text-neutral-300 mb-4">Selección de Transporte</h3>
+            <p className="text-xs text-neutral-400 mb-4">
+              Puedes elegir primero el chofer (se asignará automáticamente su transportista) o elegir primero el transportista (luego seleccionar uno de sus choferes).
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">
+                  Chofer {!form.transportista && '*'}
+                </label>
+                <SearchableSelect
+                  options={choferesOptions}
+                  valueId={form.chofer ? parseInt(form.chofer) : null}
+                  onChangeId={(id) => handleChoferChange(id)}
+                  placeholder="Seleccionar Chofer"
+                  name="chofer"
+                  required={!form.transportista}
+                  loading={loadingRelaciones}
+                  disabled={!!form.transportista && choferesDisponibles.length > 0}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">
+                  Transportista {!form.chofer && '*'}
+                </label>
+                <SearchableSelect
+                  options={transportistasOptions}
+                  valueId={form.transportista ? parseInt(form.transportista) : null}
+                  onChangeId={(id) => handleTransportistaChange(id)}
+                  placeholder="Seleccionar Transportista"
+                  name="transportista"
+                  required={!form.chofer}
+                  loading={loadingRelaciones}
+                  disabled={!!form.chofer}
+                />
+              </div>
+            </div>
+
+            {/* Choferes disponibles cuando se selecciona transportista */}
+            {form.transportista && choferesDisponibles.length > 0 && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-neutral-300 mb-2">
+                  Chofer del Transportista *
+                </label>
+                <SearchableSelect
+                  options={choferesDisponibles}
+                  valueId={form.chofer ? parseInt(form.chofer) : null}
+                  onChangeId={(id) => handleChoferDeTransportistaChange(id)}
+                  placeholder="Seleccionar Chofer"
+                  name="choferDeTransportista"
+                  required
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Información de la relación seleccionada */}
+          {relacionSeleccionada && (
+            <div className="col-span-full bg-green-900/20 border border-green-600/30 p-4 rounded-lg">
+              <h3 className="text-sm font-medium text-green-300 mb-3">✅ Relación Confirmada</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-neutral-400">Chofer: </span>
+                  <span className="text-white">{relacionSeleccionada.chofer.nombre}</span>
+                </div>
+                <div>
+                  <span className="text-neutral-400">Transportista: </span>
+                  <span className="text-white">{relacionSeleccionada.transportista.nombre}</span>
+                </div>
+                <div>
+                  <span className="text-neutral-400">CUIT Chofer: </span>
+                  <span className="text-white">{relacionSeleccionada.chofer.cuit}</span>
+                </div>
+                <div>
+                  <span className="text-neutral-400">Teléfono Chofer: </span>
+                  <span className="text-white">{relacionSeleccionada.chofer.telefono}</span>
+                </div>
+                {relacionSeleccionada.vehiculo.patenteChasis && (
+                  <div>
+                    <span className="text-neutral-400">Patente Chasis: </span>
+                    <span className="text-white">{relacionSeleccionada.vehiculo.patenteChasis}</span>
+                  </div>
+                )}
+                {relacionSeleccionada.vehiculo.patenteAcoplado && (
+                  <div>
+                    <span className="text-neutral-400">Patente Acoplado: </span>
+                    <span className="text-white">{relacionSeleccionada.vehiculo.patenteAcoplado}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {(form.chofer || form.transportista) && !relacionSeleccionada && !loadingRelaciones && (
+            <div className="col-span-full bg-yellow-600/20 border border-yellow-600/30 p-3 rounded-lg">
+              <div className="text-sm text-yellow-200">
+                ⚠️ {form.transportista && !form.chofer
+                  ? 'Selecciona un chofer del transportista para completar la asignación.'
+                  : 'No se encontró una relación válida. Verifica la selección.'}
+              </div>
+            </div>
+          )}
 
 
           {/* Botones */}
