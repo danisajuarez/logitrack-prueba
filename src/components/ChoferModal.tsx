@@ -48,6 +48,11 @@ interface TransportistaInfo {
   direccion: string | null;
 }
 
+interface TransportistaOption {
+  id: number;
+  nombre: string;
+}
+
 interface ChoferRelacionResponse {
   choferId: number;
   relacionActiva: boolean;
@@ -96,11 +101,18 @@ export default function ChoferModal({
 
   const [choferes, setChoferes] = useState<Chofer[]>([]);
   const [choferOptions, setChoferOptions] = useState<ChoferOption[]>([]);
+  const [choferOptionsAll, setChoferOptionsAll] = useState<ChoferOption[]>([]);
+  const [choferPatentesById, setChoferPatentesById] = useState<Record<number, { patChasis: string; patAcoplado: string | null }>>({});
+
+  const [transportistas, setTransportistas] = useState<TransportistaOption[]>([]);
+  const [selectedTransportistaId, setSelectedTransportistaId] = useState<number | null>(null);
   const [vendedores, setVendedores] = useState<Vendedor[]>([]);
   const [postulaciones, setPostulaciones] = useState<PostulacionRow[]>([]);
 
   const [loadingCatalogos, setLoadingCatalogos] = useState(false);
   const [loadingRelacion, setLoadingRelacion] = useState(false);
+  const [loadingTransportistas, setLoadingTransportistas] = useState(false);
+  const [loadingChoferesPorTransportista, setLoadingChoferesPorTransportista] = useState(false);
   const [loadingPostulaciones, setLoadingPostulaciones] = useState(false);
 
   const [selectedChofer, setSelectedChofer] = useState<number | null>(null);
@@ -154,6 +166,7 @@ export default function ChoferModal({
     if (!isOpen || !viajeId) return;
 
     setSelectedChofer(null);
+    setSelectedTransportistaId(null);
     setSelectedVendedor(null);
     setTransportista(null);
     setPatChasis("");
@@ -163,27 +176,41 @@ export default function ChoferModal({
 
     (async () => {
       setLoadingCatalogos(true);
+      setLoadingTransportistas(true);
       try {
-        const [rChoferes, rVendedores] = await Promise.all([
+        const [rChoferes, rVendedores, rTransportistas] = await Promise.all([
           fetch("/api/choferes"),
           fetch("/api/vendedores"),
+          fetch("/api/transportistas"),
         ]);
 
         if (!rChoferes.ok) throw new Error("No se pudieron obtener choferes");
         if (!rVendedores.ok)
           throw new Error("No se pudieron obtener vendedores");
+        if (!rTransportistas.ok)
+          throw new Error("No se pudieron obtener transportistas");
 
         const choferesData: Chofer[] = await rChoferes.json();
         setChoferes(choferesData);
-        setChoferOptions(
+        const optionsAll =
           choferesData.map((c) => ({
             id: c.id,
             nombre: c.nombre,
           }))
-        );
+        ;
+        setChoferOptionsAll(optionsAll);
+        setChoferOptions(optionsAll);
 
         const vendedoresData: Vendedor[] = await rVendedores.json();
         setVendedores(vendedoresData);
+
+        const transportistasData: TransportistaOption[] = await rTransportistas.json();
+        setTransportistas(
+          (Array.isArray(transportistasData) ? transportistasData : []).map((t) => ({
+            id: Number(t.id),
+            nombre: t.nombre ?? `Transportista ${t.id}`,
+          }))
+        );
       } catch (err: any) {
         console.error(err);
         setNotification({
@@ -194,11 +221,71 @@ export default function ChoferModal({
         });
       } finally {
         setLoadingCatalogos(false);
+        setLoadingTransportistas(false);
       }
     })();
 
     loadPostulaciones();
   }, [isOpen, viajeId, loadPostulaciones]);
+
+  // Cargar choferes filtrados por transportista (con patentes)
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!selectedTransportistaId) {
+      setChoferOptions(choferOptionsAll);
+      setChoferPatentesById({});
+      return;
+    }
+
+    let abort = false;
+    (async () => {
+      setLoadingChoferesPorTransportista(true);
+      try {
+        const res = await fetch(`/api/transportistas/${selectedTransportistaId}/choferes`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "No se pudieron obtener choferes del transportista");
+
+        if (abort) return;
+
+        const patMap: Record<number, { patChasis: string; patAcoplado: string | null }> = {};
+        const opts: ChoferOption[] = (Array.isArray(data) ? data : []).map((row: any) => {
+          const id = Number(row.id);
+          const nombre = String(row.nombre ?? `Chofer ${id}`);
+          const chasis = String(row.patChasis ?? "").toUpperCase();
+          const acoplado = row.patAcoplado ? String(row.patAcoplado).toUpperCase() : null;
+          patMap[id] = { patChasis: chasis, patAcoplado: acoplado };
+          const label = `${nombre} — ${chasis}${acoplado ? ` / ${acoplado}` : ""}`;
+          return { id, nombre: label };
+        });
+
+        setChoferPatentesById(patMap);
+        setChoferOptions(opts);
+        // Preseleccionar transportista info mínima para mostrar mientras verifica
+        const t = transportistas.find((t) => t.id === selectedTransportistaId) || null;
+        setTransportista(t ? { id: t.id, nombre: t.nombre, cuit: null, telefono: null, direccion: null } : null);
+        // Reset chofer seleccionado al cambiar de transportista
+        setSelectedChofer(null);
+        setPatChasis("");
+        setPatAcoplado(null);
+      } catch (err: any) {
+        console.error(err);
+        setNotification({
+          type: "error",
+          title: "Error al cargar choferes",
+          message: err?.message || "No fue posible listar choferes de este transportista",
+          isVisible: true,
+        });
+        setChoferOptions([]);
+        setChoferPatentesById({});
+      } finally {
+        setLoadingChoferesPorTransportista(false);
+      }
+    })();
+
+    return () => {
+      abort = true;
+    };
+  }, [selectedTransportistaId, isOpen, choferOptionsAll, transportistas]);
 
   useEffect(() => {
     if (!isOpen || !selectedChofer) {
@@ -851,17 +938,31 @@ export default function ChoferModal({
                   <td className="px-2 py-2 align-top font-medium text-neutral-300">
                     +
                   </td>
-                  <td className="px-2 py-2 align-top min-w-[200px]">
+                  {/* Chofer */}
+                  <td className="px-2 py-2 align-top min-w-[220px]">
                     <SearchableSelect
                       options={choferOptions}
                       valueId={selectedChofer}
-                      onChangeId={(id) => setSelectedChofer(Number(id))}
+                      onChangeId={(id) => {
+                        const choferId = Number(id);
+                        setSelectedChofer(choferId);
+                        // Si tenemos patentes precargadas por selección de transportista, mostrarlas de inmediato
+                        const pat = choferPatentesById[choferId];
+                        if (pat) {
+                          setPatChasis(pat.patChasis || "");
+                          setPatAcoplado(pat.patAcoplado ?? null);
+                        }
+                      }}
                       placeholder={
-                        loadingCatalogos ? "Cargando..." : "Seleccionar chofer"
+                        loadingCatalogos || loadingChoferesPorTransportista
+                          ? "Cargando..."
+                          : selectedTransportistaId
+                          ? "Chofer del transportista"
+                          : "Seleccionar chofer"
                       }
                       name="chofer"
                       required
-                      loading={loadingCatalogos}
+                      loading={loadingCatalogos || loadingChoferesPorTransportista}
                     />
                     {selectedChofer && loadingRelacion && (
                       <div className="mt-1 text-xs text-blue-400">
@@ -869,13 +970,21 @@ export default function ChoferModal({
                       </div>
                     )}
                   </td>
-                  <td className="px-2 py-2 align-top">
-                    <div className="text-xs space-y-1">
-                      <div className="text-neutral-200 font-medium">
-                        {transportista?.nombre ?? "Selecciona chofer"}
-                      </div>
-                      <div className="text-neutral-400">
-                        ID: {transportista?.id ?? "N/A"}
+                  {/* Transportista */}
+                  <td className="px-2 py-2 align-top min-w-[220px]">
+                    <div className="space-y-1">
+                      <SearchableSelect
+                        options={transportistas}
+                        valueId={selectedTransportistaId}
+                        onChangeId={(id) => setSelectedTransportistaId(Number(id))}
+                        placeholder={
+                          loadingTransportistas ? "Cargando..." : "Seleccionar transportista"
+                        }
+                        name="transportista"
+                        loading={loadingTransportistas}
+                      />
+                      <div className="text-xs text-neutral-400">
+                        ID: {transportista?.id ?? (selectedTransportistaId ?? "N/A")}
                       </div>
                     </div>
                   </td>
@@ -953,18 +1062,45 @@ export default function ChoferModal({
             <div className="space-y-3">
               <div>
                 <label className="text-xs text-neutral-400 mb-1 block">
+                  Transportista
+                </label>
+                <SearchableSelect
+                  options={transportistas}
+                  valueId={selectedTransportistaId}
+                  onChangeId={(id) => setSelectedTransportistaId(Number(id))}
+                  placeholder={
+                    loadingTransportistas ? "Cargando..." : "Seleccionar transportista"
+                  }
+                  name="transportista"
+                  loading={loadingTransportistas}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-neutral-400 mb-1 block">
                   Chofer
                 </label>
                 <SearchableSelect
                   options={choferOptions}
                   valueId={selectedChofer}
-                  onChangeId={(id) => setSelectedChofer(Number(id))}
+                  onChangeId={(id) => {
+                    const choferId = Number(id);
+                    setSelectedChofer(choferId);
+                    const pat = choferPatentesById[choferId];
+                    if (pat) {
+                      setPatChasis(pat.patChasis || "");
+                      setPatAcoplado(pat.patAcoplado ?? null);
+                    }
+                  }}
                   placeholder={
-                    loadingCatalogos ? "Cargando..." : "Seleccionar chofer"
+                    loadingCatalogos || loadingChoferesPorTransportista
+                      ? "Cargando..."
+                      : selectedTransportistaId
+                      ? "Chofer del transportista"
+                      : "Seleccionar chofer"
                   }
                   name="chofer"
                   required
-                  loading={loadingCatalogos}
+                  loading={loadingCatalogos || loadingChoferesPorTransportista}
                 />
                 {selectedChofer && loadingRelacion && (
                   <div className="mt-1 text-xs text-blue-400">

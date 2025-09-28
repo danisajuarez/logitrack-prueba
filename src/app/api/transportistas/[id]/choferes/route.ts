@@ -23,7 +23,9 @@ export async function GET(
      FROM sige_tvp_terveipat tvp
      JOIN sige_ter_tercero ch
        ON ch.TER_IDTercero = tvp.TER_IdTerceroAsoc
-     WHERE tvp.ter_idtercero = 61992
+     WHERE tvp.ter_idtercero = ?
+       AND tvp.TVP_Patente IS NOT NULL
+       AND tvp.TVP_Patente <> ''
      ORDER BY ch.TER_RazonSocialTer`,
     [transportistaId]
   );
