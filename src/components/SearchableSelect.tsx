@@ -18,6 +18,7 @@ interface SearchableSelectProps {
   name: string;
   required?: boolean;
   loading?: boolean;
+  disabled?: boolean;
 }
 
 export default function SearchableSelect({
@@ -30,6 +31,7 @@ export default function SearchableSelect({
   name,
   required = false,
   loading = false,
+  disabled = false,
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -69,13 +71,17 @@ export default function SearchableSelect({
   }, []);
 
   const handleInputClick = () => {
-    setIsOpen(true);
-    setSearchTerm(displayValue);
+    if (!disabled) {
+      setIsOpen(true);
+      setSearchTerm(displayValue);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    setIsOpen(true);
+    if (!disabled) {
+      setSearchTerm(e.target.value);
+      setIsOpen(true);
+    }
   };
 
   const handleOptionSelect = (option: Option) => {
@@ -108,7 +114,7 @@ export default function SearchableSelect({
         placeholder={loading ? "Cargando..." : placeholder}
         className="input w-full pr-8"
         required={required}
-        disabled={loading}
+        disabled={loading || disabled}
         autoComplete="off"
       />
 

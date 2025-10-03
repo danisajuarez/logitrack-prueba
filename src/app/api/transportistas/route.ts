@@ -2,22 +2,17 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
-// Devuelve solo transportistas que tienen al menos un chofer con patente asociada
+// Devuelve todos los transportistas únicos que tienen vehículos/choferes asociados
 export async function GET() {
   const [rows] = await db.query(`
-    SELECT 
-      tra.TRA_IDTransporte AS id,
-      COALESCE(ter.TER_RazonSocialTer, tra.TRA_NomTrans) AS nombre
-    FROM sige_tra_transport tra
-    LEFT JOIN sige_ter_tercero ter
-      ON ter.TER_IDTercero = tra.TRA_IDTransporte
-    WHERE EXISTS (
-      SELECT 1
-      FROM sige_tvp_terveipat tvp
-      WHERE tvp.ter_idtercero = tra.TRA_IDTransporte
-        AND tvp.TVP_Patente IS NOT NULL
-        AND tvp.TVP_Patente <> ''
-    )
+    SELECT DISTINCT
+      sige_ter_tercero.TER_IDTercero AS id,
+      sige_ter_tercero.TER_RazonSocialTer AS nombre
+    FROM sige_tvp_terveipat
+    INNER JOIN sige_ter_tercero
+      ON sige_tvp_terveipat.ter_idtercero = sige_ter_tercero.TER_IDTercero
+    WHERE sige_tvp_terveipat.tvp_patente IS NOT NULL
+      AND sige_tvp_terveipat.tvp_patente <> ''
     ORDER BY nombre
   `);
   return NextResponse.json(rows);
