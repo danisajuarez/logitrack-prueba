@@ -561,9 +561,9 @@ export default function ChoferModal({
       <div
         role="dialog"
         aria-modal="true"
-        className="bg-gradient-to-br from-neutral-900 to-neutral-800 text-white w-full h-full md:h-auto md:max-w-5xl md:rounded-lg p-3 md:p-5 shadow-2xl border-0 md:border border-neutral-700 overflow-y-auto"
+        className="bg-gradient-to-br from-neutral-900 to-neutral-800 text-white w-full h-full md:h-auto md:max-w-5xl md:rounded-lg p-4 md:p-6 shadow-2xl border-0 md:border border-neutral-700 overflow-y-auto"
       >
-        <div className="flex items-start justify-between mb-3 sticky top-0 bg-gradient-to-br from-neutral-900 to-neutral-800 z-10 pb-2">
+        <div className="flex items-start justify-between mb-4 sticky top-0 bg-gradient-to-br from-neutral-900 to-neutral-800 z-10 pb-3 -mx-4 px-4 md:-mx-6 md:px-6">
           <div className="flex-1">
             <h2 className="text-lg md:text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
               Choferes
@@ -575,41 +575,42 @@ export default function ChoferModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-2 text-sm bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors duration-200 border border-neutral-600 ml-2 shrink-0"
+            className="w-10 h-10 flex items-center justify-center bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors duration-200 border border-neutral-600 ml-3 shrink-0"
+            aria-label="Cerrar"
           >
             ✕
           </button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-3 md:mb-4">
-          <div className="bg-neutral-800/50 rounded-md p-2 md:p-3 border border-neutral-700">
-            <span className="text-xs text-blue-400 font-medium">Total</span>
-            <div className="text-lg md:text-xl font-bold text-white">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <div className="bg-neutral-800/50 rounded-md p-3 border border-neutral-700">
+            <span className="text-xs text-blue-400 font-medium block mb-1">Total</span>
+            <div className="text-xl md:text-2xl font-bold text-white">
               {viaje.cupos ?? 0}
             </div>
           </div>
-          <div className="bg-neutral-800/50 rounded-md p-2 md:p-3 border border-neutral-700">
-            <span className="text-xs text-orange-400 font-medium">
+          <div className="bg-neutral-800/50 rounded-md p-3 border border-neutral-700">
+            <span className="text-xs text-orange-400 font-medium block mb-1">
               Reservados
             </span>
-            <div className="text-lg md:text-xl font-bold text-white">
+            <div className="text-xl md:text-2xl font-bold text-white">
               {viaje.cuposReservados ?? 0}
             </div>
           </div>
-          <div className="bg-neutral-800/50 rounded-md p-2 md:p-3 border border-neutral-700">
-            <span className="text-xs text-purple-400 font-medium">
+          <div className="bg-neutral-800/50 rounded-md p-3 border border-neutral-700">
+            <span className="text-xs text-purple-400 font-medium block mb-1">
               Postulados
             </span>
-            <div className="text-lg md:text-xl font-bold text-white">
+            <div className="text-xl md:text-2xl font-bold text-white">
               {postuladosActuales}
             </div>
           </div>
-          <div className="bg-neutral-800/50 rounded-md p-2 md:p-3 border border-neutral-700">
-            <span className="text-xs text-green-400 font-medium">
+          <div className="bg-neutral-800/50 rounded-md p-3 border border-neutral-700">
+            <span className="text-xs text-green-400 font-medium block mb-1">
               Disponibles
             </span>
             <div
-              className={`text-lg md:text-xl font-bold ${
+              className={`text-xl md:text-2xl font-bold ${
                 pendientesCalculados > 0 ? "text-green-400" : "text-red-400"
               }`}
             >
@@ -618,13 +619,13 @@ export default function ChoferModal({
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-neutral-800/40 to-neutral-700/40 border border-neutral-600 rounded-md p-2 md:p-3 mb-3 md:mb-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-3 text-sm">
+        <div className="bg-gradient-to-r from-neutral-800/40 to-neutral-700/40 border border-neutral-600 rounded-md p-3 md:p-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
             <div className="flex items-center justify-between md:block">
-              <span className="text-neutral-400 text-xs">
+              <span className="text-neutral-400 text-xs block mb-1">
                 Viaje #{viaje.numero}
               </span>
-              <div className="font-medium text-white text-sm">
+              <div className="font-medium text-white">
                 {new Date(viaje.fecha).toLocaleDateString("es-ES", {
                   day: "2-digit",
                   month: "2-digit",
@@ -632,20 +633,20 @@ export default function ChoferModal({
               </div>
             </div>
             <div className="md:col-span-2">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <span className="text-neutral-400 text-xs">Cliente</span>
+                  <span className="text-neutral-400 text-xs block mb-1">Cliente</span>
                   <div
-                    className="font-medium text-white text-sm truncate"
+                    className="font-medium text-white truncate"
                     title={viaje.razonSocial}
                   >
                     {viaje.razonSocial}
                   </div>
                 </div>
                 <div>
-                  <span className="text-neutral-400 text-xs">Ruta</span>
+                  <span className="text-neutral-400 text-xs block mb-1">Ruta</span>
                   <div
-                    className="font-medium text-white text-sm truncate"
+                    className="font-medium text-white truncate"
                     title={`${viaje.origen} → ${viaje.destino}`}
                   >
                     {viaje.origen} → {viaje.destino}
@@ -657,9 +658,9 @@ export default function ChoferModal({
         </div>
 
 
-        <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Vista mobile: Cards */}
-          <div className="md:hidden space-y-2">
+          <div className="md:hidden space-y-3">
             {postulaciones.length === 0 && !loadingPostulaciones && (
               <div className="text-center py-8 text-neutral-400 text-sm">
                 No hay choferes postulados para este viaje.
@@ -696,7 +697,8 @@ export default function ChoferModal({
                     type="button"
                     onClick={() => handleRemove(row)}
                     disabled={removingId === row.id}
-                    className="px-4 py-2 text-sm rounded-md bg-red-600 hover:bg-red-500 active:bg-red-700 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200 min-h-[44px] flex items-center justify-center"
+                    className="w-11 h-11 flex items-center justify-center text-sm rounded-md bg-red-600 hover:bg-red-500 active:bg-red-700 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200 shrink-0"
+                    aria-label="Eliminar"
                   >
                     {removingId === row.id ? "..." : "✖"}
                   </button>
@@ -883,8 +885,9 @@ export default function ChoferModal({
                               setPatChasis("");
                               setPatAcoplado(null);
                             }}
-                            className="px-1.5 py-1 text-xs rounded bg-red-600 hover:bg-red-500 transition-colors duration-200"
+                            className="w-7 h-7 flex items-center justify-center text-xs rounded bg-red-600 hover:bg-red-500 transition-colors duration-200 shrink-0"
                             title="Limpiar selección"
+                            aria-label="Limpiar chofer"
                           >
                             ✕
                           </button>
@@ -919,8 +922,9 @@ export default function ChoferModal({
                                 setChoferOptions(choferOptionsAll);
                                 setChoferPatentesById({});
                               }}
-                              className="px-1.5 py-1 text-xs rounded bg-red-600 hover:bg-red-500 transition-colors duration-200"
+                              className="w-7 h-7 flex items-center justify-center text-xs rounded bg-red-600 hover:bg-red-500 transition-colors duration-200 shrink-0"
                               title="Limpiar selección"
+                              aria-label="Limpiar transportista"
                             >
                               ✕
                             </button>
@@ -973,8 +977,9 @@ export default function ChoferModal({
                           <button
                             type="button"
                             onClick={() => setSelectedVendedor(null)}
-                            className="px-1.5 py-1 text-xs rounded bg-red-600 hover:bg-red-500 transition-colors duration-200"
+                            className="w-7 h-7 flex items-center justify-center text-xs rounded bg-red-600 hover:bg-red-500 transition-colors duration-200 shrink-0"
                             title="Limpiar selección"
+                            aria-label="Limpiar vendedor"
                           >
                             ✕
                           </button>
@@ -1015,11 +1020,11 @@ export default function ChoferModal({
 
           {/* Formulario para agregar nuevo chofer - Mobile */}
           {!viajeSinCupos && (
-            <div className="md:hidden bg-gradient-to-r from-blue-900/10 to-purple-900/10 border-2 border-blue-600/30 rounded-md p-3">
-              <div className="space-y-3">
+            <div className="md:hidden bg-gradient-to-r from-blue-900/10 to-purple-900/10 border-2 border-blue-600/30 rounded-md p-4">
+              <div className="space-y-4">
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">
-                    Transportista {selectedChofer && "(Asignado automáticamente)"}
+                  <label className="text-xs text-neutral-400 mb-2 block font-medium">
+                    Transportista {selectedChofer && <span className="text-blue-400">(Asignado automáticamente)</span>}
                   </label>
                   <div className="flex items-start gap-2">
                     <div className="flex-1">
@@ -1046,8 +1051,9 @@ export default function ChoferModal({
                           setChoferOptions(choferOptionsAll);
                           setChoferPatentesById({});
                         }}
-                        className="px-3 py-3 text-sm rounded bg-red-600 hover:bg-red-500 active:bg-red-700 transition-colors duration-200 min-h-[44px] shrink-0"
+                        className="w-11 h-11 flex items-center justify-center text-sm rounded bg-red-600 hover:bg-red-500 active:bg-red-700 transition-colors duration-200 shrink-0"
                         title="Limpiar selección"
+                        aria-label="Limpiar transportista"
                       >
                         ✕
                       </button>
@@ -1055,7 +1061,7 @@ export default function ChoferModal({
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">
+                  <label className="text-xs text-neutral-400 mb-2 block font-medium">
                     Chofer
                   </label>
                   <div className="flex items-start gap-2">
@@ -1084,7 +1090,8 @@ export default function ChoferModal({
                         loading={loadingCatalogos || loadingChoferesPorTransportista}
                       />
                       {selectedChofer && loadingRelacion && (
-                        <div className="mt-1 text-xs text-blue-400">
+                        <div className="mt-2 text-xs text-blue-400 flex items-center gap-2">
+                          <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
                           Verificando...
                         </div>
                       )}
@@ -1098,8 +1105,9 @@ export default function ChoferModal({
                           setPatChasis("");
                           setPatAcoplado(null);
                         }}
-                        className="px-3 py-3 text-sm rounded bg-red-600 hover:bg-red-500 active:bg-red-700 transition-colors duration-200 min-h-[44px] shrink-0"
+                        className="w-11 h-11 flex items-center justify-center text-sm rounded bg-red-600 hover:bg-red-500 active:bg-red-700 transition-colors duration-200 shrink-0"
                         title="Limpiar selección"
+                        aria-label="Limpiar chofer"
                       >
                         ✕
                       </button>
@@ -1108,69 +1116,71 @@ export default function ChoferModal({
                 </div>
 
                 {patChasis && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="text-xs text-neutral-400">Chasis</span>
-                      <div className="font-mono text-green-400 text-sm">
-                        {patChasis}
+                  <div className="bg-neutral-900/50 rounded-md p-3 border border-neutral-700">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <span className="text-xs text-neutral-400 block mb-1">Chasis</span>
+                        <div className="font-mono text-green-400 font-medium">
+                          {patChasis}
+                        </div>
                       </div>
-                    </div>
-                    <div>
-                      <span className="text-xs text-neutral-400">Acoplado</span>
-                      <div className="font-mono text-blue-400 text-sm">
-                        {formatPatente(patAcoplado)}
+                      <div>
+                        <span className="text-xs text-neutral-400 block mb-1">Acoplado</span>
+                        <div className="font-mono text-blue-400 font-medium">
+                          {formatPatente(patAcoplado)}
+                        </div>
                       </div>
                     </div>
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs text-neutral-400 mb-1 block">
-                      Vendedor
-                    </label>
-                    <div className="flex items-start gap-2">
-                      <select
-                        className="flex-1 rounded bg-neutral-900 border border-neutral-700 px-3 py-3 text-sm min-h-[44px] touch-manipulation"
-                        value={selectedVendedor ?? ""}
-                        onChange={(e) =>
-                          setSelectedVendedor(
-                            e.target.value ? Number(e.target.value) : null
-                          )
-                        }
-                      >
-                        <option value="" disabled>
-                          {loadingCatalogos ? "Cargando..." : "Vendedor"}
+                <div>
+                  <label className="text-xs text-neutral-400 mb-2 block font-medium">
+                    Vendedor
+                  </label>
+                  <div className="flex items-start gap-2">
+                    <select
+                      className="flex-1 rounded bg-neutral-900 border border-neutral-700 px-3 py-3 text-sm min-h-[44px] touch-manipulation"
+                      value={selectedVendedor ?? ""}
+                      onChange={(e) =>
+                        setSelectedVendedor(
+                          e.target.value ? Number(e.target.value) : null
+                        )
+                      }
+                    >
+                      <option value="" disabled>
+                        {loadingCatalogos ? "Cargando..." : "Seleccionar vendedor"}
+                      </option>
+                      {vendedores.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.nombre}
                         </option>
-                        {vendedores.map((v) => (
-                          <option key={v.id} value={v.id}>
-                            {v.nombre}
-                          </option>
-                        ))}
-                      </select>
-                      {selectedVendedor && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedVendedor(null)}
-                          className="px-3 py-3 text-sm rounded bg-red-600 hover:bg-red-500 active:bg-red-700 transition-colors duration-200 min-h-[44px] shrink-0"
-                          title="Limpiar selección"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
+                      ))}
+                    </select>
+                    {selectedVendedor && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedVendedor(null)}
+                        className="w-11 h-11 flex items-center justify-center text-sm rounded bg-red-600 hover:bg-red-500 active:bg-red-700 transition-colors duration-200 shrink-0"
+                        title="Limpiar selección"
+                        aria-label="Limpiar vendedor"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
-                  <div className="flex items-end">
-                    <label className="flex items-center gap-2 text-xs text-neutral-400">
-                      <input
-                        type="checkbox"
-                        checked={sendEmail}
-                        onChange={(e) => setSendEmail(e.target.checked)}
-                        className="scale-75"
-                      />
-                      Email
-                    </label>
-                  </div>
+                </div>
+
+                <div className="bg-neutral-900/50 rounded-md p-3 border border-neutral-700">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={sendEmail}
+                      onChange={(e) => setSendEmail(e.target.checked)}
+                      className="w-5 h-5 rounded border-neutral-600 bg-neutral-800 text-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+                    />
+                    <span className="text-sm text-neutral-300">Enviar notificación por email</span>
+                  </label>
                 </div>
 
                 <button

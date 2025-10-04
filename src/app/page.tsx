@@ -4,21 +4,6 @@ import Link from "next/link";
 export default function Home() {
   const opciones = [
     {
-      titulo: "Terceros",
-      descripcion: "Ver listado de clientes y transportistas.",
-      href: "/terceros",
-    },
-    {
-      titulo: "Transportes",
-      descripcion: "Consultar encabezados de cartas de porte.",
-      href: "/transportes",
-    },
-    {
-      titulo: "Productos",
-      descripcion: "Listar productos y artículos disponibles.",
-      href: "/productos",
-    },
-    {
       titulo: "viajes",
       descripcion: "Listar viajes y sus datos.",
       href: "/viajes",
