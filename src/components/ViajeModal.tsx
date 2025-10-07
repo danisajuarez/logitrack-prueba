@@ -503,6 +503,7 @@ export default function ViajeModal({
               onChange={handleChange}
               placeholder="Cupos"
               className="input w-full"
+              min="0"
             />
           </div>
 
@@ -517,6 +518,7 @@ export default function ViajeModal({
               onChange={handleChange}
               placeholder="Reservados"
               className="input w-full"
+              min="0"
             />
           </div>
 

@@ -263,10 +263,19 @@ export default function ChoferModal({
         // Preseleccionar transportista info mínima para mostrar mientras verifica
         const t = transportistas.find((t) => t.id === selectedTransportistaId) || null;
         setTransportista(t ? { id: t.id, nombre: t.nombre, cuit: null, telefono: null, direccion: null } : null);
-        // Reset chofer seleccionado al cambiar de transportista
-        setSelectedChofer(null);
-        setPatChasis("");
-        setPatAcoplado(null);
+        // Solo resetear chofer si no hay uno seleccionado (evita borrar el chofer al autocompletar transportista)
+        setSelectedChofer((prev) => {
+          // Si ya hay un chofer seleccionado y está en la lista de opciones del transportista, mantenerlo
+          if (prev && opts.some(opt => opt.id === prev)) {
+            return prev;
+          }
+          return null;
+        });
+        // Solo resetear patentes si se resetea el chofer
+        if (!selectedChofer || !opts.some(opt => opt.id === selectedChofer)) {
+          setPatChasis("");
+          setPatAcoplado(null);
+        }
       } catch (err: any) {
         console.error(err);
         setNotification({
@@ -289,12 +298,6 @@ export default function ChoferModal({
 
   useEffect(() => {
     if (!isOpen || !selectedChofer) {
-      // Solo resetear si no hay chofer seleccionado Y no hay transportista seleccionado
-      if (!selectedTransportistaId) {
-        setTransportista(null);
-        setPatChasis("");
-        setPatAcoplado(null);
-      }
       return;
     }
 
