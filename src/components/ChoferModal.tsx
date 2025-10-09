@@ -17,6 +17,14 @@ interface ChoferOption {
   nombre: string;
 }
 
+interface EstacionServicio {
+  id: number;
+  razonSocial: string;
+  cuit: string | null;
+  direccion: string | null;
+  telefono: string | null;
+}
+
 interface Viaje {
   id: number;
   numero: string;
@@ -126,6 +134,17 @@ export default function ChoferModal({
 
   const [submitting, setSubmitting] = useState(false);
   const [removingId, setRemovingId] = useState<number | string | null>(null);
+
+  // Estados para el panel de autorizaciones
+  const [expandedAutorizacionId, setExpandedAutorizacionId] = useState<number | string | null>(null);
+  const [estaciones, setEstaciones] = useState<EstacionServicio[]>([]);
+  const [loadingEstaciones, setLoadingEstaciones] = useState(false);
+  const [selectedEstacion, setSelectedEstacion] = useState<number | null>(null);
+  const [adelantoEnabled, setAdelantoEnabled] = useState(false);
+  const [combustibleEnabled, setCombustibleEnabled] = useState(false);
+  const [importeAdelanto, setImporteAdelanto] = useState<string>("");
+  const [litrosCombustible, setLitrosCombustible] = useState<string>("");
+  const [savingAutorizaciones, setSavingAutorizaciones] = useState(false);
 
   const [notification, setNotification] = useState<{
     type: "success" | "error" | "warning" | "info";
@@ -374,6 +393,31 @@ export default function ChoferModal({
     })();
   }, [selectedChofer, isOpen, selectedTransportistaId, choferPatentesById]);
 
+  // Cargar estaciones de servicio
+  useEffect(() => {
+    if (!isOpen) return;
+
+    (async () => {
+      setLoadingEstaciones(true);
+      try {
+        const res = await fetch("/api/estaciones-servicio");
+        if (!res.ok) throw new Error("No se pudieron cargar las estaciones de servicio");
+        const data: EstacionServicio[] = await res.json();
+        setEstaciones(data);
+      } catch (err: any) {
+        console.error(err);
+        setNotification({
+          type: "error",
+          title: "Error al cargar estaciones",
+          message: err?.message || "No se pudieron cargar las estaciones de servicio",
+          isVisible: true,
+        });
+      } finally {
+        setLoadingEstaciones(false);
+      }
+    })();
+  }, [isOpen]);
+
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -554,6 +598,119 @@ export default function ChoferModal({
     }
   };
 
+  const toggleAutorizacionPanel = (rowId: number | string) => {
+    if (expandedAutorizacionId === rowId) {
+      // Cerrar el panel
+      setExpandedAutorizacionId(null);
+      resetAutorizacionForm();
+    } else {
+      // Abrir el panel
+      setExpandedAutorizacionId(rowId);
+      resetAutorizacionForm();
+    }
+  };
+
+  const resetAutorizacionForm = () => {
+    setSelectedEstacion(null);
+    setAdelantoEnabled(false);
+    setCombustibleEnabled(false);
+    setImporteAdelanto("");
+    setLitrosCombustible("");
+  };
+
+  const handleSaveAutorizaciones = async (row: PostulacionRow) => {
+    if (!selectedEstacion) {
+      setNotification({
+        type: "warning",
+        title: "Estación requerida",
+        message: "Debe seleccionar una estación de servicio",
+        isVisible: true,
+      });
+      return;
+    }
+
+    if (!adelantoEnabled && !combustibleEnabled) {
+      setNotification({
+        type: "warning",
+        title: "Autorización requerida",
+        message: "Debe activar al menos Adelanto o Combustible",
+        isVisible: true,
+      });
+      return;
+    }
+
+    if (adelantoEnabled && (!importeAdelanto || Number(importeAdelanto) <= 0)) {
+      setNotification({
+        type: "warning",
+        title: "Importe inválido",
+        message: "El importe del adelanto debe ser mayor a 0",
+        isVisible: true,
+      });
+      return;
+    }
+
+    if (combustibleEnabled && (!litrosCombustible || Number(litrosCombustible) <= 0)) {
+      setNotification({
+        type: "warning",
+        title: "Litros inválidos",
+        message: "Los litros de combustible deben ser mayores a 0",
+        isVisible: true,
+      });
+      return;
+    }
+
+    setSavingAutorizaciones(true);
+    try {
+      const payload: any = {
+        viajeId: viaje.id,
+        choferId: row.choferId,
+        estacionId: selectedEstacion,
+      };
+
+      if (adelantoEnabled) {
+        payload.adelanto = {
+          importe: Number(importeAdelanto),
+        };
+      }
+
+      if (combustibleEnabled) {
+        payload.combustible = {
+          litros: Number(litrosCombustible),
+        };
+      }
+
+      const res = await fetch("/api/viajes/autorizaciones", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({} as any));
+      if (!res.ok) throw new Error(data?.error || "Error al guardar autorizaciones");
+
+      setNotification({
+        type: "success",
+        title: "Autorizaciones guardadas",
+        message: "Las autorizaciones se guardaron correctamente",
+        isVisible: true,
+      });
+
+      // Cerrar el panel y resetear
+      setExpandedAutorizacionId(null);
+      resetAutorizacionForm();
+    } catch (err: any) {
+      console.error(err);
+      setNotification({
+        type: "error",
+        title: "Error al guardar",
+        message: err?.message ?? "Ocurrió un error al guardar las autorizaciones",
+        isVisible: true,
+      });
+    } finally {
+      setSavingAutorizaciones(false);
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex md:items-center md:justify-center md:p-4"
@@ -720,7 +877,7 @@ export default function ChoferModal({
                     </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="grid grid-cols-2 gap-2 text-xs mb-3">
                   <div>
                     <span className="text-neutral-400">Chasis:</span>
                     <div className="font-mono text-green-400">
@@ -750,6 +907,149 @@ export default function ChoferModal({
                     />
                   </div>
                 </div>
+
+                {/* Botón Autorizaciones Mobile */}
+                <button
+                  type="button"
+                  onClick={() => toggleAutorizacionPanel(row.id)}
+                  className="w-full px-3 py-2 text-sm rounded-md bg-blue-600 hover:bg-blue-500 active:bg-blue-700 transition-colors duration-200"
+                >
+                  {expandedAutorizacionId === row.id ? "▼ Ocultar" : "▶ Autorizaciones"}
+                </button>
+
+                {/* Panel de autorizaciones mobile */}
+                {expandedAutorizacionId === row.id && (
+                  <div className="mt-3 p-3 bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-600/30 rounded-md space-y-3">
+                    <h3 className="text-sm font-bold text-blue-400">
+                      Gestión de Autorizaciones
+                    </h3>
+
+                    {/* Selector de estación de servicio */}
+                    <div>
+                      <label className="text-xs text-neutral-400 mb-2 block font-medium">
+                        Estación de Servicio
+                      </label>
+                      <SearchableSelect
+                        options={estaciones.map((e) => ({
+                          id: e.id,
+                          nombre: `${e.razonSocial} - CUIT: ${e.cuit || "N/A"}`,
+                        }))}
+                        valueId={selectedEstacion}
+                        onChangeId={(id) => setSelectedEstacion(Number(id))}
+                        placeholder={loadingEstaciones ? "Cargando..." : "Seleccionar estación"}
+                        name="estacion-mobile"
+                        loading={loadingEstaciones}
+                      />
+                    </div>
+
+                    {/* Adelanto */}
+                    <div className="bg-neutral-900/50 rounded-md p-3 border border-neutral-700">
+                      <label className="flex items-center gap-3 cursor-pointer mb-3">
+                        <input
+                          type="checkbox"
+                          checked={adelantoEnabled}
+                          onChange={(e) => setAdelantoEnabled(e.target.checked)}
+                          className="w-5 h-5 rounded border-neutral-600 bg-neutral-800 text-blue-500"
+                        />
+                        <span className="text-sm font-medium text-neutral-200">
+                          Adelanto 💸
+                        </span>
+                      </label>
+                      {adelantoEnabled && (
+                        <div>
+                          <label className="text-xs text-neutral-400 mb-1 block">
+                            Importe ($)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={importeAdelanto}
+                            onChange={(e) => setImporteAdelanto(e.target.value)}
+                            className="w-full rounded bg-neutral-900 border border-neutral-700 px-3 py-3 text-sm min-h-[44px]"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Combustible */}
+                    <div className="bg-neutral-900/50 rounded-md p-3 border border-neutral-700">
+                      <label className="flex items-center gap-3 cursor-pointer mb-3">
+                        <input
+                          type="checkbox"
+                          checked={combustibleEnabled}
+                          onChange={(e) => setCombustibleEnabled(e.target.checked)}
+                          className="w-5 h-5 rounded border-neutral-600 bg-neutral-800 text-blue-500"
+                        />
+                        <span className="text-sm font-medium text-neutral-200">
+                          Combustible ⛽
+                        </span>
+                      </label>
+                      {combustibleEnabled && (
+                        <div>
+                          <label className="text-xs text-neutral-400 mb-1 block">
+                            Litros
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={litrosCombustible}
+                            onChange={(e) => setLitrosCombustible(e.target.value)}
+                            className="w-full rounded bg-neutral-900 border border-neutral-700 px-3 py-3 text-sm min-h-[44px]"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Resumen */}
+                    {(adelantoEnabled || combustibleEnabled) && (
+                      <div className="bg-neutral-800/50 rounded-md p-3 border border-neutral-600">
+                        <div className="text-xs font-medium text-neutral-300 mb-2">
+                          Resumen:
+                        </div>
+                        <div className="text-xs text-neutral-400 space-y-1">
+                          {adelantoEnabled && (
+                            <div>
+                              • Adelanto: ${importeAdelanto || "0.00"}
+                            </div>
+                          )}
+                          {combustibleEnabled && (
+                            <div>
+                              • Combustible: {litrosCombustible || "0.00"} litros
+                            </div>
+                          )}
+                          {adelantoEnabled && combustibleEnabled && (
+                            <div className="text-yellow-400 mt-2">
+                              ⚠ Se guardarán 2 autorizaciones separadas
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Botones */}
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSaveAutorizaciones(row)}
+                        disabled={savingAutorizaciones || !selectedEstacion || (!adelantoEnabled && !combustibleEnabled)}
+                        className="w-full px-4 py-3 text-sm font-medium rounded-md bg-green-600 hover:bg-green-500 active:bg-green-700 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200 min-h-[44px]"
+                      >
+                        {savingAutorizaciones ? "Guardando..." : "Guardar autorizaciones"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleAutorizacionPanel(row.id)}
+                        className="w-full px-4 py-3 text-sm rounded-md bg-neutral-700 hover:bg-neutral-600 active:bg-neutral-800 transition-colors duration-200 min-h-[44px]"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -767,7 +1067,7 @@ export default function ChoferModal({
                   <th className="px-2 py-2 text-left font-medium">Patentes</th>
                   <th className="px-2 py-2 text-center font-medium">Email</th>
                   <th className="px-2 py-2 text-left font-medium">Vendedor</th>
-                  <th className="px-2 py-2 text-center font-medium">
+                  <th className="px-2 py-2 text-center font-medium" colSpan={2}>
                     Acciones
                   </th>
                 </tr>
@@ -776,7 +1076,7 @@ export default function ChoferModal({
                 {postulaciones.length === 0 && !loadingPostulaciones && (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       className="px-4 py-4 text-center text-neutral-400 text-sm"
                     >
                       No hay choferes postulados para este viaje.
@@ -784,60 +1084,212 @@ export default function ChoferModal({
                   </tr>
                 )}
                 {postulaciones.map((row, index) => (
-                  <tr
-                    key={`postulacion-${row.id}`}
-                    className="border-t border-neutral-700 bg-neutral-900/60 hover:bg-neutral-800/80 transition-colors duration-200"
-                  >
-                    <td className="px-2 py-2 align-middle text-neutral-300">
-                      {index + 1}
-                    </td>
-                    <td className="px-2 py-2 align-middle">
-                      <div className="text-neutral-200 font-medium">
-                        {row.choferNombre ?? "Sin datos"}
-                      </div>
-                      <div className="text-neutral-400 text-xs">
-                        ID: {row.choferId}
-                      </div>
-                    </td>
-                    <td className="px-2 py-2 align-middle">
-                      <div className="text-neutral-200 font-medium text-xs">
-                        {row.transportistaNombre ?? "Sin datos"}
-                      </div>
-                      <div className="text-neutral-400 text-xs">
-                        ID: {row.transporteId ?? "N/A"}
-                      </div>
-                    </td>
-                    <td className="px-2 py-2 align-middle">
-                      <div className="font-mono text-xs text-green-400">
-                        {formatPatente(row.patChasis)}
-                      </div>
-                      <div className="font-mono text-xs text-blue-400">
-                        {formatPatente(row.patAcoplado)}
-                      </div>
-                    </td>
-                    <td className="px-2 py-2 align-middle text-center">
-                      <input
-                        type="checkbox"
-                        checked={row.sendEmail}
-                        readOnly
-                        disabled
-                        className="scale-75"
-                      />
-                    </td>
-                    <td className="px-2 py-2 align-middle text-neutral-200 text-xs">
-                      {row.vendedorNombre ?? "-"}
-                    </td>
-                    <td className="px-3 py-2 align-middle text-center">
-                      <button
-                        type="button"
-                        onClick={() => handleRemove(row)}
-                        disabled={removingId === row.id}
-                        className="px-3 py-1 text-xs rounded-md bg-red-600 hover:bg-red-500 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200"
-                      >
-                        {removingId === row.id ? "..." : "✖"}
-                      </button>
-                    </td>
-                  </tr>
+                  <>
+                    <tr
+                      key={`postulacion-${row.id}`}
+                      className="border-t border-neutral-700 bg-neutral-900/60 hover:bg-neutral-800/80 transition-colors duration-200"
+                    >
+                      <td className="px-2 py-2 align-middle text-neutral-300">
+                        {index + 1}
+                      </td>
+                      <td className="px-2 py-2 align-middle">
+                        <div className="text-neutral-200 font-medium">
+                          {row.choferNombre ?? "Sin datos"}
+                        </div>
+                        <div className="text-neutral-400 text-xs">
+                          ID: {row.choferId}
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 align-middle">
+                        <div className="text-neutral-200 font-medium text-xs">
+                          {row.transportistaNombre ?? "Sin datos"}
+                        </div>
+                        <div className="text-neutral-400 text-xs">
+                          ID: {row.transporteId ?? "N/A"}
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 align-middle">
+                        <div className="font-mono text-xs text-green-400">
+                          {formatPatente(row.patChasis)}
+                        </div>
+                        <div className="font-mono text-xs text-blue-400">
+                          {formatPatente(row.patAcoplado)}
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 align-middle text-center">
+                        <input
+                          type="checkbox"
+                          checked={row.sendEmail}
+                          readOnly
+                          disabled
+                          className="scale-75"
+                        />
+                      </td>
+                      <td className="px-2 py-2 align-middle text-neutral-200 text-xs">
+                        {row.vendedorNombre ?? "-"}
+                      </td>
+                      <td className="px-3 py-2 align-middle text-center">
+                        <button
+                          type="button"
+                          onClick={() => toggleAutorizacionPanel(row.id)}
+                          className="px-3 py-1 text-xs rounded-md bg-blue-600 hover:bg-blue-500 transition-colors duration-200"
+                        >
+                          {expandedAutorizacionId === row.id ? "▼" : "▶"} Autorizaciones
+                        </button>
+                      </td>
+                      <td className="px-3 py-2 align-middle text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleRemove(row)}
+                          disabled={removingId === row.id}
+                          className="px-3 py-1 text-xs rounded-md bg-red-600 hover:bg-red-500 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200"
+                        >
+                          {removingId === row.id ? "..." : "✖"}
+                        </button>
+                      </td>
+                    </tr>
+                    {expandedAutorizacionId === row.id && (
+                      <tr key={`autorizacion-panel-${row.id}`}>
+                        <td colSpan={8} className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border-t border-blue-600/30">
+                          <div className="p-4 space-y-4">
+                            <h3 className="text-sm font-bold text-blue-400 mb-3">
+                              Gestión de Autorizaciones
+                            </h3>
+
+                            {/* Selector de estación de servicio */}
+                            <div>
+                              <label className="text-xs text-neutral-400 mb-2 block font-medium">
+                                Estación de Servicio
+                              </label>
+                              <SearchableSelect
+                                options={estaciones.map((e) => ({
+                                  id: e.id,
+                                  nombre: `${e.razonSocial} - CUIT: ${e.cuit || "N/A"}${
+                                    e.direccion ? ` - ${e.direccion}` : ""
+                                  }${e.telefono ? ` - Tel: ${e.telefono}` : ""}`,
+                                }))}
+                                valueId={selectedEstacion}
+                                onChangeId={(id) => setSelectedEstacion(Number(id))}
+                                placeholder={loadingEstaciones ? "Cargando..." : "Seleccionar estación"}
+                                name="estacion"
+                                loading={loadingEstaciones}
+                              />
+                            </div>
+
+                            {/* Switches y campos */}
+                            <div className="grid grid-cols-2 gap-4">
+                              {/* Adelanto */}
+                              <div className="bg-neutral-900/50 rounded-md p-3 border border-neutral-700">
+                                <label className="flex items-center gap-3 cursor-pointer mb-3">
+                                  <input
+                                    type="checkbox"
+                                    checked={adelantoEnabled}
+                                    onChange={(e) => setAdelantoEnabled(e.target.checked)}
+                                    className="w-5 h-5 rounded border-neutral-600 bg-neutral-800 text-blue-500"
+                                  />
+                                  <span className="text-sm font-medium text-neutral-200">
+                                    Adelanto 💸
+                                  </span>
+                                </label>
+                                {adelantoEnabled && (
+                                  <div>
+                                    <label className="text-xs text-neutral-400 mb-1 block">
+                                      Importe ($)
+                                    </label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      value={importeAdelanto}
+                                      onChange={(e) => setImporteAdelanto(e.target.value)}
+                                      className="w-full rounded bg-neutral-900 border border-neutral-700 px-3 py-2 text-sm"
+                                      placeholder="0.00"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Combustible */}
+                              <div className="bg-neutral-900/50 rounded-md p-3 border border-neutral-700">
+                                <label className="flex items-center gap-3 cursor-pointer mb-3">
+                                  <input
+                                    type="checkbox"
+                                    checked={combustibleEnabled}
+                                    onChange={(e) => setCombustibleEnabled(e.target.checked)}
+                                    className="w-5 h-5 rounded border-neutral-600 bg-neutral-800 text-blue-500"
+                                  />
+                                  <span className="text-sm font-medium text-neutral-200">
+                                    Combustible ⛽
+                                  </span>
+                                </label>
+                                {combustibleEnabled && (
+                                  <div>
+                                    <label className="text-xs text-neutral-400 mb-1 block">
+                                      Litros
+                                    </label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      value={litrosCombustible}
+                                      onChange={(e) => setLitrosCombustible(e.target.value)}
+                                      className="w-full rounded bg-neutral-900 border border-neutral-700 px-3 py-2 text-sm"
+                                      placeholder="0.00"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Resumen */}
+                            {(adelantoEnabled || combustibleEnabled) && (
+                              <div className="bg-neutral-800/50 rounded-md p-3 border border-neutral-600">
+                                <div className="text-xs font-medium text-neutral-300 mb-2">
+                                  Resumen:
+                                </div>
+                                <div className="text-xs text-neutral-400 space-y-1">
+                                  {adelantoEnabled && (
+                                    <div>
+                                      • Adelanto: ${importeAdelanto || "0.00"}
+                                    </div>
+                                  )}
+                                  {combustibleEnabled && (
+                                    <div>
+                                      • Combustible: {litrosCombustible || "0.00"} litros
+                                    </div>
+                                  )}
+                                  {adelantoEnabled && combustibleEnabled && (
+                                    <div className="text-yellow-400 mt-2">
+                                      ⚠ Se guardarán 2 autorizaciones separadas
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Botones */}
+                            <div className="flex gap-2 justify-end">
+                              <button
+                                type="button"
+                                onClick={() => toggleAutorizacionPanel(row.id)}
+                                className="px-4 py-2 text-xs rounded-md bg-neutral-700 hover:bg-neutral-600 transition-colors duration-200"
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSaveAutorizaciones(row)}
+                                disabled={savingAutorizaciones || !selectedEstacion || (!adelantoEnabled && !combustibleEnabled)}
+                                className="px-4 py-2 text-xs font-medium rounded-md bg-green-600 hover:bg-green-500 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200"
+                              >
+                                {savingAutorizaciones ? "Guardando..." : "Guardar autorizaciones"}
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 ))}
 
                 {!viajeSinCupos && (
