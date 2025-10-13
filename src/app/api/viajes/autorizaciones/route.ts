@@ -18,8 +18,8 @@ interface AutorizacionRequest {
   viajeId: number;
   choferId: number;
   estacionId: number;
-  adelanto?: { importe: number };
-  combustible?: { litros: number };
+  adelantos?: Array<{ importe: number }>;
+  combustibles?: Array<{ litros: number }>;
 }
 
 // Artículos según sistema
@@ -44,11 +44,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { adelanto, combustible } = body;
+    const { adelantos, combustibles } = body;
 
-    if (!adelanto && !combustible) {
+    // Validar que al menos haya un array con elementos
+    const hasAdelantos = Array.isArray(adelantos) && adelantos.length > 0;
+    const hasCombustibles = Array.isArray(combustibles) && combustibles.length > 0;
+
+    if (!hasAdelantos && !hasCombustibles) {
       return NextResponse.json(
-        { error: "Debe especificar al menos adelanto o combustible" },
+        { error: "Debe especificar al menos un adelanto o un combustible" },
         { status: 400 }
       );
     }
@@ -114,80 +118,85 @@ export async function POST(request: NextRequest) {
         return rows[0]?.nextRenglon || 1;
       };
 
-      const insertedIds: number[] = [];
+      const adelantosIds: number[] = [];
+      const combustiblesIds: number[] = [];
 
-      // ADELANTO
-      if (adelanto) {
-        const importe = toDecimal(adelanto.importe);
-        if (!importe) {
-          await connection.rollback();
-          return NextResponse.json(
-            {
-              error:
-                "El importe del adelanto debe ser un número válido mayor a 0",
-            },
-            { status: 400 }
+      // ADELANTOS (múltiples)
+      if (hasAdelantos) {
+        for (const adelanto of adelantos) {
+          const importe = toDecimal(adelanto.importe);
+          if (!importe) {
+            await connection.rollback();
+            return NextResponse.json(
+              {
+                error:
+                  "Todos los importes de adelanto deben ser números válidos mayores a 0",
+              },
+              { status: 400 }
+            );
+          }
+
+          const renglon = await getNextRenglon(ecpIdEcp);
+
+          const [result] = await connection.query(
+            `INSERT INTO SIGE_OCP_OrdCarPor
+             (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
+              ART_IdArticulo, ART_DesArticulo, OCP_Importe,
+              OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
+              EFO_IdEfcFac, EFO_IdEfcRp)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0)`,
+            [
+              ecpIdEcp,
+              renglon,
+              estacionId,
+              estacionRazonSocial,
+              ARTICULO_ADELANTO_ID, // null si se permite, o el código real cuando lo pases
+              ARTICULO_ADELANTO_DESC, // "ADELANTO"
+              importe,
+            ]
           );
+          adelantosIds.push(renglon);
         }
-
-        const renglon = await getNextRenglon(ecpIdEcp);
-
-        const [result] = await connection.query(
-          `INSERT INTO SIGE_OCP_OrdCarPor
-           (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
-            ART_IdArticulo, ART_DesArticulo, OCP_Importe,
-            OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
-            EFO_IdEfcFac, EFO_IdEfcRp)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0)`,
-          [
-            ecpIdEcp,
-            renglon,
-            estacionId,
-            estacionRazonSocial,
-            ARTICULO_ADELANTO_ID, // null si se permite, o el código real cuando lo pases
-            ARTICULO_ADELANTO_DESC, // "ADELANTO"
-            importe,
-          ]
-        );
-        insertedIds.push((result as any).insertId);
       }
 
-      // COMBUSTIBLE
-      if (combustible) {
-        const litros = toDecimal(combustible.litros);
-        if (!litros) {
-          await connection.rollback();
-          return NextResponse.json(
-            {
-              error:
-                "Los litros de combustible deben ser un número válido mayor a 0",
-            },
-            { status: 400 }
+      // COMBUSTIBLES (múltiples)
+      if (hasCombustibles) {
+        for (const combustible of combustibles) {
+          const litros = toDecimal(combustible.litros);
+          if (!litros) {
+            await connection.rollback();
+            return NextResponse.json(
+              {
+                error:
+                  "Todos los litros de combustible deben ser números válidos mayores a 0",
+              },
+              { status: 400 }
+            );
+          }
+
+          const renglon = await getNextRenglon(ecpIdEcp);
+
+          const [result] = await connection.query(
+            `INSERT INTO SIGE_OCP_OrdCarPor
+             (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
+              ART_IdArticulo, ART_DesArticulo, OCP_Importe,
+              OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
+              EFO_IdEfcFac, EFO_IdEfcRp)
+             VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, 0, ?, 0, 0)`,
+            [
+              ecpIdEcp,
+              renglon,
+              estacionId,
+              estacionRazonSocial,
+              ARTICULO_COMBUSTIBLE_ID, // "COMB"
+              ARTICULO_COMBUSTIBLE_DESC, // "COMBUSTIBLE"
+              litros, // OCP_Cantidad
+              litros, // OCP_CantPend
+              litros, // OCP_CantRealPend
+            ]
           );
+          combustiblesIds.push(renglon);
         }
-
-        const renglon = await getNextRenglon(ecpIdEcp);
-
-        const [result] = await connection.query(
-          `INSERT INTO SIGE_OCP_OrdCarPor
-           (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
-            ART_IdArticulo, ART_DesArticulo, OCP_Importe,
-            OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
-            EFO_IdEfcFac, EFO_IdEfcRp)
-           VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, 0, ?, 0, 0)`,
-          [
-            ecpIdEcp,
-            renglon,
-            estacionId,
-            estacionRazonSocial,
-            ARTICULO_COMBUSTIBLE_ID, // "COMB"
-            ARTICULO_COMBUSTIBLE_DESC, // "COMBUSTIBLE"
-            litros, // OCP_Cantidad
-            litros, // OCP_CantPend
-            litros, // OCP_CantRealPend
-          ]
-        );
-        insertedIds.push((result as any).insertId);
       }
 
       await connection.commit();
@@ -195,7 +204,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: "Autorizaciones guardadas exitosamente",
-        data: { viajeId, choferId, estacionId, ecpIdEcp, insertedIds },
+        data: { viajeId, choferId, estacionId, ecpIdEcp },
+        renglones: {
+          adelantos: adelantosIds,
+          combustibles: combustiblesIds,
+        },
       });
     } catch (error: any) {
       try {

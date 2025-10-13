@@ -11,7 +11,8 @@
       "Bash(curl:*)",
       "Bash(npx next:*)",
       "Bash(taskkill:*)",
-      "Bash(cmd /c:*)"
+      "Bash(cmd /c:*)",
+      "Bash(yarn lint)"
     ],
     "deny": []
   }
