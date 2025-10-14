@@ -25,12 +25,13 @@ interface Viaje {
 
 export default function ViajesPage() {
   const [viajes, setViajes] = useState<Viaje[]>([]);
+  const [loading, setLoading] = useState(false);
   const [razonSearch, setRazonSearch] = useState("");
   const [fechaDesde, setFechaDesde] = useState(() => {
     const d = new Date();
     const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
     return `${yyyy}-${mm}-${dd}`;
   });
   const [fechaHasta, setFechaHasta] = useState("");
@@ -52,12 +53,13 @@ export default function ViajesPage() {
 
   const dateToYMD = (d: Date) => {
     const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
     return `${yyyy}-${mm}-${dd}`;
   };
 
   const loadViajes = useCallback(async () => {
+    setLoading(true);
     try {
       const params = new URLSearchParams();
 
@@ -72,12 +74,14 @@ export default function ViajesPage() {
         setViajes(data);
         setNoHayViajes(data.length === 0);
       } else {
-        console.error('La respuesta no es un array:', data);
+        console.error("La respuesta no es un array:", data);
         setViajes([]);
       }
     } catch (error) {
-      console.error('Error al obtener viajes:', error);
+      console.error("Error al obtener viajes:", error);
       setViajes([]);
+    } finally {
+      setLoading(false);
     }
   }, [fechaDesde, fechaHasta, minPendientes, razonSearch]);
 
@@ -101,8 +105,18 @@ export default function ViajesPage() {
             }}
             className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-md hover:shadow-lg"
           >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            <svg
+              className="w-5 h-5 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              />
             </svg>
             Nuevo Viaje
           </button>
@@ -129,13 +143,23 @@ export default function ViajesPage() {
               }}
               className="inline-flex items-center px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-md transition-colors duration-200"
             >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-4 h-4 mr-1"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
               Limpiar
             </button>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
@@ -149,7 +173,7 @@ export default function ViajesPage() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                 Fecha desde
@@ -161,7 +185,7 @@ export default function ViajesPage() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                 Fecha hasta
@@ -173,7 +197,7 @@ export default function ViajesPage() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                 Mín. Cupos Pendientes
@@ -188,29 +212,75 @@ export default function ViajesPage() {
               />
             </div>
           </div>
-          
+
           {/* Indicador de filtros activos */}
           {(razonSearch || fechaDesde || fechaHasta || minPendientes) && (
             <div className="mt-3 flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707v4.586l-4-2v-2.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707v4.586l-4-2v-2.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                />
               </svg>
               <span>Filtros aplicados:</span>
-              {razonSearch && <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">Razón: "{razonSearch}"</span>}
-              {fechaDesde && <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">Desde: {fechaDesde}</span>}
-              {fechaHasta && <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">Hasta: {fechaHasta}</span>}
-              {minPendientes && <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">Min. Pendientes: {minPendientes}</span>}
+              {razonSearch && (
+                <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">
+                  Razón: "{razonSearch}"
+                </span>
+              )}
+              {fechaDesde && (
+                <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">
+                  Desde: {fechaDesde}
+                </span>
+              )}
+              {fechaHasta && (
+                <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">
+                  Hasta: {fechaHasta}
+                </span>
+              )}
+              {minPendientes && (
+                <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">
+                  Min. Pendientes: {minPendientes}
+                </span>
+              )}
             </div>
           )}
         </div>
 
         {/* Contador de resultados */}
-        <div className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-          <span className="font-medium">{filtrados.length}</span> viaje{filtrados.length !== 1 ? 's' : ''} encontrado{filtrados.length !== 1 ? 's' : ''}
+        <div className="mb-4 flex items-center gap-3">
+          <div className="text-sm text-neutral-600 dark:text-neutral-400">
+            <span className="font-medium">{filtrados.length}</span> viaje
+            {filtrados.length !== 1 ? "s" : ""} encontrado
+            {filtrados.length !== 1 ? "s" : ""}
+          </div>
+          {loading && (
+            <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+              <div className="w-4 h-4 border-2 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+              <span>Buscando viajes...</span>
+            </div>
+          )}
         </div>
 
         {/* Tabla */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto relative">
+          {loading && (
+            <div className="absolute inset-0 bg-white/50 dark:bg-neutral-900/50 backdrop-blur-sm z-10 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3 bg-white dark:bg-neutral-800 p-6 rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-700">
+                <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  Cargando viajes...
+                </span>
+              </div>
+            </div>
+          )}
           <table className="min-w-full text-sm text-left text-neutral-800 dark:text-neutral-200">
             <thead className="bg-gray-100 dark:bg-neutral-700 text-xs uppercase tracking-wider">
               <tr>
@@ -230,7 +300,15 @@ export default function ViajesPage() {
                   key={v.id ? `id-${v.id}` : `numero-${v.numero}-${index}`} // Garantiza unicidad
                   className="border-t border-gray-200 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-800 transition"
                 >
-                  <td className="p-2">{v.fecha ? new Date(v.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}</td>
+                  <td className="p-2">
+                    {v.fecha
+                      ? new Date(v.fecha).toLocaleDateString("es-ES", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        })
+                      : ""}
+                  </td>
                   <td className="p-2">{v.numero}</td>
                   <td className="p-2">{v.razonSocial}</td>
                   <td className="p-2">{v.origen}</td>
@@ -240,9 +318,6 @@ export default function ViajesPage() {
                   <td className="p-2">
                     {/* Botones de acción para todos los viajes */}
                     <div className="flex items-center gap-3">
-                      <span className="text-xs font-mono text-neutral-500 dark:text-neutral-400">
-                        {`${v.cupos ?? 0}/${v.cuposReservados ?? 0}/${v.postulados ?? 0}`}
-                      </span>
                       <button
                         type="button"
                         onClick={() => {
@@ -252,8 +327,18 @@ export default function ViajesPage() {
                         className="inline-flex items-center p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
                         title="Editar viaje"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
                         </svg>
                       </button>
                       <button
@@ -263,12 +348,31 @@ export default function ViajesPage() {
                           setIsChoferModalOpen(true);
                         }}
                         className="inline-flex items-center p-1.5 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"
-                        title={`Cupos: ${v.cupos ?? 0} | Reservados: ${v.cuposReservados ?? 0} | Postulados: ${v.postulados ?? 0} | Pendientes: ${v.cuposPendientes ?? 0}`}
+                        title={`Cupos: ${v.cupos ?? 0} | Reservados: ${
+                          v.cuposReservados ?? 0
+                        } | Postulados: ${v.postulados ?? 0} | Pendientes: ${
+                          v.cuposPendientes ?? 0
+                        }`}
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                          />
                         </svg>
                       </button>
+                      <span className="text-xs font-mono text-neutral-500 dark:text-neutral-400">
+                        {`${v.cupos ?? 0}/${v.cuposReservados ?? 0}/${
+                          v.postulados ?? 0
+                        }`}
+                      </span>
                     </div>
                   </td>
                 </tr>
@@ -302,7 +406,9 @@ export default function ViajesPage() {
         title={notification.title}
         message={notification.message}
         isVisible={notification.isVisible}
-        onClose={() => setNotification(prev => ({ ...prev, isVisible: false }))}
+        onClose={() =>
+          setNotification((prev) => ({ ...prev, isVisible: false }))
+        }
       />
     </main>
   );

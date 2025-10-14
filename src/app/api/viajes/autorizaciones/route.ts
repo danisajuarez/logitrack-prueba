@@ -33,9 +33,13 @@ const ARTICULO_ADELANTO_DESC = "ADELANTO";
 export async function POST(request: NextRequest) {
   try {
     const body: AutorizacionRequest = await request.json();
+    console.log('[DEBUG API] Request body recibido:', body);
+
     const viajeId = toInt(body?.viajeId);
     const choferId = toInt(body?.choferId);
     const estacionId = toInt(body?.estacionId);
+
+    console.log('[DEBUG API] Parámetros parseados:', { viajeId, choferId, estacionId });
 
     if (!viajeId || !choferId || !estacionId) {
       return NextResponse.json(
@@ -123,6 +127,7 @@ export async function POST(request: NextRequest) {
 
       // ADELANTOS (múltiples)
       if (hasAdelantos) {
+        console.log('[DEBUG API] Procesando adelantos:', adelantos);
         for (const adelanto of adelantos) {
           const importe = toDecimal(adelanto.importe);
           if (!importe) {
@@ -137,6 +142,7 @@ export async function POST(request: NextRequest) {
           }
 
           const renglon = await getNextRenglon(ecpIdEcp);
+          console.log('[DEBUG API] Insertando adelanto en renglón:', renglon);
 
           const [result] = await connection.query(
             `INSERT INTO SIGE_OCP_OrdCarPor
@@ -155,12 +161,14 @@ export async function POST(request: NextRequest) {
               importe,
             ]
           );
+          console.log('[DEBUG API] Adelanto insertado correctamente');
           adelantosIds.push(renglon);
         }
       }
 
       // COMBUSTIBLES (múltiples)
       if (hasCombustibles) {
+        console.log('[DEBUG API] Procesando combustibles:', combustibles);
         for (const combustible of combustibles) {
           const litros = toDecimal(combustible.litros);
           if (!litros) {
@@ -175,6 +183,7 @@ export async function POST(request: NextRequest) {
           }
 
           const renglon = await getNextRenglon(ecpIdEcp);
+          console.log('[DEBUG API] Insertando combustible en renglón:', renglon);
 
           const [result] = await connection.query(
             `INSERT INTO SIGE_OCP_OrdCarPor
@@ -195,13 +204,16 @@ export async function POST(request: NextRequest) {
               litros, // OCP_CantRealPend
             ]
           );
+          console.log('[DEBUG API] Combustible insertado correctamente');
           combustiblesIds.push(renglon);
         }
       }
 
+      console.log('[DEBUG API] Haciendo commit de la transacción...');
       await connection.commit();
+      console.log('[DEBUG API] Commit exitoso');
 
-      return NextResponse.json({
+      const response = {
         success: true,
         message: "Autorizaciones guardadas exitosamente",
         data: { viajeId, choferId, estacionId, ecpIdEcp },
@@ -209,11 +221,17 @@ export async function POST(request: NextRequest) {
           adelantos: adelantosIds,
           combustibles: combustiblesIds,
         },
-      });
+      };
+
+      console.log('[DEBUG API] Respuesta a enviar:', response);
+
+      return NextResponse.json(response);
     } catch (error: any) {
       try {
-        await db.query("ROLLBACK");
-      } catch {}
+        await connection.rollback();
+      } catch (rollbackErr) {
+        console.error("Error en rollback:", rollbackErr);
+      }
       console.error("Error al guardar autorizaciones:", error);
       return NextResponse.json(
         { error: error?.message || "Error al guardar autorizaciones" },

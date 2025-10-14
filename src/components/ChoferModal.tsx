@@ -153,7 +153,7 @@ export default function ChoferModal({
 
   // Estados temporales para el formulario de agregar línea
   const [tempEstacionId, setTempEstacionId] = useState<number | null>(null);
-  const [tempTipo, setTempTipo] = useState<TipoEvento>('adelanto');
+  const [tempTipo, setTempTipo] = useState<TipoEvento>('combustible');
   const [tempCantidad, setTempCantidad] = useState<string>("");
 
   const [savingAutorizaciones, setSavingAutorizaciones] = useState(false);
@@ -193,6 +193,33 @@ export default function ChoferModal({
       setPostulaciones([]);
     } finally {
       setLoadingPostulaciones(false);
+    }
+  }, [viajeId]);
+
+  const loadAutorizaciones = useCallback(async () => {
+    if (!viajeId) return;
+
+    try {
+      console.log(`[DEBUG] Cargando autorizaciones para viaje ${viajeId}`);
+      const res = await fetch(`/api/viajes/autorizaciones?viajeId=${viajeId}`);
+      const data = await res.json();
+
+      if (res.ok && Array.isArray(data)) {
+        console.log(`[DEBUG] Autorizaciones cargadas:`, data);
+
+        // Agrupar autorizaciones por chofer (necesitamos mapear desde postulaciones)
+        const autsPorChofer: Record<number | string, Array<{tipo: 'adelanto' | 'combustible', valor: number, estacion: string, renglonId?: number}>> = {};
+
+        // Por ahora, guardaremos todas las autorizaciones sin filtrar por chofer
+        // ya que la API no devuelve el choferId directamente
+        // TODO: Mejorar el endpoint para incluir choferId en la respuesta
+
+        console.log(`[DEBUG] Se encontraron ${data.length} autorizaciones guardadas`);
+      } else {
+        console.warn('[DEBUG] No se pudieron cargar autorizaciones o respuesta inválida');
+      }
+    } catch (error) {
+      console.error("Error al cargar autorizaciones:", error);
     }
   }, [viajeId]);
 
@@ -260,7 +287,8 @@ export default function ChoferModal({
     })();
 
     loadPostulaciones();
-  }, [isOpen, viajeId, loadPostulaciones]);
+    loadAutorizaciones();
+  }, [isOpen, viajeId, loadPostulaciones, loadAutorizaciones]);
 
   // Cargar choferes filtrados por transportista (con patentes)
   useEffect(() => {
@@ -649,34 +677,106 @@ export default function ChoferModal({
   const resetAutorizacionForm = () => {
     setAutorizacionesLineas([]);
     setTempEstacionId(null);
-    setTempTipo('adelanto');
+    setTempTipo('combustible');
     setTempCantidad("");
     setHasUnsavedChanges(false);
     setNextTempId(1);
   };
 
-  // Función para agregar una línea de autorización
-  const agregarLinea = () => {
+  // Función para agregar y guardar una línea de autorización directamente
+  const agregarLinea = async (row: PostulacionRow) => {
     if (!tempEstacionId || !tempCantidad || Number(tempCantidad) <= 0) {
+      console.warn('[DEBUG] Validación fallida:', { tempEstacionId, tempCantidad });
       return;
     }
 
     const estacion = estaciones.find(e => e.id === tempEstacionId);
-    if (!estacion) return;
+    if (!estacion) {
+      console.warn('[DEBUG] Estación no encontrada:', tempEstacionId);
+      return;
+    }
 
-    const nuevaLinea: AutorizacionLinea = {
-      tempId: nextTempId,
-      estacionId: tempEstacionId,
-      estacionNombre: estacion.razonSocial,
-      tipo: tempTipo,
-      cantidad: Number(tempCantidad),
-    };
+    setSavingAutorizaciones(true);
+    try {
+      const payload: any = {
+        viajeId: viaje.id,
+        choferId: row.choferId,
+        estacionId: tempEstacionId,
+      };
 
-    setAutorizacionesLineas(prev => [...prev, nuevaLinea]);
-    setNextTempId(prev => prev + 1);
+      if (tempTipo === 'adelanto') {
+        payload.adelantos = [{ importe: Number(tempCantidad) }];
+      } else {
+        payload.combustibles = [{ litros: Number(tempCantidad) }];
+      }
 
-    // Resetear solo los campos del formulario, mantener la estación seleccionada
-    setTempCantidad("");
+      console.log('[DEBUG] Enviando autorización:', payload);
+
+      const res = await fetch("/api/viajes/autorizaciones", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({} as any));
+      console.log('[DEBUG] Respuesta del servidor:', { status: res.status, data });
+
+      if (!res.ok) {
+        if (data?.error?.includes("chofer no postulado") || data?.error?.includes("no pertenece")) {
+          throw new Error("Este chofer ya no pertenece al viaje. Actualizá la lista antes de autorizar");
+        }
+        throw new Error(data?.error || "Error al guardar autorización");
+      }
+
+      // Obtener el renglonId guardado
+      let renglonId: number | undefined;
+      if (tempTipo === 'adelanto' && Array.isArray(data?.renglones?.adelantos)) {
+        renglonId = data.renglones.adelantos[0];
+      } else if (tempTipo === 'combustible' && Array.isArray(data?.renglones?.combustibles)) {
+        renglonId = data.renglones.combustibles[0];
+      }
+
+      console.log('[DEBUG] Renglón ID recibido:', renglonId);
+
+      // Agregar a las autorizaciones guardadas
+      const nuevaAutorizacion = {
+        tipo: tempTipo,
+        valor: Number(tempCantidad),
+        estacion: estacion.razonSocial,
+        renglonId
+      };
+
+      console.log('[DEBUG] Agregando autorización al estado local:', nuevaAutorizacion);
+
+      setAutorizacionesGuardadas(prev => {
+        const updated = {
+          ...prev,
+          [row.id]: [...(prev[row.id] || []), nuevaAutorizacion]
+        };
+        console.log('[DEBUG] Estado actualizado de autorizaciones:', updated);
+        return updated;
+      });
+
+      setNotification({
+        type: "success",
+        title: "✓ Autorización guardada",
+        message: `${tempTipo === 'adelanto' ? 'Adelanto' : 'Combustible'} guardado correctamente (Renglón ${renglonId})`,
+        isVisible: true,
+      });
+
+      // Resetear solo el campo de cantidad
+      setTempCantidad("");
+    } catch (err: any) {
+      console.error('[DEBUG] Error al guardar autorización:', err);
+      setNotification({
+        type: "error",
+        title: "Error al guardar",
+        message: err?.message ?? "Ocurrió un error al guardar la autorización",
+        isVisible: true,
+      });
+    } finally {
+      setSavingAutorizaciones(false);
+    }
   };
 
   const eliminarLinea = (tempId: number) => {
@@ -942,24 +1042,6 @@ export default function ChoferModal({
                       <div className="text-neutral-400 text-xs">
                         ID: {row.choferId}
                       </div>
-                      {/* Chips de autorizaciones guardadas */}
-                      {autorizacionesGuardadas[row.id] && autorizacionesGuardadas[row.id].length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                          {autorizacionesGuardadas[row.id].map((aut, idx) => (
-                            <span
-                              key={idx}
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
-                                aut.tipo === 'adelanto'
-                                  ? 'bg-green-900/50 text-green-300 border border-green-600/30'
-                                  : 'bg-blue-900/50 text-blue-300 border border-blue-600/30'
-                              }`}
-                              title={aut.renglonId ? `Renglón: ${aut.renglonId}` : undefined}
-                            >
-                              {aut.tipo === 'adelanto' ? '💸' : '⛽'} {aut.tipo === 'adelanto' ? `$${aut.valor.toFixed(2)}` : `${aut.valor.toFixed(2)}L`}
-                            </span>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </div>
                   <button
@@ -1033,35 +1115,58 @@ export default function ChoferModal({
                       Gestión de Autorizaciones
                     </h3>
 
-                    {/* Lista de líneas agregadas */}
-                    {autorizacionesLineas.length > 0 && (
+                    {/* Lista de autorizaciones guardadas */}
+                    {autorizacionesGuardadas[row.id] && autorizacionesGuardadas[row.id].length > 0 && (
                       <div className="bg-neutral-900/30 rounded-md p-3 border border-neutral-600/50">
-                        <div className="text-xs font-bold text-neutral-300 mb-2">📋 Líneas agregadas ({autorizacionesLineas.length})</div>
+                        <div className="text-xs font-bold text-neutral-300 mb-2">
+                          📋 Autorizaciones guardadas ({autorizacionesGuardadas[row.id].length})
+                        </div>
                         <div className="space-y-2">
-                          {autorizacionesLineas.map((linea) => (
-                            <div key={linea.tempId} className="bg-neutral-900/60 rounded-md p-2 border border-neutral-700">
-                              <div className="flex items-start justify-between mb-1">
+                          {autorizacionesGuardadas[row.id].map((aut, idx) => (
+                            <div
+                              key={idx}
+                              className={`rounded-md p-2 border ${
+                                aut.tipo === 'adelanto'
+                                  ? 'bg-green-900/20 border-green-600/30'
+                                  : 'bg-blue-900/20 border-blue-600/30'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between">
                                 <div className="flex-1">
-                                  <div className="text-xs text-neutral-400">{linea.estacionNombre}</div>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                                      linea.tipo === 'adelanto'
-                                        ? 'bg-green-900/50 text-green-300 border border-green-600/30'
-                                        : 'bg-blue-900/50 text-blue-300 border border-blue-600/30'
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-lg">{aut.tipo === 'adelanto' ? '💸' : '⛽'}</span>
+                                    <span className={`text-sm font-bold ${
+                                      aut.tipo === 'adelanto' ? 'text-green-400' : 'text-blue-400'
                                     }`}>
-                                      {linea.tipo === 'adelanto' ? '💸 Adelanto' : '⛽ Combustible'}
+                                      {aut.tipo === 'adelanto' ? 'Adelanto' : 'Combustible'}
                                     </span>
-                                    <span className={`font-mono text-sm font-bold ${
-                                      linea.tipo === 'adelanto' ? 'text-green-400' : 'text-blue-400'
-                                    }`}>
-                                      {linea.tipo === 'adelanto' ? `$${linea.cantidad.toFixed(2)}` : `${linea.cantidad.toFixed(2)} L`}
-                                    </span>
+                                  </div>
+                                  <div className="text-xs text-neutral-300 space-y-0.5">
+                                    <div><span className="text-neutral-400">Estación:</span> {aut.estacion}</div>
+                                    <div>
+                                      <span className="text-neutral-400">
+                                        {aut.tipo === 'adelanto' ? 'Importe:' : 'Litros:'}
+                                      </span>
+                                      <span className={`font-mono ml-1 font-bold ${
+                                        aut.tipo === 'adelanto' ? 'text-green-400' : 'text-blue-400'
+                                      }`}>
+                                        {aut.tipo === 'adelanto' ? `$${aut.valor.toFixed(2)}` : `${aut.valor.toFixed(2)} L`}
+                                      </span>
+                                    </div>
+                                    {aut.renglonId && (
+                                      <div className="text-neutral-500">Renglón: {aut.renglonId}</div>
+                                    )}
                                   </div>
                                 </div>
                                 <button
                                   type="button"
-                                  onClick={() => eliminarLinea(linea.tempId)}
-                                  className="text-red-400 hover:text-red-300 text-xs ml-2"
+                                  onClick={() => {
+                                    if (confirm('¿Eliminar esta autorización?')) {
+                                      // TODO: Implementar eliminación
+                                      alert('Función de eliminar en desarrollo');
+                                    }
+                                  }}
+                                  className="text-red-400 hover:text-red-300 text-sm ml-2 px-2 py-1"
                                 >
                                   ✖
                                 </button>
@@ -1074,39 +1179,43 @@ export default function ChoferModal({
 
                     {/* Formulario para agregar nueva línea */}
                     <div className="bg-neutral-900/50 rounded-md p-3 border border-neutral-700/50 space-y-3">
-                      <div className="text-sm font-medium text-neutral-200">+ Agregar Línea</div>
+                      <div className="text-sm font-medium text-neutral-200">+ Agregar Autorización</div>
 
                       {/* Selector de estación */}
                       <div>
                         <label className="text-xs text-neutral-400 mb-1 block">Estación</label>
-                        <SearchableSelect
-                          options={estaciones.map((e) => ({
-                            id: e.id,
-                            nombre: `${e.razonSocial}`,
-                          }))}
-                          valueId={tempEstacionId}
-                          onChangeId={(id) => setTempEstacionId(Number(id))}
-                          placeholder={loadingEstaciones ? "Cargando..." : "Seleccionar estación"}
-                          name="estacion-mobile"
-                          loading={loadingEstaciones}
-                        />
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <SearchableSelect
+                              options={estaciones.map((e) => ({
+                                id: e.id,
+                                nombre: `${e.razonSocial}`,
+                              }))}
+                              valueId={tempEstacionId}
+                              onChangeId={(id) => setTempEstacionId(Number(id))}
+                              placeholder={loadingEstaciones ? "Cargando..." : "Seleccionar estación"}
+                              name="estacion-mobile"
+                              loading={loadingEstaciones}
+                            />
+                          </div>
+                          {tempEstacionId && (
+                            <button
+                              type="button"
+                              onClick={() => setTempEstacionId(null)}
+                              className="w-11 h-11 flex items-center justify-center text-sm rounded bg-red-600 hover:bg-red-500 active:bg-red-700 transition-colors duration-200 shrink-0"
+                              title="Limpiar selección"
+                              aria-label="Limpiar estación"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* Tipo de evento */}
                       <div>
                         <label className="text-xs text-neutral-400 mb-1 block">Tipo</label>
                         <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setTempTipo('adelanto')}
-                            className={`flex-1 px-3 py-2 text-xs rounded-md transition-colors duration-200 ${
-                              tempTipo === 'adelanto'
-                                ? 'bg-green-600 text-white'
-                                : 'bg-neutral-700 text-neutral-300 hover:bg-neutral-600'
-                            }`}
-                          >
-                            💸 Adelanto
-                          </button>
                           <button
                             type="button"
                             onClick={() => setTempTipo('combustible')}
@@ -1117,6 +1226,17 @@ export default function ChoferModal({
                             }`}
                           >
                             ⛽ Combustible
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTempTipo('adelanto')}
+                            className={`flex-1 px-3 py-2 text-xs rounded-md transition-colors duration-200 ${
+                              tempTipo === 'adelanto'
+                                ? 'bg-green-600 text-white'
+                                : 'bg-neutral-700 text-neutral-300 hover:bg-neutral-600'
+                            }`}
+                          >
+                            💸 Adelanto
                           </button>
                         </div>
                       </div>
@@ -1134,43 +1254,34 @@ export default function ChoferModal({
                             value={tempCantidad}
                             onChange={(e) => setTempCantidad(e.target.value)}
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter' && tempEstacionId && Number(tempCantidad) > 0) {
-                                agregarLinea();
+                              if (e.key === 'Enter' && tempEstacionId && Number(tempCantidad) > 0 && !savingAutorizaciones) {
+                                agregarLinea(row);
                               }
                             }}
                             className="flex-1 rounded bg-neutral-900 px-3 py-2 text-sm border border-neutral-700 min-h-[44px]"
                             placeholder={tempTipo === 'adelanto' ? 'Importe en $' : 'Litros'}
+                            disabled={savingAutorizaciones}
                           />
                           <button
                             type="button"
-                            onClick={agregarLinea}
-                            disabled={!tempEstacionId || !tempCantidad || Number(tempCantidad) <= 0}
+                            onClick={() => agregarLinea(row)}
+                            disabled={!tempEstacionId || !tempCantidad || Number(tempCantidad) <= 0 || savingAutorizaciones}
                             className="px-4 py-2 text-sm font-bold rounded-md bg-purple-600 hover:bg-purple-500 active:bg-purple-700 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200 min-h-[44px]"
                           >
-                            +
+                            {savingAutorizaciones ? "..." : "+"}
                           </button>
                         </div>
                       </div>
                     </div>
 
-                    {/* Botones */}
-                    <div className="flex flex-col gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleSaveAutorizaciones(row)}
-                        disabled={savingAutorizaciones || autorizacionesLineas.length === 0}
-                        className="w-full px-4 py-3 text-sm font-medium rounded-md bg-green-600 hover:bg-green-500 active:bg-green-700 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200 min-h-[44px]"
-                      >
-                        {savingAutorizaciones ? "Guardando..." : `Guardar ${autorizacionesLineas.length} línea${autorizacionesLineas.length !== 1 ? 's' : ''}`}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => toggleAutorizacionPanel(row.id)}
-                        className="w-full px-4 py-3 text-sm rounded-md bg-neutral-700 hover:bg-neutral-600 active:bg-neutral-800 transition-colors duration-200 min-h-[44px]"
-                      >
-                        Cancelar
-                      </button>
-                    </div>
+                    {/* Botón Cerrar */}
+                    <button
+                      type="button"
+                      onClick={() => toggleAutorizacionPanel(row.id)}
+                      className="w-full px-4 py-3 text-sm rounded-md bg-neutral-700 hover:bg-neutral-600 active:bg-neutral-800 transition-colors duration-200 min-h-[44px]"
+                    >
+                      Cerrar
+                    </button>
                   </div>
                 )}
               </div>
@@ -1222,24 +1333,6 @@ export default function ChoferModal({
                         <div className="text-neutral-400 text-xs">
                           ID: {row.choferId}
                         </div>
-                        {/* Chips de autorizaciones guardadas */}
-                        {autorizacionesGuardadas[row.id] && autorizacionesGuardadas[row.id].length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1.5">
-                            {autorizacionesGuardadas[row.id].map((aut, idx) => (
-                              <span
-                                key={idx}
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
-                                  aut.tipo === 'adelanto'
-                                    ? 'bg-green-900/50 text-green-300 border border-green-600/30'
-                                    : 'bg-blue-900/50 text-blue-300 border border-blue-600/30'
-                                }`}
-                                title={aut.renglonId ? `Renglón: ${aut.renglonId}` : undefined}
-                              >
-                                {aut.tipo === 'adelanto' ? '💸' : '⛽'} {aut.tipo === 'adelanto' ? `$${aut.valor.toFixed(2)}` : `${aut.valor.toFixed(2)}L`}
-                              </span>
-                            ))}
-                          </div>
-                        )}
                       </td>
                       <td className="px-2 py-2 align-middle">
                         <div className="text-neutral-200 font-medium text-xs">
@@ -1297,39 +1390,64 @@ export default function ChoferModal({
                               Gestión de Autorizaciones
                             </h3>
 
-                            {/* Lista de líneas agregadas */}
-                            {autorizacionesLineas.length > 0 && (
+                            {/* Lista de autorizaciones guardadas */}
+                            {autorizacionesGuardadas[row.id] && autorizacionesGuardadas[row.id].length > 0 && (
                               <div className="bg-neutral-900/30 rounded-md p-3 border border-neutral-600/50">
-                                <div className="text-xs font-bold text-neutral-300 mb-2">📋 Líneas agregadas ({autorizacionesLineas.length})</div>
-                                <div className="grid grid-cols-2 gap-2">
-                                  {autorizacionesLineas.map((linea) => (
-                                    <div key={linea.tempId} className="bg-neutral-900/60 rounded-md p-2 border border-neutral-700">
-                                      <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                          <div className="text-xs text-neutral-400 mb-1">{linea.estacionNombre}</div>
-                                          <div className="flex items-center gap-2">
-                                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
-                                              linea.tipo === 'adelanto'
-                                                ? 'bg-green-900/50 text-green-300 border border-green-600/30'
-                                                : 'bg-blue-900/50 text-blue-300 border border-blue-600/30'
-                                            }`}>
-                                              {linea.tipo === 'adelanto' ? '💸' : '⛽'}
-                                            </span>
-                                            <span className={`font-mono text-xs font-bold ${
-                                              linea.tipo === 'adelanto' ? 'text-green-400' : 'text-blue-400'
-                                            }`}>
-                                              {linea.tipo === 'adelanto' ? `$${linea.cantidad.toFixed(2)}` : `${linea.cantidad.toFixed(2)} L`}
-                                            </span>
-                                          </div>
+                                <div className="text-xs font-bold text-neutral-300 mb-3">
+                                  📋 Autorizaciones guardadas ({autorizacionesGuardadas[row.id].length})
+                                </div>
+                                <div className="grid grid-cols-1 gap-2">
+                                  {autorizacionesGuardadas[row.id].map((aut, idx) => (
+                                    <div
+                                      key={idx}
+                                      className={`rounded-md p-2 border flex items-center gap-3 ${
+                                        aut.tipo === 'adelanto'
+                                          ? 'bg-green-900/20 border-green-600/30'
+                                          : 'bg-blue-900/20 border-blue-600/30'
+                                      }`}
+                                    >
+                                      <span className="text-xl">{aut.tipo === 'adelanto' ? '💸' : '⛽'}</span>
+                                      <div className="flex-1 grid grid-cols-4 gap-2 text-xs">
+                                        <div>
+                                          <span className="text-neutral-400 block">Tipo</span>
+                                          <span className={`font-medium ${
+                                            aut.tipo === 'adelanto' ? 'text-green-400' : 'text-blue-400'
+                                          }`}>
+                                            {aut.tipo === 'adelanto' ? 'Adelanto' : 'Combustible'}
+                                          </span>
                                         </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => eliminarLinea(linea.tempId)}
-                                          className="text-red-400 hover:text-red-300 text-xs ml-2"
-                                        >
-                                          ✖
-                                        </button>
+                                        <div className="col-span-2">
+                                          <span className="text-neutral-400 block">Estación</span>
+                                          <span className="text-neutral-200">{aut.estacion}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-neutral-400 block">
+                                            {aut.tipo === 'adelanto' ? 'Importe' : 'Litros'}
+                                          </span>
+                                          <span className={`font-mono font-bold ${
+                                            aut.tipo === 'adelanto' ? 'text-green-400' : 'text-blue-400'
+                                          }`}>
+                                            {aut.tipo === 'adelanto' ? `$${aut.valor.toFixed(2)}` : `${aut.valor.toFixed(2)} L`}
+                                          </span>
+                                        </div>
                                       </div>
+                                      {aut.renglonId && (
+                                        <div className="text-neutral-500 text-xs">
+                                          Renglón: {aut.renglonId}
+                                        </div>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (confirm('¿Eliminar esta autorización?')) {
+                                            // TODO: Implementar eliminación
+                                            alert('Función de eliminar en desarrollo');
+                                          }
+                                        }}
+                                        className="text-red-400 hover:text-red-300 text-xs px-2 py-1"
+                                      >
+                                        ✖
+                                      </button>
                                     </div>
                                   ))}
                                 </div>
@@ -1338,40 +1456,44 @@ export default function ChoferModal({
 
                             {/* Formulario para agregar nueva línea */}
                             <div className="bg-neutral-900/50 rounded-md p-3 border border-neutral-700/50 space-y-3">
-                              <div className="text-sm font-medium text-neutral-200">+ Agregar Línea</div>
+                              <div className="text-sm font-medium text-neutral-200">+ Agregar Autorización</div>
 
                               <div className="grid grid-cols-3 gap-3">
                                 {/* Selector de estación */}
                                 <div>
                                   <label className="text-xs text-neutral-400 mb-1 block">Estación</label>
-                                  <SearchableSelect
-                                    options={estaciones.map((e) => ({
-                                      id: e.id,
-                                      nombre: `${e.razonSocial}`,
-                                    }))}
-                                    valueId={tempEstacionId}
-                                    onChangeId={(id) => setTempEstacionId(Number(id))}
-                                    placeholder={loadingEstaciones ? "Cargando..." : "Seleccionar estación"}
-                                    name="estacion"
-                                    loading={loadingEstaciones}
-                                  />
+                                  <div className="flex gap-2">
+                                    <div className="flex-1">
+                                      <SearchableSelect
+                                        options={estaciones.map((e) => ({
+                                          id: e.id,
+                                          nombre: `${e.razonSocial}`,
+                                        }))}
+                                        valueId={tempEstacionId}
+                                        onChangeId={(id) => setTempEstacionId(Number(id))}
+                                        placeholder={loadingEstaciones ? "Cargando..." : "Seleccionar estación"}
+                                        name="estacion"
+                                        loading={loadingEstaciones}
+                                      />
+                                    </div>
+                                    {tempEstacionId && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setTempEstacionId(null)}
+                                        className="w-7 h-7 flex items-center justify-center text-xs rounded bg-red-600 hover:bg-red-500 transition-colors duration-200 shrink-0"
+                                        title="Limpiar selección"
+                                        aria-label="Limpiar estación"
+                                      >
+                                        ✕
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
 
                                 {/* Tipo de evento */}
                                 <div>
                                   <label className="text-xs text-neutral-400 mb-1 block">Tipo</label>
                                   <div className="flex gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => setTempTipo('adelanto')}
-                                      className={`flex-1 px-2 py-1.5 text-xs rounded-md transition-colors duration-200 ${
-                                        tempTipo === 'adelanto'
-                                          ? 'bg-green-600 text-white'
-                                          : 'bg-neutral-700 text-neutral-300 hover:bg-neutral-600'
-                                      }`}
-                                    >
-                                      💸
-                                    </button>
                                     <button
                                       type="button"
                                       onClick={() => setTempTipo('combustible')}
@@ -1382,6 +1504,17 @@ export default function ChoferModal({
                                       }`}
                                     >
                                       ⛽
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setTempTipo('adelanto')}
+                                      className={`flex-1 px-2 py-1.5 text-xs rounded-md transition-colors duration-200 ${
+                                        tempTipo === 'adelanto'
+                                          ? 'bg-green-600 text-white'
+                                          : 'bg-neutral-700 text-neutral-300 hover:bg-neutral-600'
+                                      }`}
+                                    >
+                                      💸
                                     </button>
                                   </div>
                                 </div>
@@ -1399,42 +1532,35 @@ export default function ChoferModal({
                                       value={tempCantidad}
                                       onChange={(e) => setTempCantidad(e.target.value)}
                                       onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && tempEstacionId && Number(tempCantidad) > 0) {
-                                          agregarLinea();
+                                        if (e.key === 'Enter' && tempEstacionId && Number(tempCantidad) > 0 && !savingAutorizaciones) {
+                                          agregarLinea(row);
                                         }
                                       }}
                                       className="flex-1 rounded bg-neutral-900 px-2 py-1.5 text-xs border border-neutral-700"
                                       placeholder={tempTipo === 'adelanto' ? '$' : 'L'}
+                                      disabled={savingAutorizaciones}
                                     />
                                     <button
                                       type="button"
-                                      onClick={agregarLinea}
-                                      disabled={!tempEstacionId || !tempCantidad || Number(tempCantidad) <= 0}
+                                      onClick={() => agregarLinea(row)}
+                                      disabled={!tempEstacionId || !tempCantidad || Number(tempCantidad) <= 0 || savingAutorizaciones}
                                       className="px-2 py-1.5 text-xs font-bold rounded-md bg-purple-600 hover:bg-purple-500 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200"
                                     >
-                                      +
+                                      {savingAutorizaciones ? "..." : "+"}
                                     </button>
                                   </div>
                                 </div>
                               </div>
                             </div>
 
-                            {/* Botones */}
+                            {/* Botón Cerrar */}
                             <div className="flex gap-2 justify-end">
                               <button
                                 type="button"
                                 onClick={() => toggleAutorizacionPanel(row.id)}
                                 className="px-4 py-2 text-xs rounded-md bg-neutral-700 hover:bg-neutral-600 transition-colors duration-200"
                               >
-                                Cancelar
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleSaveAutorizaciones(row)}
-                                disabled={savingAutorizaciones || autorizacionesLineas.length === 0}
-                                className="px-4 py-2 text-xs font-medium rounded-md bg-green-600 hover:bg-green-500 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200"
-                              >
-                                {savingAutorizaciones ? "Guardando..." : `Guardar ${autorizacionesLineas.length} línea${autorizacionesLineas.length !== 1 ? 's' : ''}`}
+                                Cerrar
                               </button>
                             </div>
                           </div>
