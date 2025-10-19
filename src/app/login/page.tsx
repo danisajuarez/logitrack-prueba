@@ -30,8 +30,8 @@ export default function LoginPage() {
         return;
       }
 
-      // Login exitoso, redirigir a home
-      router.push("/");
+      // Login exitoso, redirigir a viajes
+      router.push("/viajes");
       router.refresh();
     } catch (err: any) {
       setError(err?.message || "Error de conexión");

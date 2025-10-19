@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Consulta SQL proporcionada (corregida con VEN_IDVendedor)
-    const [rows] = await db.query<UserRow[]>(
+    const [rows] = (await db.query(
       `SELECT
         sige_usu_usuario.USU_LogUsu,
         sige_usu_usuario.USU_PassWord,
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
         ON sige_usu_usuario.ven_idvendedor = sige_ven_vendedor.VEN_IDVendedor
       WHERE sige_usu_usuario.USU_LogUsu = ?`,
       [username]
-    );
+    )) as [UserRow[], any];
 
     if (rows.length === 0) {
       return NextResponse.json(

@@ -99,6 +99,7 @@ export default function ViajeModal({
   const [loadingVendedores, setLoadingVendedores] = useState(false);
   const [localidades, setLocalidades] = useState<Localidad[]>([]);
   const [loadingLocalidades, setLoadingLocalidades] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<{
     type: "success" | "error" | "warning" | "info";
     title: string;
@@ -245,6 +246,10 @@ export default function ViajeModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Evitar múltiples envíos
+    if (saving) return;
+
+    setSaving(true);
     try {
       const url = viaje ? `/api/viajes/${viaje.id}` : "/api/viajes/POST";
       const method = viaje ? "PUT" : "POST";
@@ -312,6 +317,7 @@ export default function ViajeModal({
           `Ocurrió un error al ${viaje ? "actualizar" : "guardar"} el viaje`,
         isVisible: true,
       });
+      setSaving(false); // Re-habilitar el botón en caso de error
     }
   };
 
@@ -600,9 +606,17 @@ export default function ViajeModal({
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white"
+                disabled={saving}
+                className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {viaje ? "Actualizar" : "Guardar"}
+                {saving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Guardando...
+                  </>
+                ) : (
+                  viaje ? "Actualizar" : "Guardar"
+                )}
               </button>
             </div>
           </div>
