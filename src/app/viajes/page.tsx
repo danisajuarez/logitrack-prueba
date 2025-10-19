@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import ViajeModal from "../../components/ViajeModal"; // Asegurate de tenerlo creado
 import ChoferModal from "../../components/ChoferModal";
 import Notification from "../../components/Notification";
+import ClientUserNav from "../../components/ClientUserNav";
 
 interface Viaje {
   id: number;
@@ -94,10 +95,14 @@ export default function ViajesPage() {
   return (
     <main className="min-h-screen p-6 bg-gray-50 dark:bg-neutral-900">
       <div className="max-w-7xl mx-auto bg-white dark:bg-neutral-800 shadow-md rounded-xl p-6">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-start mb-6 flex-wrap gap-4">
           <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">
             Listado de Viajes
           </h1>
+          <ClientUserNav />
+        </div>
+        <div className="flex justify-between items-center mb-4">
+          <div></div>
           <button
             onClick={() => {
               setViajeSeleccionado(null);
