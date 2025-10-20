@@ -392,15 +392,39 @@ export default function ViajeModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto">
-      <div className="bg-neutral-900 text-white w-full max-w-3xl p-6 rounded-xl shadow-xl">
-        <h2 className="text-xl font-semibold mb-4 text-center">
-          {viaje ? "Editar Viaje" : "Nuevo Viaje"}
-        </h2>
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-start md:items-center justify-center overflow-y-auto">
+      <div className="bg-neutral-900 text-white w-full md:max-w-3xl md:m-4 md:rounded-xl shadow-xl min-h-screen md:min-h-0">
+        {/* Header - Sticky en mobile */}
+        <div className="sticky top-0 bg-neutral-900 border-b border-neutral-700 px-4 md:px-6 py-4 md:rounded-t-xl z-10">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg md:text-xl font-semibold">
+              {viaje ? "Editar Viaje" : "Nuevo Viaje"}
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
 
         <form
           onSubmit={handleSubmit}
-          className="grid grid-cols-1 sm:grid-cols-2 gap-4 gap-y-6"
+          className="p-4 md:p-6 space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-4 md:gap-y-6"
         >
           {viaje && (
             <div className="col-span-full bg-neutral-800 p-3 rounded-lg">
@@ -428,8 +452,9 @@ export default function ViajeModal({
             </div>
           )}
 
-          <div className="col-span-full">
-            <label className="block text-sm font-medium text-neutral-300 mb-2">
+          {/* Cliente - Full width */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-semibold text-neutral-200 mb-2">
               Cliente *
             </label>
             <SearchableSelect
@@ -445,8 +470,9 @@ export default function ViajeModal({
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">
+          {/* Origen y Destino - Full width en mobile, 2 cols en desktop */}
+          <div className="md:col-span-1">
+            <label className="block text-sm font-semibold text-neutral-200 mb-2">
               Origen *
             </label>
             <SearchableSelect
@@ -462,8 +488,8 @@ export default function ViajeModal({
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">
+          <div className="md:col-span-1">
+            <label className="block text-sm font-semibold text-neutral-200 mb-2">
               Destino *
             </label>
             <SearchableSelect
@@ -479,8 +505,9 @@ export default function ViajeModal({
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">
+          {/* Producto - Full width */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-semibold text-neutral-200 mb-2">
               Producto *
             </label>
             <SearchableSelect
@@ -496,54 +523,63 @@ export default function ViajeModal({
             />
           </div>
 
-          {/* Equipo oculto en UI; el servidor lo fija en '0' */}
+          {/* Cupos Section */}
+          <div className="md:col-span-2">
+            <div className="bg-neutral-800 rounded-lg p-4 space-y-3">
+              <h3 className="text-sm font-semibold text-neutral-200 mb-3">
+                Gestión de Cupos
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5">
+                    Cupos Totales
+                  </label>
+                  <input
+                    type="number"
+                    name="cupos"
+                    value={form.cupos}
+                    onChange={handleChange}
+                    placeholder="0"
+                    className="w-full px-3 py-2.5 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                    min="0"
+                  />
+                </div>
 
-          <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">
-              Cupos
-            </label>
-            <input
-              type="number"
-              name="cupos"
-              value={form.cupos}
-              onChange={handleChange}
-              placeholder="Cupos"
-              className="input w-full"
-              min="0"
-            />
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5">
+                    Reservados
+                  </label>
+                  <input
+                    type="number"
+                    name="reservados"
+                    value={form.reservados}
+                    onChange={handleChange}
+                    placeholder="0"
+                    className="w-full px-3 py-2.5 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                    min="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5">
+                    Pendientes (auto)
+                  </label>
+                  <input
+                    type="number"
+                    name="pendientes"
+                    value={form.pendientes}
+                    readOnly
+                    placeholder="0"
+                    className="w-full px-3 py-2.5 bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-400 cursor-not-allowed text-base"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">
-              Reservados
-            </label>
-            <input
-              type="number"
-              name="reservados"
-              value={form.reservados}
-              onChange={handleChange}
-              placeholder="Reservados"
-              className="input w-full"
-              min="0"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">
-              Pendientes (calculado automáticamente)
-            </label>
-            <input
-              type="number"
-              name="pendientes"
-              value={form.pendientes}
-              readOnly
-              placeholder="Pendientes (calculado)"
-              className="input w-full bg-gray-100 dark:bg-neutral-700 text-gray-600 dark:text-neutral-400 cursor-not-allowed"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">
+          {/* Tarifa y Vendedor */}
+          <div className="md:col-span-1">
+            <label className="block text-sm font-semibold text-neutral-200 mb-2">
               Tarifa
             </label>
             <input
@@ -551,13 +587,14 @@ export default function ViajeModal({
               name="tarifa"
               value={form.tarifa}
               onChange={handleChange}
-              placeholder="Tarifa"
-              className="input w-full"
+              placeholder="0.00"
+              step="0.01"
+              className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-600 rounded-lg text-white placeholder-neutral-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">
+          <div className="md:col-span-1">
+            <label className="block text-sm font-semibold text-neutral-200 mb-2">
               Vendedor (opcional)
             </label>
             <SearchableSelect
@@ -572,13 +609,13 @@ export default function ViajeModal({
             />
           </div>
 
-          {/* Botones */}
-          <div className="flex justify-between col-span-full pt-2">
+          {/* Botones - Sticky en mobile */}
+          <div className="md:col-span-2 sticky bottom-0 bg-neutral-900 border-t border-neutral-700 -mx-4 md:mx-0 px-4 md:px-0 py-4 md:py-0 md:border-0 md:static flex justify-between items-center gap-3 mt-4">
             {viaje && (
               <button
                 type="button"
                 onClick={handleDelete}
-                className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white flex items-center gap-2"
+                className="px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium flex items-center gap-2 transition-colors"
               >
                 <svg
                   className="w-4 h-4"
@@ -593,26 +630,27 @@ export default function ViajeModal({
                     d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                   />
                 </svg>
-                Eliminar
+                <span className="hidden sm:inline">Eliminar</span>
               </button>
             )}
-            <div className="flex gap-4">
+            <div className="flex gap-2 md:gap-3 flex-1 md:flex-initial justify-end">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-white"
+                className="px-4 md:px-6 py-2.5 rounded-lg bg-neutral-700 hover:bg-neutral-600 text-white font-medium transition-colors"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 md:px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
               >
                 {saving ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Guardando...
+                    <span className="hidden sm:inline">Guardando...</span>
+                    <span className="sm:hidden">...</span>
                   </>
                 ) : (
                   viaje ? "Actualizar" : "Guardar"

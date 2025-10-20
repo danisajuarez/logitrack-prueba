@@ -292,117 +292,257 @@ export default function ViajesPage() {
           )}
         </div>
 
-        {/* Tabla */}
-        <div className="overflow-x-auto relative">
-          {loading && (
-            <div className="absolute inset-0 bg-white/50 dark:bg-neutral-900/50 backdrop-blur-sm z-10 flex items-center justify-center">
-              <div className="flex flex-col items-center gap-3 bg-white dark:bg-neutral-800 p-6 rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-700">
-                <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                  Cargando viajes...
-                </span>
-              </div>
-            </div>
-          )}
-          <table className="min-w-full text-sm text-left text-neutral-800 dark:text-neutral-200">
-            <thead className="bg-gray-100 dark:bg-neutral-700 text-xs uppercase tracking-wider">
-              <tr>
-                <th className="p-2">Fecha</th>
-                <th className="p-2">N°</th>
-                <th className="p-2">Razón Social</th>
-                <th className="p-2">Origen</th>
-                <th className="p-2">Destino</th>
-                <th className="p-2">Artículo</th>
-                <th className="p-2">Pendientes</th>
-                <th className="p-2">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtrados.map((v, index) => (
-                <tr
-                  key={v.id ? `id-${v.id}` : `numero-${v.numero}-${index}`} // Garantiza unicidad
-                  className="border-t border-gray-200 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-800 transition"
-                >
-                  <td className="p-2">
-                    {v.fecha
-                      ? new Date(v.fecha).toLocaleDateString("es-ES", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                        })
-                      : ""}
-                  </td>
-                  <td className="p-2">{v.numero}</td>
-                  <td className="p-2">{v.razonSocial}</td>
-                  <td className="p-2">{v.origen}</td>
-                  <td className="p-2">{v.destino}</td>
-                  <td className="p-2">{v.articulo}</td>
-                  <td className="p-2">{v.cuposPendientes}</td>
-                  <td className="p-2">
-                    {/* Botones de acción para todos los viajes */}
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setViajeSeleccionado(v);
-                          setIsModalOpen(true);
-                        }}
-                        className="inline-flex items-center p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
-                        title="Editar viaje"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                          />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setViajeParaChofer(v);
-                          setIsChoferModalOpen(true);
-                        }}
-                        className="inline-flex items-center p-1.5 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"
-                        title={`Cupos: ${v.cupos ?? 0} | Reservados: ${
-                          v.cuposReservados ?? 0
-                        } | Postulados: ${v.postulados ?? 0} | Pendientes: ${
-                          v.cuposPendientes ?? 0
-                        }`}
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                          />
-                        </svg>
-                      </button>
-                      <span className="text-xs font-mono text-neutral-500 dark:text-neutral-400">
-                        {`${v.cupos ?? 0}/${v.cuposReservados ?? 0}/${
-                          v.postulados ?? 0
-                        }`}
-                      </span>
+        {/* Loading Overlay */}
+        {loading && (
+          <div className="flex flex-col items-center gap-3 py-12">
+            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+              Cargando viajes...
+            </span>
+          </div>
+        )}
+
+        {/* Mobile: Cards */}
+        {!loading && (
+          <div className="md:hidden space-y-3">
+            {filtrados.map((v, index) => (
+              <div
+                key={v.id ? `id-${v.id}` : `numero-${v.numero}-${index}`}
+                className="bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-lg p-4 shadow-sm"
+              >
+                {/* Header: Fecha y Número */}
+                <div className="flex items-start justify-between mb-3 pb-3 border-b border-gray-200 dark:border-neutral-700">
+                  <div>
+                    <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">
+                      {v.fecha
+                        ? new Date(v.fecha).toLocaleDateString("es-ES", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                          })
+                        : ""}
                     </div>
-                  </td>
+                    <div className="text-lg font-bold text-neutral-900 dark:text-white">
+                      #{v.numero}
+                    </div>
+                  </div>
+                  <div
+                    className={`px-3 py-1 rounded-full text-xs font-bold ${
+                      (v.cuposPendientes || 0) > 0
+                        ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                        : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                    }`}
+                  >
+                    {v.cuposPendientes || 0} pendientes
+                  </div>
+                </div>
+
+                {/* Info Principal */}
+                <div className="space-y-2 mb-3">
+                  <div>
+                    <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-0.5">
+                      Cliente
+                    </div>
+                    <div className="text-sm font-semibold text-neutral-900 dark:text-white">
+                      {v.razonSocial}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-0.5">
+                        Origen
+                      </div>
+                      <div className="text-sm font-medium text-neutral-900 dark:text-white">
+                        {v.origen}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-0.5">
+                        Destino
+                      </div>
+                      <div className="text-sm font-medium text-neutral-900 dark:text-white">
+                        {v.destino}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-0.5">
+                      Artículo
+                    </div>
+                    <div className="text-sm text-neutral-900 dark:text-white">
+                      {v.articulo}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cupos Info */}
+                <div className="flex items-center gap-2 mb-3 text-xs text-neutral-600 dark:text-neutral-400">
+                  <span className="font-mono">
+                    {`${v.cupos ?? 0}/${v.cuposReservados ?? 0}/${v.postulados ?? 0}`}
+                  </span>
+                  <span className="text-neutral-400 dark:text-neutral-500">
+                    (Cupos/Reservados/Postulados)
+                  </span>
+                </div>
+
+                {/* Botones de Acción */}
+                <div className="flex items-center gap-2 pt-3 border-t border-gray-200 dark:border-neutral-700">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViajeSeleccionado(v);
+                      setIsModalOpen(true);
+                    }}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-200"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
+                    </svg>
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViajeParaChofer(v);
+                      setIsChoferModalOpen(true);
+                    }}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors duration-200"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      />
+                    </svg>
+                    Choferes
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Desktop: Table */}
+        {!loading && (
+          <div className="hidden md:block overflow-x-auto">
+            <table className="min-w-full text-sm text-left text-neutral-800 dark:text-neutral-200">
+              <thead className="bg-gray-100 dark:bg-neutral-700 text-xs uppercase tracking-wider">
+                <tr>
+                  <th className="p-2">Fecha</th>
+                  <th className="p-2">N°</th>
+                  <th className="p-2">Razón Social</th>
+                  <th className="p-2">Origen</th>
+                  <th className="p-2">Destino</th>
+                  <th className="p-2">Artículo</th>
+                  <th className="p-2">Pendientes</th>
+                  <th className="p-2">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filtrados.map((v, index) => (
+                  <tr
+                    key={v.id ? `id-${v.id}` : `numero-${v.numero}-${index}`}
+                    className="border-t border-gray-200 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-800 transition"
+                  >
+                    <td className="p-2">
+                      {v.fecha
+                        ? new Date(v.fecha).toLocaleDateString("es-ES", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                          })
+                        : ""}
+                    </td>
+                    <td className="p-2">{v.numero}</td>
+                    <td className="p-2">{v.razonSocial}</td>
+                    <td className="p-2">{v.origen}</td>
+                    <td className="p-2">{v.destino}</td>
+                    <td className="p-2">{v.articulo}</td>
+                    <td className="p-2">{v.cuposPendientes}</td>
+                    <td className="p-2">
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setViajeSeleccionado(v);
+                            setIsModalOpen(true);
+                          }}
+                          className="inline-flex items-center p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                          title="Editar viaje"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setViajeParaChofer(v);
+                            setIsChoferModalOpen(true);
+                          }}
+                          className="inline-flex items-center p-1.5 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"
+                          title={`Cupos: ${v.cupos ?? 0} | Reservados: ${
+                            v.cuposReservados ?? 0
+                          } | Postulados: ${v.postulados ?? 0} | Pendientes: ${
+                            v.cuposPendientes ?? 0
+                          }`}
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                            />
+                          </svg>
+                        </button>
+                        <span className="text-xs font-mono text-neutral-500 dark:text-neutral-400">
+                          {`${v.cupos ?? 0}/${v.cuposReservados ?? 0}/${
+                            v.postulados ?? 0
+                          }`}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <ViajeModal
