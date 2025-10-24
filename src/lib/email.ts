@@ -9,8 +9,6 @@ const EMAIL_ADMINISTRACION =
   process.env.EMAIL_ADMINISTRACION || process.env.MAIL_ADMIN || process.env.MAIL_ADMINISTRACION;
 const EMAIL_TEST = process.env.MAIL_TEST || process.env.EMAIL_TEST; // opcional para fallback local
 
-const resend = new Resend(RESEND_API_KEY);
-
 export interface NegocioEmailData {
   // Datos del negocio
   numeroNegocio: string;
@@ -375,7 +373,8 @@ export async function sendNegocioEmail(
         ]
       : undefined;
 
-    // Enviar email
+    // Enviar email (instancia diferida)
+    const resend = new Resend(RESEND_API_KEY);
     const response = await resend.emails.send({
       from: EMAIL_FROM!,
       to,
