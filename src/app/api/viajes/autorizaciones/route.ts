@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { RowDataPacket } from "mysql2/promise";
 import { db } from "@/lib/db";
+import { generateNegocioPDF } from "@/lib/pdf";
+import { sendNegocioEmail } from "@/lib/email";
 
 function toInt(value: unknown): number | null {
   if (value == null || value === "") return null;
@@ -212,6 +214,56 @@ export async function POST(request: NextRequest) {
       console.log('[DEBUG API] Haciendo commit de la transacción...');
       await connection.commit();
       console.log('[DEBUG API] Commit exitoso');
+
+      // Enviar email con resumen del negocio y PDF adjunto (no bloquea el guardado principal)
+      try {
+        console.log('[EMAIL] Iniciando generaci��n de PDF y env��o de email...');
+        // Traer datos del negocio para el email
+        const [negRows] = await connection.query<RowDataPacket[]>(
+          `SELECT 
+             ENT_Numero              AS numeroNegocio,
+             ENT_Fecha               AS fecha,
+             COALESCE(ENT_FechaVencimiento, ENT_Fecha) AS fechaVencimiento,
+             TER_RazonSocialTer      AS proveedor,
+             LOC_NomLocalidadOrig    AS procedencia,
+             LOC_NomLocalidadDest    AS destino,
+             TVP_Caracteristicas     AS articulo,
+             ENT_Tarifa              AS tarifa,
+             ENT_CantCupos           AS cupos
+           FROM sige_ent_encnegtra
+           WHERE ENT_IdEnt = ?
+           LIMIT 1`,
+          [viajeId]
+        );
+
+        if (Array.isArray(negRows) && negRows.length > 0) {
+          const row: any = negRows[0];
+          const emailData = {
+            numeroNegocio: String(row.numeroNegocio ?? viajeId),
+            fecha: new Date(row.fecha ?? new Date()).toISOString(),
+            fechaVencimiento: new Date(row.fechaVencimiento ?? row.fecha ?? new Date()).toISOString(),
+            proveedor: String(row.proveedor ?? ''),
+            procedencia: String(row.procedencia ?? ''),
+            destino: String(row.destino ?? ''),
+            articulo: String(row.articulo ?? ''),
+            tarifa: Number(row.tarifa ?? 0),
+            cupos: row.cupos != null ? Number(row.cupos) : undefined,
+          } as const;
+
+          const pdf = await generateNegocioPDF(emailData);
+          const result = await sendNegocioEmail(emailData, pdf);
+
+          if (!result.success) {
+            console.error('[EMAIL] Error al enviar email:', result.error);
+          } else {
+            console.log('[EMAIL] Email enviado exitosamente:', result.messageId);
+          }
+        } else {
+          console.warn('[EMAIL] No se encontraron datos del negocio para viajeId', viajeId);
+        }
+      } catch (emailErr) {
+        console.error('[EMAIL] Error general en flujo de email:', emailErr);
+      }
 
       const response = {
         success: true,

@@ -12,6 +12,7 @@ interface UserRow extends RowDataPacket {
   USU_PassWord: string;
   USU_DatosUsu: string;
   VEN_EMailVen: string | null;
+  vendedorId: number | null;
 }
 
 export async function POST(request: NextRequest) {
@@ -29,14 +30,15 @@ export async function POST(request: NextRequest) {
     // Consulta SQL proporcionada (corregida con VEN_IDVendedor)
     const [rows] = (await db.query(
       `SELECT
-        sige_usu_usuario.USU_LogUsu,
-        sige_usu_usuario.USU_PassWord,
-        sige_usu_usuario.USU_DatosUsu,
-        sige_ven_vendedor.VEN_EMailVen
-      FROM sige_usu_usuario
-      LEFT JOIN sige_ven_vendedor
-        ON sige_usu_usuario.ven_idvendedor = sige_ven_vendedor.VEN_IDVendedor
-      WHERE sige_usu_usuario.USU_LogUsu = ?`,
+        u.USU_LogUsu,
+        u.USU_PassWord,
+        u.USU_DatosUsu,
+        u.ven_idvendedor AS vendedorId,
+        v.VEN_EMailVen
+      FROM sige_usu_usuario u
+      LEFT JOIN sige_ven_vendedor v
+        ON u.ven_idvendedor = v.VEN_IDVendedor
+      WHERE UPPER(u.USU_LogUsu) = UPPER(?)`,
       [username]
     )) as [UserRow[], any];
 
@@ -62,6 +64,7 @@ export async function POST(request: NextRequest) {
       username: user.USU_LogUsu,
       displayName: user.USU_DatosUsu,
       email: user.VEN_EMailVen,
+      vendedorId: user.vendedorId ?? null,
       loginTime: new Date().toISOString(),
     };
 
@@ -72,6 +75,7 @@ export async function POST(request: NextRequest) {
         username: user.USU_LogUsu,
         displayName: user.USU_DatosUsu,
         email: user.VEN_EMailVen,
+        vendedorId: user.vendedorId ?? null,
       },
     });
 

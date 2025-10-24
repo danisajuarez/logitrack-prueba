@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
         username: session.username,
         displayName: session.displayName,
         email: session.email,
+        vendedorId: session.vendedorId ?? null,
       },
     });
   } catch (error) {

@@ -12,7 +12,10 @@
       "Bash(npx next:*)",
       "Bash(taskkill:*)",
       "Bash(cmd /c:*)",
-      "Bash(yarn lint)"
+      "Bash(yarn lint)",
+      "Bash(tasklist:*)",
+      "Bash(yarn add:*)",
+      "Bash(npm install:*)"
     ],
     "deny": []
   }

@@ -146,6 +146,22 @@ export default function ViajeModal({
     }
   }, [isOpen, viaje]);
 
+  // Proponer vendedor por defecto desde la sesión del usuario
+  useEffect(() => {
+    if (!isOpen || viaje) return;
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/session');
+        if (!res.ok) return;
+        const data = await res.json();
+        const vendedorId = data?.user?.vendedorId;
+        if (vendedorId && !form.vendedor) {
+          setForm((prev) => ({ ...prev, vendedor: String(vendedorId) }));
+        }
+      } catch {}
+    })();
+  }, [isOpen, viaje]);
+
   const fetchTerceros = async () => {
     setLoadingTerceros(true);
     try {
@@ -595,7 +611,7 @@ export default function ViajeModal({
 
           <div className="md:col-span-1">
             <label className="block text-sm font-semibold text-neutral-200 mb-2">
-              Vendedor (opcional)
+              Vendedor
             </label>
             <SearchableSelect
               options={vendedores}

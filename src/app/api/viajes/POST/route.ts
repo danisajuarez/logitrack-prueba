@@ -42,6 +42,14 @@ export async function POST(req: NextRequest) {
     const pendientesNum = cuposNum - reservadosNum;
     const tarifaNum = toNumber(tarifa) ?? 0;
 
+    // Vendedor obligatorio
+    if (!vendedor) {
+      return NextResponse.json(
+        { error: "Debe seleccionar un vendedor válido" },
+        { status: 400 }
+      );
+    }
+
     const fechaActual = new Date();
     const fechaSQL = fechaActual.toISOString().slice(0, 19).replace("T", " ");
 
@@ -113,6 +121,20 @@ export async function POST(req: NextRequest) {
     );
 
     const entIdEnt = resultEnt.insertId;
+    // Asegurar campos derivados según requerimientos
+    try {
+      // ENT_FechaVencimiento = ENT_Fecha
+      // ENT_Numero = LPAD(ENT_IdEnt, 6, '0')
+      // TCP_IDTipoComp = 60 (tipo de comprobante)
+      await connection.execute(
+        `UPDATE sige_ent_encnegtra
+         SET TCP_IDTipoComp = 60,
+             ENT_FechaVencimiento = COALESCE(ENT_FechaVencimiento, ENT_Fecha),
+             ENT_Numero = LPAD(ENT_IdEnt, 6, '0')
+         WHERE ENT_IdEnt = ?`,
+        [entIdEnt]
+      );
+    } catch {}
 
     // ============================================
     // PASO 2: Insertar en sige_ecp_enccarpor (Carta Porte)
@@ -255,25 +277,44 @@ export async function POST(req: NextRequest) {
     );
 
     // ============================================
-    // PASO 5: OPCIONAL - Insertar en SIGE_OCP_OrdCarPor (combustible/adelantos)
+    // PASO 5: Detalle de Negocio (sige_dnt_detnegtra)
     // ============================================
-    // Por ahora dejamos esto para cuando se asignen choferes
-    // Ya que esto se hace en /api/viajes/autorizaciones
+    try {
+      await connection.execute(
+        `INSERT INTO sige_dnt_detnegtra (
+          ENT_IdEnt,
+          DNT_Renglon,
+          ART_IdArticulo,
+          DNT_Detalle,
+          DNT_Cosecha
+        ) VALUES (?, 1, ?, ?, '')`,
+        [entIdEnt, '7', articulo]
+      );
+    } catch (e) {
+      // Si falla, no bloquear el resto
+      console.warn('[DEBUG] No se pudo insertar detalle de negocio en sige_dnt_detnegtra:', e);
+    }
+
+    // ============================================
+    // PASO 6: OPCIONAL - Insertar en SIGE_OCP_OrdCarPor (combustible/adelantos)
+    // ============================================
+    // Se gestiona en /api/viajes/autorizaciones
 
     // Commit de la transacción
     await connection.commit();
     connection.release();
 
+    const entNumeroResp = String(entIdEnt).padStart(6, '0');
     return NextResponse.json({
       success: true,
       message: "Viaje creado exitosamente en todas las tablas",
       data: {
         entIdEnt,
-        entNumero,
+        entNumero: entNumeroResp,
         ecpIdEcp,
         ecpNumero: ecpNumeroStr,
       },
-      numero: entNumero, // Para compatibilidad con el frontend
+      numero: entNumeroResp, // Para compatibilidad con el frontend
     });
 
   } catch (error: any) {

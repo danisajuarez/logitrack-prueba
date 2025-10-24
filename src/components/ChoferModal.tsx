@@ -653,6 +653,8 @@ export default function ChoferModal({
   };
 
   const toggleAutorizacionPanel = (rowId: number | string) => {
+    // Deshabilitar aviso de cambios sin guardar
+    setHasUnsavedChanges(false);
     if (expandedAutorizacionId === rowId) {
       // Cerrar el panel
       if (hasUnsavedChanges) {
