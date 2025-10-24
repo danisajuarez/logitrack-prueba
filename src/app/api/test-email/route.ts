@@ -3,11 +3,19 @@ import { Resend } from "resend";
 import { generateNegocioHTML } from "@/lib/email";
 import { generateNegocioPDF } from "@/lib/pdf";
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
+// No inicializamos Resend si falta la API key; validamos dentro del handler
 
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: "RESEND_API_KEY no está configurada en el entorno de Vercel" },
+      { status: 500 }
+    );
+  }
+  const resend = new Resend(apiKey);
   const url = new URL(req.url);
   const to = url.searchParams.get("to") || process.env.MAIL_TEST || process.env.EMAIL_TEST || undefined;
   const attach = url.searchParams.get("attach") === "1" || url.searchParams.get("pdf") === "1";
