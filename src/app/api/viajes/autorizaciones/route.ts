@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { RowDataPacket } from "mysql2/promise";
 import { db } from "@/lib/db";
-import { generateNegocioPDF } from "@/lib/pdf";
-import { sendNegocioEmail } from "@/lib/email";
+export const runtime = "nodejs"; // fuerza Node (no Edge)
+export const dynamic = "force-dynamic"; // evita que Next intente prerender
+export const revalidate = 0; // sin cache estática para API
 
 function toInt(value: unknown): number | null {
   if (value == null || value === "") return null;
@@ -35,13 +36,17 @@ const ARTICULO_ADELANTO_DESC = "ADELANTO";
 export async function POST(request: NextRequest) {
   try {
     const body: AutorizacionRequest = await request.json();
-    console.log('[DEBUG API] Request body recibido:', body);
+    console.log("[DEBUG API] Request body recibido:", body);
 
     const viajeId = toInt(body?.viajeId);
     const choferId = toInt(body?.choferId);
     const estacionId = toInt(body?.estacionId);
 
-    console.log('[DEBUG API] Parámetros parseados:', { viajeId, choferId, estacionId });
+    console.log("[DEBUG API] Parámetros parseados:", {
+      viajeId,
+      choferId,
+      estacionId,
+    });
 
     if (!viajeId || !choferId || !estacionId) {
       return NextResponse.json(
@@ -54,7 +59,8 @@ export async function POST(request: NextRequest) {
 
     // Validar que al menos haya un array con elementos
     const hasAdelantos = Array.isArray(adelantos) && adelantos.length > 0;
-    const hasCombustibles = Array.isArray(combustibles) && combustibles.length > 0;
+    const hasCombustibles =
+      Array.isArray(combustibles) && combustibles.length > 0;
 
     if (!hasAdelantos && !hasCombustibles) {
       return NextResponse.json(
@@ -129,7 +135,7 @@ export async function POST(request: NextRequest) {
 
       // ADELANTOS (múltiples)
       if (hasAdelantos) {
-        console.log('[DEBUG API] Procesando adelantos:', adelantos);
+        console.log("[DEBUG API] Procesando adelantos:", adelantos);
         for (const adelanto of adelantos) {
           const importe = toDecimal(adelanto.importe);
           if (!importe) {
@@ -144,7 +150,7 @@ export async function POST(request: NextRequest) {
           }
 
           const renglon = await getNextRenglon(ecpIdEcp);
-          console.log('[DEBUG API] Insertando adelanto en renglón:', renglon);
+          console.log("[DEBUG API] Insertando adelanto en renglón:", renglon);
 
           const [result] = await connection.query(
             `INSERT INTO SIGE_OCP_OrdCarPor
@@ -163,14 +169,14 @@ export async function POST(request: NextRequest) {
               importe,
             ]
           );
-          console.log('[DEBUG API] Adelanto insertado correctamente');
+          console.log("[DEBUG API] Adelanto insertado correctamente");
           adelantosIds.push(renglon);
         }
       }
 
       // COMBUSTIBLES (múltiples)
       if (hasCombustibles) {
-        console.log('[DEBUG API] Procesando combustibles:', combustibles);
+        console.log("[DEBUG API] Procesando combustibles:", combustibles);
         for (const combustible of combustibles) {
           const litros = toDecimal(combustible.litros);
           if (!litros) {
@@ -185,7 +191,10 @@ export async function POST(request: NextRequest) {
           }
 
           const renglon = await getNextRenglon(ecpIdEcp);
-          console.log('[DEBUG API] Insertando combustible en renglón:', renglon);
+          console.log(
+            "[DEBUG API] Insertando combustible en renglón:",
+            renglon
+          );
 
           const [result] = await connection.query(
             `INSERT INTO SIGE_OCP_OrdCarPor
@@ -206,18 +215,20 @@ export async function POST(request: NextRequest) {
               litros, // OCP_CantRealPend
             ]
           );
-          console.log('[DEBUG API] Combustible insertado correctamente');
+          console.log("[DEBUG API] Combustible insertado correctamente");
           combustiblesIds.push(renglon);
         }
       }
 
-      console.log('[DEBUG API] Haciendo commit de la transacción...');
+      console.log("[DEBUG API] Haciendo commit de la transacción...");
       await connection.commit();
-      console.log('[DEBUG API] Commit exitoso');
+      console.log("[DEBUG API] Commit exitoso");
 
       // Enviar email con resumen del negocio y PDF adjunto (no bloquea el guardado principal)
       try {
-        console.log('[EMAIL] Iniciando generaci��n de PDF y env��o de email...');
+        console.log(
+          "[EMAIL] Iniciando generaci��n de PDF y env��o de email..."
+        );
         // Traer datos del negocio para el email
         const [negRows] = await connection.query<RowDataPacket[]>(
           `SELECT 
@@ -241,28 +252,41 @@ export async function POST(request: NextRequest) {
           const emailData = {
             numeroNegocio: String(row.numeroNegocio ?? viajeId),
             fecha: new Date(row.fecha ?? new Date()).toISOString(),
-            fechaVencimiento: new Date(row.fechaVencimiento ?? row.fecha ?? new Date()).toISOString(),
-            proveedor: String(row.proveedor ?? ''),
-            procedencia: String(row.procedencia ?? ''),
-            destino: String(row.destino ?? ''),
-            articulo: String(row.articulo ?? ''),
+            fechaVencimiento: new Date(
+              row.fechaVencimiento ?? row.fecha ?? new Date()
+            ).toISOString(),
+            proveedor: String(row.proveedor ?? ""),
+            procedencia: String(row.procedencia ?? ""),
+            destino: String(row.destino ?? ""),
+            articulo: String(row.articulo ?? ""),
             tarifa: Number(row.tarifa ?? 0),
             cupos: row.cupos != null ? Number(row.cupos) : undefined,
           } as const;
+
+          const [{ generateNegocioPDF }, { sendNegocioEmail }] = await Promise.all([
+            import("@/lib/pdf"),
+            import("@/lib/email"),
+          ]);
 
           const pdf = await generateNegocioPDF(emailData);
           const result = await sendNegocioEmail(emailData, pdf);
 
           if (!result.success) {
-            console.error('[EMAIL] Error al enviar email:', result.error);
+            console.error("[EMAIL] Error al enviar email:", result.error);
           } else {
-            console.log('[EMAIL] Email enviado exitosamente:', result.messageId);
+            console.log(
+              "[EMAIL] Email enviado exitosamente:",
+              result.messageId
+            );
           }
         } else {
-          console.warn('[EMAIL] No se encontraron datos del negocio para viajeId', viajeId);
+          console.warn(
+            "[EMAIL] No se encontraron datos del negocio para viajeId",
+            viajeId
+          );
         }
       } catch (emailErr) {
-        console.error('[EMAIL] Error general en flujo de email:', emailErr);
+        console.error("[EMAIL] Error general en flujo de email:", emailErr);
       }
 
       const response = {
@@ -275,7 +299,7 @@ export async function POST(request: NextRequest) {
         },
       };
 
-      console.log('[DEBUG API] Respuesta a enviar:', response);
+      console.log("[DEBUG API] Respuesta a enviar:", response);
 
       return NextResponse.json(response);
     } catch (error: any) {

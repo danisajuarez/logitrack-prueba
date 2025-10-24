@@ -1,4 +1,3 @@
-import puppeteer from "puppeteer";
 import type { NegocioEmailData } from "./email";
 
 /**
@@ -348,6 +347,9 @@ export async function generateNegocioPDF(
 
     // Generar HTML
     const html = generatePDFHTML(data);
+
+    // Importar puppeteer de forma diferida para evitar problemas en build/edge
+    const { default: puppeteer } = await import("puppeteer");
 
     // Lanzar navegador headless
     browser = await puppeteer.launch({
