@@ -42,13 +42,7 @@ export async function POST(req: NextRequest) {
     const pendientesNum = cuposNum - reservadosNum;
     const tarifaNum = toNumber(tarifa) ?? 0;
 
-    // Vendedor obligatorio
-    if (!vendedor) {
-      return NextResponse.json(
-        { error: "Debe seleccionar un vendedor válido" },
-        { status: 400 }
-      );
-    }
+    // Vendedor: puede provenir del selector o de la sesión; si no viene, continuar
 
     const fechaActual = new Date();
     const fechaSQL = fechaActual.toISOString().slice(0, 19).replace("T", " ");
@@ -73,16 +67,35 @@ export async function POST(req: NextRequest) {
       }
     } catch {}
 
-    // Resolver vendedor por nombre
+    // Resolver vendedor: por id/nombre o caer a la sesión
     let vendedorId: number | null = null;
+    let vendedorFromSession: number | null = null;
     try {
-      const [venRows]: any = await connection.query(
-        `SELECT VEN_IDVendedor AS id FROM sige_ven_vendedor WHERE VEN_NomVen = ? LIMIT 1`,
-        [vendedor]
-      );
-      if (Array.isArray(venRows) && venRows.length > 0) {
-        vendedorId = Number(venRows[0].id) || null;
+      const raw = req.cookies.get("session")?.value;
+      if (raw) {
+        const sess = JSON.parse(raw);
+        if (sess && sess.vendedorId != null) {
+          vendedorFromSession = Number(sess.vendedorId);
+          if (!Number.isFinite(vendedorFromSession)) vendedorFromSession = null;
+        }
       }
+    } catch {}
+    try {
+      const vendStr = vendedor != null ? String(vendedor).trim() : "";
+      if (vendStr !== "") {
+        if (/^\d+$/.test(vendStr)) {
+          vendedorId = Number(vendStr);
+        } else {
+          const [venRows]: any = await connection.query(
+            `SELECT VEN_IDVendedor AS id FROM sige_ven_vendedor WHERE VEN_NomVen = ? LIMIT 1`,
+            [vendStr]
+          );
+          if (Array.isArray(venRows) && venRows.length > 0) {
+            vendedorId = Number(venRows[0].id) || null;
+          }
+        }
+      }
+      if (vendedorId == null) vendedorId = vendedorFromSession;
     } catch {}
 
     // Resolver origen y destino por nombre de localidad
@@ -350,7 +363,7 @@ export async function POST(req: NextRequest) {
         articulo,
         1, // DEP_IDDeposito
         entIdEnt, // Relación con sige_ent_encnegtra
-        vendedorId ?? 2,
+        vendedorId,
         1, // USU_IdUsuario
         1, // EQU_IDEquipo
         'N', // Pre carta porte
