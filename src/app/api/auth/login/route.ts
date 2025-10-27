@@ -51,8 +51,11 @@ export async function POST(request: NextRequest) {
 
     const user = rows[0];
 
-    // Verificar contraseña (sin hash por ahora - IMPORTANTE: deberías usar bcrypt en producción)
-    if (user.USU_PassWord !== password) {
+    // Verificar contraseña sin sensibilidad a mayúsculas/minúsculas
+    // Nota: En producción se recomienda usar hash (bcrypt) y mantener sensibilidad por seguridad
+    const dbPass = (user.USU_PassWord ?? "").toString();
+    const inPass = (password ?? "").toString();
+    if (dbPass.toLowerCase() !== inPass.toLowerCase()) {
       return NextResponse.json(
         { error: "Usuario o contraseña incorrectos" },
         { status: 401 }

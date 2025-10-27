@@ -58,6 +58,83 @@ export async function POST(req: NextRequest) {
     await connection.beginTransaction();
 
     // ============================================
+    // PASO 0.5: Resolver IDs (tercero, vendedor, localidades)
+    // ============================================
+
+    // Resolver TER_IDTercero por razón social
+    let terIdTercero: number | null = null;
+    try {
+      const [terRows]: any = await connection.query(
+        `SELECT TER_IDTercero AS id FROM sige_ter_tercero WHERE TER_RazonSocialTer = ? LIMIT 1`,
+        [razonSocial]
+      );
+      if (Array.isArray(terRows) && terRows.length > 0) {
+        terIdTercero = Number(terRows[0].id) || null;
+      }
+    } catch {}
+
+    // Resolver vendedor por nombre
+    let vendedorId: number | null = null;
+    try {
+      const [venRows]: any = await connection.query(
+        `SELECT VEN_IDVendedor AS id FROM sige_ven_vendedor WHERE VEN_NomVen = ? LIMIT 1`,
+        [vendedor]
+      );
+      if (Array.isArray(venRows) && venRows.length > 0) {
+        vendedorId = Number(venRows[0].id) || null;
+      }
+    } catch {}
+
+    // Resolver origen y destino por nombre de localidad
+    type LocRow = { id: number; nombre: string; proId?: number; proNom?: string };
+    let orig: LocRow | null = null;
+    let dest: LocRow | null = null;
+    try {
+      const [oRows]: any = await connection.query(
+        `SELECT LOC_IDLocalidad AS id, LOC_NomLocalidad AS nombre,
+                PRO_IDProvincia AS proId, PRO_NomProvincia AS proNom
+         FROM sige_loc_localidad WHERE LOC_NomLocalidad = ? LIMIT 1`,
+        [origen]
+      );
+      if (Array.isArray(oRows) && oRows.length > 0) {
+        orig = {
+          id: Number(oRows[0].id),
+          nombre: String(oRows[0].nombre ?? origen),
+          proId: oRows[0].proId != null ? Number(oRows[0].proId) : undefined,
+          proNom: oRows[0].proNom != null ? String(oRows[0].proNom) : undefined,
+        };
+      }
+    } catch {}
+    try {
+      const [dRows]: any = await connection.query(
+        `SELECT LOC_IDLocalidad AS id, LOC_NomLocalidad AS nombre,
+                PRO_IDProvincia AS proId, PRO_NomProvincia AS proNom
+         FROM sige_loc_localidad WHERE LOC_NomLocalidad = ? LIMIT 1`,
+        [destino]
+      );
+      if (Array.isArray(dRows) && dRows.length > 0) {
+        dest = {
+          id: Number(dRows[0].id),
+          nombre: String(dRows[0].nombre ?? destino),
+          proId: dRows[0].proId != null ? Number(dRows[0].proId) : undefined,
+          proNom: dRows[0].proNom != null ? String(dRows[0].proNom) : undefined,
+        };
+      }
+    } catch {}
+
+    // Resolver artículo (ID por descripción)
+    let articuloId: string | null = null;
+    try {
+      const [artRows]: any = await connection.query(
+        `SELECT ART_IDArticulo AS id FROM sige_art_articulo WHERE ART_DesArticulo = ? LIMIT 1`,
+        [articulo]
+      );
+      if (Array.isArray(artRows) && artRows.length > 0) {
+        articuloId = String(artRows[0].id);
+      }
+    } catch {}
+
+    // ============================================
     // PASO 1: Insertar en sige_ent_encnegtra
     // ============================================
 
@@ -107,15 +184,15 @@ export async function POST(req: NextRequest) {
         entNumero, // Ahora incluimos el número explícitamente
         fechaSQL,
         razonSocial,
-        origen,
-        destino,
-        articulo,
+        orig?.nombre ?? origen,
+        dest?.nombre ?? destino,
+        '', // TVP_Caracteristicas en blanco (detalle se guarda en tablas específicas)
         1, // EQU_IDEquipo
         cuposNum,
         reservadosNum,
         pendientesNum,
         tarifaNum,
-        vendedor ? parseInt(vendedor) : null,
+        vendedorId,
         1, // USU_IdUsuario - hardcoded por ahora
       ]
     );
@@ -132,6 +209,78 @@ export async function POST(req: NextRequest) {
              ENT_FechaVencimiento = COALESCE(ENT_FechaVencimiento, ENT_Fecha),
              ENT_Numero = LPAD(ENT_IdEnt, 6, '0')
          WHERE ENT_IdEnt = ?`,
+        [entIdEnt]
+      );
+    } catch {}
+
+    // Completar campos por defecto solicitados (mejor por separado, por si alguna columna no existe)
+    try {
+      if (terIdTercero != null) {
+        await connection.execute(
+          `UPDATE sige_ent_encnegtra SET TER_IDTercero = ? WHERE ENT_IdEnt = ?`,
+          [terIdTercero, entIdEnt]
+        );
+      }
+    } catch {}
+    try {
+      if (orig?.id != null) {
+        await connection.execute(
+          `UPDATE sige_ent_encnegtra SET LOC_IDLocalidadOrig = ? WHERE ENT_IdEnt = ?`,
+          [orig.id, entIdEnt]
+        );
+      }
+    } catch {}
+    try {
+      if (orig?.proId != null) {
+        await connection.execute(
+          `UPDATE sige_ent_encnegtra SET PRO_IDProvinciaOrig = ? WHERE ENT_IdEnt = ?`,
+          [orig.proId, entIdEnt]
+        );
+      }
+    } catch {}
+    try {
+      if (orig?.proNom != null) {
+        await connection.execute(
+          `UPDATE sige_ent_encnegtra SET PRO_NomProvinciaOrig = ? WHERE ENT_IdEnt = ?`,
+          [orig.proNom, entIdEnt]
+        );
+      }
+    } catch {}
+    try {
+      if (dest?.id != null) {
+        await connection.execute(
+          `UPDATE sige_ent_encnegtra SET LOC_IDLocalidadDest = ? WHERE ENT_IdEnt = ?`,
+          [dest.id, entIdEnt]
+        );
+      }
+    } catch {}
+    try {
+      if (dest?.proId != null) {
+        await connection.execute(
+          `UPDATE sige_ent_encnegtra SET PRO_IDProvinciaDest = ? WHERE ENT_IdEnt = ?`,
+          [dest.proId, entIdEnt]
+        );
+      }
+    } catch {}
+    try {
+      if (dest?.proNom != null) {
+        await connection.execute(
+          `UPDATE sige_ent_encnegtra SET PRO_NomProvinciaDest = ? WHERE ENT_IdEnt = ?`,
+          [dest.proNom, entIdEnt]
+        );
+      }
+    } catch {}
+    try {
+      if (vendedorId != null) {
+        await connection.execute(
+          `UPDATE sige_ent_encnegtra SET VEN_IdVendPostula = ? WHERE ENT_IdEnt = ?`,
+          [vendedorId, entIdEnt]
+        );
+      }
+    } catch {}
+    try {
+      await connection.execute(
+        `UPDATE sige_ent_encnegtra SET TVP_Caracteristicas = '' WHERE ENT_IdEnt = ?`,
         [entIdEnt]
       );
     } catch {}
@@ -201,7 +350,7 @@ export async function POST(req: NextRequest) {
         articulo,
         1, // DEP_IDDeposito
         entIdEnt, // Relación con sige_ent_encnegtra
-        vendedor ? parseInt(vendedor) : 2,
+        vendedorId ?? 2,
         1, // USU_IdUsuario
         1, // EQU_IDEquipo
         'N', // Pre carta porte
@@ -263,7 +412,7 @@ export async function POST(req: NextRequest) {
       [
         ecpIdEcp,
         1, // dcp_renglondcp
-        '7', // art_idarticulo
+        articuloId ?? '7', // art_idarticulo (fallback '7')
         articulo, // art_desarticulo
         '', // dcp_cosecha
         0.0, // dcp_pesobruto
@@ -288,7 +437,7 @@ export async function POST(req: NextRequest) {
           DNT_Detalle,
           DNT_Cosecha
         ) VALUES (?, 1, ?, ?, '')`,
-        [entIdEnt, '7', articulo]
+        [entIdEnt, articuloId ?? '7', articulo]
       );
     } catch (e) {
       // Si falla, no bloquear el resto
