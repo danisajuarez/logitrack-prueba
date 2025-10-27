@@ -39,7 +39,7 @@ export default function SearchableSelect({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const filteredOptions = options.filter((option) =>
-    option.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+    option.nombre.toLowerCase().includes((searchTerm || "").toLowerCase())
   );
 
   // Mostrar nombre según valueId (nuevo) o value (legacy)

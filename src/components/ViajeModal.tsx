@@ -615,10 +615,10 @@ export default function ViajeModal({
             </label>
             <SearchableSelect
               options={vendedores}
-              value={form.vendedor}
-              onChange={(value) =>
-                handleSearchableSelectChange("vendedor", value)
-              }
+              valueId={form.vendedor}
+              onChangeId={(id) => {
+                setForm({ ...form, vendedor: String(id) });
+              }}
               placeholder="Seleccionar Vendedor"
               name="vendedor"
               loading={loadingVendedores}

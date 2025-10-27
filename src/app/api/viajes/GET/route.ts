@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
         e.TER_RazonSocialTer AS razonSocial,
         e.LOC_NomLocalidadOrig AS origen,
         e.LOC_NomLocalidadDest AS destino,
-        COALESCE(d.ART_DesArticulo, e.TVP_Caracteristicas) AS articulo,
+        e.TVP_Caracteristicas AS articulo,
         COALESCE(eq.EQU_DesEquipo, CAST(e.EQU_IDEquipo AS CHAR)) AS equipo,
         e.ENT_CantCupos AS cupos,
         e.ENT_CantCuposReser AS cuposReservados,
@@ -116,7 +116,6 @@ export async function GET(req: NextRequest) {
         e.ENT_Tarifa AS tarifa,
         e.VEN_IdVendPostula AS vendedor
       FROM sige_ent_encnegtra e
-      LEFT JOIN sige_dnt_detnegtra d ON e.ENT_IdEnt = d.ENT_IdEnt
       LEFT JOIN sige_equ_equipos eq ON e.EQU_IDEquipo = eq.EQU_IDEquipo
       LEFT JOIN sige_ven_vendedor v ON e.VEN_IdVendPostula = v.VEN_IdVendedor
       WHERE e.ENT_IdEnt > 0

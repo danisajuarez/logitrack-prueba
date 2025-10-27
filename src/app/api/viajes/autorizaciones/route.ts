@@ -231,18 +231,17 @@ export async function POST(request: NextRequest) {
         );
         // Traer datos del negocio para el email
         const [negRows] = await connection.query<RowDataPacket[]>(
-          `SELECT 
+          `SELECT
              e.ENT_Numero              AS numeroNegocio,
              e.ENT_Fecha               AS fecha,
              COALESCE(e.ENT_FechaVencimiento, e.ENT_Fecha) AS fechaVencimiento,
              e.TER_RazonSocialTer      AS proveedor,
              e.LOC_NomLocalidadOrig    AS procedencia,
              e.LOC_NomLocalidadDest    AS destino,
-             COALESCE(d.DNT_Detalle, e.TVP_Caracteristicas) AS articulo,
+             e.TVP_Caracteristicas     AS articulo,
              e.ENT_Tarifa              AS tarifa,
              e.ENT_CantCupos           AS cupos
            FROM sige_ent_encnegtra e
-           LEFT JOIN sige_dnt_detnegtra d ON d.ENT_IdEnt = e.ENT_IdEnt AND d.DNT_Renglon = 1
            WHERE e.ENT_IdEnt = ?
            LIMIT 1`,
           [viajeId]

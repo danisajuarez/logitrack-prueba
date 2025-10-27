@@ -23,7 +23,10 @@ export async function POST(req: NextRequest) {
     // Validaciones básicas
     if (!razonSocial || !origen || !destino || !articulo) {
       return NextResponse.json(
-        { error: "Faltan campos obligatorios: razonSocial, origen, destino, articulo" },
+        {
+          error:
+            "Faltan campos obligatorios: razonSocial, origen, destino, articulo",
+        },
         { status: 400 }
       );
     }
@@ -99,14 +102,25 @@ export async function POST(req: NextRequest) {
     } catch {}
 
     // Resolver origen y destino por nombre de localidad
-    type LocRow = { id: number; nombre: string; proId?: number; proNom?: string };
+    type LocRow = {
+      id: number;
+      nombre: string;
+      proId?: number;
+      proNom?: string;
+    };
     let orig: LocRow | null = null;
     let dest: LocRow | null = null;
+
     try {
       const [oRows]: any = await connection.query(
-        `SELECT LOC_IDLocalidad AS id, LOC_NomLocalidad AS nombre,
-                PRO_IDProvincia AS proId, PRO_NomProvincia AS proNom
-         FROM sige_loc_localidad WHERE LOC_NomLocalidad = ? LIMIT 1`,
+        `SELECT
+          l.LOC_IDLocalidad AS id,
+          l.LOC_NomLocalidad AS nombre,
+          l.PRO_IDProvincia AS proId,
+          p.PRO_NomProvincia AS proNom
+         FROM sige_loc_localidad l
+         LEFT JOIN sige_pro_provincia p ON l.PRO_IDProvincia = p.PRO_IDProvincia
+         WHERE l.LOC_NomLocalidad = ? LIMIT 1`,
         [origen]
       );
       if (Array.isArray(oRows) && oRows.length > 0) {
@@ -117,12 +131,19 @@ export async function POST(req: NextRequest) {
           proNom: oRows[0].proNom != null ? String(oRows[0].proNom) : undefined,
         };
       }
-    } catch {}
+    } catch (e) {
+      // Silenciar error si no se encuentra la localidad
+    }
     try {
       const [dRows]: any = await connection.query(
-        `SELECT LOC_IDLocalidad AS id, LOC_NomLocalidad AS nombre,
-                PRO_IDProvincia AS proId, PRO_NomProvincia AS proNom
-         FROM sige_loc_localidad WHERE LOC_NomLocalidad = ? LIMIT 1`,
+        `SELECT
+          l.LOC_IDLocalidad AS id,
+          l.LOC_NomLocalidad AS nombre,
+          l.PRO_IDProvincia AS proId,
+          p.PRO_NomProvincia AS proNom
+         FROM sige_loc_localidad l
+         LEFT JOIN sige_pro_provincia p ON l.PRO_IDProvincia = p.PRO_IDProvincia
+         WHERE l.LOC_NomLocalidad = ? LIMIT 1`,
         [destino]
       );
       if (Array.isArray(dRows) && dRows.length > 0) {
@@ -133,7 +154,9 @@ export async function POST(req: NextRequest) {
           proNom: dRows[0].proNom != null ? String(dRows[0].proNom) : undefined,
         };
       }
-    } catch {}
+    } catch (e) {
+      // Silenciar error si no se encuentra la localidad
+    }
 
     // Resolver artículo (ID por descripción)
     let articuloId: string | null = null;
@@ -152,30 +175,38 @@ export async function POST(req: NextRequest) {
     // ============================================
 
     // Primero obtener el número usando autonumerador
-    console.log('[DEBUG] Obteniendo número para sige_ent_encnegtra...');
+    console.log("[DEBUG] Obteniendo número para sige_ent_encnegtra...");
 
     const [updAutonumEnt]: any = await connection.execute(
       "UPDATE sige_aut_autonum SET AUT_Numero = LAST_INSERT_ID(AUT_Numero + 1) WHERE AUT_Tabla = ?",
-      ['sige_ent_encnegtra']
+      ["sige_ent_encnegtra"]
     );
 
-    console.log('[DEBUG] Update autonum ENT result:', { affectedRows: updAutonumEnt?.affectedRows });
+    console.log("[DEBUG] Update autonum ENT result:", {
+      affectedRows: updAutonumEnt?.affectedRows,
+    });
 
     if (!updAutonumEnt || updAutonumEnt.affectedRows === 0) {
-      throw new Error('No existe numerador configurado para sige_ent_encnegtra en la tabla sige_aut_autonum');
+      throw new Error(
+        "No existe numerador configurado para sige_ent_encnegtra en la tabla sige_aut_autonum"
+      );
     }
 
-    const [rowsEntNum]: any = await connection.query("SELECT LAST_INSERT_ID() AS numero");
+    const [rowsEntNum]: any = await connection.query(
+      "SELECT LAST_INSERT_ID() AS numero"
+    );
     const entNumeroRaw = rowsEntNum?.[0]?.numero;
 
-    console.log('[DEBUG] ENT Numero obtenido:', entNumeroRaw);
+    console.log("[DEBUG] ENT Numero obtenido:", entNumeroRaw);
 
     if (!entNumeroRaw && entNumeroRaw !== 0) {
-      throw new Error(`No se pudo obtener el número de encnegtra. LAST_INSERT_ID retornó: ${entNumeroRaw}`);
+      throw new Error(
+        `No se pudo obtener el número de encnegtra. LAST_INSERT_ID retornó: ${entNumeroRaw}`
+      );
     }
 
-    const entNumero = String(entNumeroRaw).padStart(6, '0');
-    console.log('[DEBUG] ENT Numero formateado:', entNumero);
+    const entNumero = String(entNumeroRaw).padStart(6, "0");
+    console.log("[DEBUG] ENT Numero formateado:", entNumero);
 
     const [resultEnt] = await connection.execute(
       `INSERT INTO sige_ent_encnegtra (
@@ -199,7 +230,7 @@ export async function POST(req: NextRequest) {
         razonSocial,
         orig?.nombre ?? origen,
         dest?.nombre ?? destino,
-        '', // TVP_Caracteristicas en blanco (detalle se guarda en tablas específicas)
+        articulo, // TVP_Caracteristicas - guardamos el artículo
         1, // EQU_IDEquipo
         cuposNum,
         reservadosNum,
@@ -292,9 +323,17 @@ export async function POST(req: NextRequest) {
       }
     } catch {}
     try {
+      if (vendedorId != null) {
+        await connection.execute(
+          `UPDATE sige_ent_encnegtra SET VEN_IdVendedor = ? WHERE ENT_IdEnt = ?`,
+          [vendedorId, entIdEnt]
+        );
+      }
+    } catch {}
+    try {
       await connection.execute(
-        `UPDATE sige_ent_encnegtra SET TVP_Caracteristicas = '' WHERE ENT_IdEnt = ?`,
-        [entIdEnt]
+        `UPDATE sige_ent_encnegtra SET TVP_Caracteristicas = ? WHERE ENT_IdEnt = ?`,
+        [articulo, entIdEnt]
       );
     } catch {}
 
@@ -303,41 +342,52 @@ export async function POST(req: NextRequest) {
     // ============================================
 
     // Obtener el siguiente número de carta porte usando autonumerador
-    console.log('[DEBUG] Intentando obtener número de carta porte...');
+    console.log("[DEBUG] Intentando obtener número de carta porte...");
 
     const [updAutonum]: any = await connection.execute(
       "UPDATE sige_aut_autonum SET AUT_Numero = LAST_INSERT_ID(AUT_Numero + 1) WHERE AUT_Tabla = ?",
-      ['sige_ecp_enccarpor']
+      ["sige_ecp_enccarpor"]
     );
 
-    console.log('[DEBUG] Update autonum result:', { affectedRows: updAutonum?.affectedRows });
+    console.log("[DEBUG] Update autonum result:", {
+      affectedRows: updAutonum?.affectedRows,
+    });
 
     if (!updAutonum || updAutonum.affectedRows === 0) {
-      throw new Error('No existe numerador configurado para sige_ecp_enccarpor en la tabla sige_aut_autonum. Ejecutá: INSERT INTO sige_aut_autonum (AUT_Tabla, AUT_Numero) VALUES ("sige_ecp_enccarpor", 1792);');
+      throw new Error(
+        'No existe numerador configurado para sige_ecp_enccarpor en la tabla sige_aut_autonum. Ejecutá: INSERT INTO sige_aut_autonum (AUT_Tabla, AUT_Numero) VALUES ("sige_ecp_enccarpor", 1792);'
+      );
     }
 
-    const [rowsEcpNum]: any = await connection.query("SELECT LAST_INSERT_ID() AS numero");
+    const [rowsEcpNum]: any = await connection.query(
+      "SELECT LAST_INSERT_ID() AS numero"
+    );
     const ecpNumero = rowsEcpNum?.[0]?.numero;
 
-    console.log('[DEBUG] ECP Numero obtenido:', ecpNumero);
+    console.log("[DEBUG] ECP Numero obtenido:", ecpNumero);
 
     if (!ecpNumero && ecpNumero !== 0) {
-      throw new Error(`No se pudo obtener el número de carta porte del autonumerador. LAST_INSERT_ID retornó: ${ecpNumero}`);
+      throw new Error(
+        `No se pudo obtener el número de carta porte del autonumerador. LAST_INSERT_ID retornó: ${ecpNumero}`
+      );
     }
 
     // Por si acaso el ECP_Numero ya está en uso, intentamos con el formato correcto
-    const ecpNumeroStr = String(ecpNumero).padStart(6, '0');
-    console.log('[DEBUG] ECP Numero formateado:', ecpNumeroStr);
+    const ecpNumeroStr = String(ecpNumero).padStart(6, "0");
+    console.log("[DEBUG] ECP Numero formateado:", ecpNumeroStr);
 
     // ECP_IdEcp NO es AUTO_INCREMENT, usamos el mismo número que obtuvimos
     const ecpIdEcp = ecpNumero; // Usar el número del autonumerador como ID
-    console.log('[DEBUG] Usando ECP_IdEcp:', ecpIdEcp);
+    console.log("[DEBUG] Usando ECP_IdEcp:", ecpIdEcp);
 
     const [resultEcp] = await connection.execute(
       `INSERT INTO sige_ecp_enccarpor (
         ECP_IdEcp,
         ECP_Numero,
         ECP_Fecha,
+        ECP_FechaVencimiento,
+        TCP_IDTipoComp,
+        EPC_IdEpd,
         TER_IDTerceroEst,
         TER_RazonSocialTerEst,
         LOC_NomLocalidadEst,
@@ -350,15 +400,18 @@ export async function POST(req: NextRequest) {
         USU_IdUsuario,
         EQU_IDEquipo,
         ECP_PreCartaPorte
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         ecpIdEcp, // Insertar el ID manualmente
         ecpNumeroStr,
         fechaSQL,
-        15, // TER_IDTerceroEst - hardcoded, debería venir del cliente seleccionado
+        fechaSQL, // ECP_FechaVencimiento = ECP_Fecha
+        38, // TCP_IDTipoComp = 38 (tipo de comprobante)
+        0, // EPC_IdEpd = 0
+        terIdTercero ?? 15, // TER_IDTerceroEst - usar el ID resuelto o fallback a 15
         razonSocial,
-        destino, // Estación/destino
-        origen, // Granel/origen
+        dest?.nombre ?? destino, // Estación/destino
+        orig?.nombre ?? origen, // Granel/origen
         tarifaNum,
         articulo,
         1, // DEP_IDDeposito
@@ -366,11 +419,64 @@ export async function POST(req: NextRequest) {
         vendedorId,
         1, // USU_IdUsuario
         1, // EQU_IDEquipo
-        'N', // Pre carta porte
+        "N", // Pre carta porte
       ]
     );
 
-    console.log('[DEBUG] Carta porte insertada exitosamente con ECP_IdEcp:', ecpIdEcp);
+    console.log(
+      "[DEBUG] Carta porte insertada exitosamente con ECP_IdEcp:",
+      ecpIdEcp
+    );
+
+    // Completar campos adicionales de localidades y provincias en carta porte
+    try {
+      if (dest?.id != null) {
+        await connection.execute(
+          `UPDATE sige_ecp_enccarpor SET LOC_IDLocalidadEst = ? WHERE ECP_IdEcp = ?`,
+          [dest.id, ecpIdEcp]
+        );
+      }
+    } catch {}
+    try {
+      if (dest?.proId != null) {
+        await connection.execute(
+          `UPDATE sige_ecp_enccarpor SET PRO_IDProvinciaEst = ? WHERE ECP_IdEcp = ?`,
+          [dest.proId, ecpIdEcp]
+        );
+      }
+    } catch {}
+    try {
+      if (dest?.proNom != null) {
+        await connection.execute(
+          `UPDATE sige_ecp_enccarpor SET PRO_NomProvinciaEst = ? WHERE ECP_IdEcp = ?`,
+          [dest.proNom, ecpIdEcp]
+        );
+      }
+    } catch {}
+    try {
+      if (orig?.id != null) {
+        await connection.execute(
+          `UPDATE sige_ecp_enccarpor SET LOC_IDLocalidadGran = ? WHERE ECP_IdEcp = ?`,
+          [orig.id, ecpIdEcp]
+        );
+      }
+    } catch {}
+    try {
+      if (orig?.proId != null) {
+        await connection.execute(
+          `UPDATE sige_ecp_enccarpor SET PRO_IDProvinciaGran = ? WHERE ECP_IdEcp = ?`,
+          [orig.proId, ecpIdEcp]
+        );
+      }
+    } catch {}
+    try {
+      if (orig?.proNom != null) {
+        await connection.execute(
+          `UPDATE sige_ecp_enccarpor SET PRO_NomProvinciaGran = ? WHERE ECP_IdEcp = ?`,
+          [orig.proNom, ecpIdEcp]
+        );
+      }
+    } catch {}
 
     // ============================================
     // PASO 3: Insertar intermediarios en sige_icp_intcarpor
@@ -391,10 +497,10 @@ export async function POST(req: NextRequest) {
         ecpIdEcp,
         1, // TIC_IdTic para Destinatario
         1, // Orden
-        'Destinatario',
+        "Destinatario",
         15, // TER_IDTerceroTic - debería venir del cliente
         razonSocial,
-        '30-00000000-0', // CUIT - debería venir del cliente
+        "30-00000000-0", // CUIT - debería venir del cliente
       ]
     );
 
@@ -425,9 +531,9 @@ export async function POST(req: NextRequest) {
       [
         ecpIdEcp,
         1, // dcp_renglondcp
-        articuloId ?? '7', // art_idarticulo (fallback '7')
+        articuloId ?? "7", // art_idarticulo (fallback '7')
         articulo, // art_desarticulo
-        '', // dcp_cosecha
+        "", // dcp_cosecha
         0.0, // dcp_pesobruto
         0.0, // dcp_pesotara
         0.0, // dcp_pesoneto
@@ -450,11 +556,39 @@ export async function POST(req: NextRequest) {
           DNT_Detalle,
           DNT_Cosecha
         ) VALUES (?, 1, ?, ?, '')`,
-        [entIdEnt, articuloId ?? '7', articulo]
+        [entIdEnt, articuloId ?? "7", articulo || ""]
       );
     } catch (e) {
-      // Si falla, no bloquear el resto
-      console.warn('[DEBUG] No se pudo insertar detalle de negocio en sige_dnt_detnegtra:', e);
+      try {
+        await connection.execute(
+          `INSERT INTO sige_dnt_detnegtra (
+            ENT_IdEnt,
+            DNT_Renglon,
+            ART_IdArticulo,
+            ART_DesArticulo,
+            DNT_Cosecha
+          ) VALUES (?, 1, ?, ?, '')`,
+          [entIdEnt, articuloId ?? "7", articulo || ""]
+        );
+      } catch (e2) {
+        try {
+          await connection.execute(
+            `INSERT INTO sige_dnt_detnegtra (
+              ent_ident,
+              dnt_renglondcp,
+              art_idarticulo,
+              art_desarticulo,
+              dnt_cosecha
+            ) VALUES (?, 1, ?, ?, '')`,
+            [entIdEnt, articuloId ?? "7", articulo || ""]
+          );
+        } catch (e3) {
+          console.warn(
+            "[DEBUG] No se pudo insertar detalle de negocio en sige_dnt_detnegtra (todos los intentos):",
+            e3
+          );
+        }
+      }
     }
 
     // ============================================
@@ -466,7 +600,7 @@ export async function POST(req: NextRequest) {
     await connection.commit();
     connection.release();
 
-    const entNumeroResp = String(entIdEnt).padStart(6, '0');
+    const entNumeroResp = String(entIdEnt).padStart(6, "0");
     return NextResponse.json({
       success: true,
       message: "Viaje creado exitosamente en todas las tablas",
@@ -478,7 +612,6 @@ export async function POST(req: NextRequest) {
       },
       numero: entNumeroResp, // Para compatibilidad con el frontend
     });
-
   } catch (error: any) {
     // Rollback en caso de error
     if (connection) {
@@ -495,7 +628,8 @@ export async function POST(req: NextRequest) {
       {
         error: "Error al crear el viaje",
         details: error?.message,
-        stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined,
+        stack:
+          process.env.NODE_ENV === "development" ? error?.stack : undefined,
       },
       { status: 500 }
     );
