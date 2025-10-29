@@ -158,7 +158,6 @@ export default function ChoferModal({
 
   const [savingAutorizaciones, setSavingAutorizaciones] = useState(false);
   const [autorizacionesGuardadas, setAutorizacionesGuardadas] = useState<Record<number | string, Array<{tipo: 'adelanto' | 'combustible', valor: number, estacion: string, renglonId?: number}>>>({});
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [nextTempId, setNextTempId] = useState(1);
 
   const [notification, setNotification] = useState<{
@@ -487,16 +486,6 @@ export default function ChoferModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen, onClose]);
 
-  // Detectar cambios sin guardar
-  useEffect(() => {
-    if (expandedAutorizacionId !== null) {
-      const hasChanges =
-        autorizacionesLineas.length > 0 ||
-        tempEstacionId !== null ||
-        tempCantidad !== "";
-      setHasUnsavedChanges(hasChanges);
-    }
-  }, [expandedAutorizacionId, autorizacionesLineas, tempEstacionId, tempCantidad]);
 
   if (!isOpen || !viaje) return null;
 
@@ -670,24 +659,12 @@ export default function ChoferModal({
   };
 
   const toggleAutorizacionPanel = (rowId: number | string) => {
-    // Deshabilitar aviso de cambios sin guardar
-    setHasUnsavedChanges(false);
     if (expandedAutorizacionId === rowId) {
       // Cerrar el panel
-      if (hasUnsavedChanges) {
-        if (!confirm("Hay cambios sin guardar. ¿Deseas cerrar el panel?")) {
-          return;
-        }
-      }
       setExpandedAutorizacionId(null);
       resetAutorizacionForm();
     } else {
       // Abrir otro panel
-      if (expandedAutorizacionId !== null && hasUnsavedChanges) {
-        if (!confirm("Hay autorizaciones sin guardar. ¿Deseas cambiar de chofer sin guardar?")) {
-          return;
-        }
-      }
       setExpandedAutorizacionId(rowId);
       resetAutorizacionForm();
     }
@@ -698,7 +675,6 @@ export default function ChoferModal({
     setTempEstacionId(null);
     setTempTipo('combustible');
     setTempCantidad("");
-    setHasUnsavedChanges(false);
     setNextTempId(1);
   };
 
