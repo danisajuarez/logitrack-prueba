@@ -207,14 +207,31 @@ export default function ChoferModal({
       if (res.ok && Array.isArray(data)) {
         console.log(`[DEBUG] Autorizaciones cargadas:`, data);
 
-        // Agrupar autorizaciones por chofer (necesitamos mapear desde postulaciones)
+        // Agrupar autorizaciones por chofer ID
         const autsPorChofer: Record<number | string, Array<{tipo: 'adelanto' | 'combustible', valor: number, estacion: string, renglonId?: number}>> = {};
 
-        // Por ahora, guardaremos todas las autorizaciones sin filtrar por chofer
-        // ya que la API no devuelve el choferId directamente
-        // TODO: Mejorar el endpoint para incluir choferId en la respuesta
+        data.forEach((row: any) => {
+          const choferId = row.choferId; // CHO_IdChofer from database
+          const esAdelanto = row.articuloDesc?.toUpperCase() === 'ADELANTO' || row.articuloId === 'ADE';
 
-        console.log(`[DEBUG] Se encontraron ${data.length} autorizaciones guardadas`);
+          const autorizacion = {
+            tipo: esAdelanto ? 'adelanto' : 'combustible' as 'adelanto' | 'combustible',
+            valor: esAdelanto ? Number(row.importe || 0) : Number(row.cantidad || 0),
+            estacion: String(row.estacionNombre || 'Estación'),
+            renglonId: Number(row.renglon)
+          };
+
+          // Si existe choferId, agrupar por ese ID, si no, usar '_all' como fallback
+          const key = choferId ?? '_all';
+          if (!autsPorChofer[key]) {
+            autsPorChofer[key] = [];
+          }
+          autsPorChofer[key].push(autorizacion);
+        });
+
+        setAutorizacionesGuardadas(autsPorChofer);
+
+        console.log(`[DEBUG] Se encontraron ${data.length} autorizaciones guardadas agrupadas por chofer:`, autsPorChofer);
       } else {
         console.warn('[DEBUG] No se pudieron cargar autorizaciones o respuesta inválida');
       }
@@ -704,6 +721,8 @@ export default function ChoferModal({
         viajeId: viaje.id,
         choferId: row.choferId,
         estacionId: tempEstacionId,
+        patChasis: row.patChasis || null,
+        patAcoplado: row.patAcoplado || null,
       };
 
       if (tempTipo === 'adelanto') {
@@ -827,6 +846,8 @@ export default function ChoferModal({
           viajeId: viaje.id,
           choferId: row.choferId,
           estacionId,
+          patChasis: row.patChasis || null,
+          patAcoplado: row.patAcoplado || null,
         };
 
         if (datos.adelantos.length > 0) {
@@ -1118,13 +1139,14 @@ export default function ChoferModal({
                     </h3>
 
                     {/* Lista de autorizaciones guardadas */}
-                    {autorizacionesGuardadas[row.id] && autorizacionesGuardadas[row.id].length > 0 && (
+                    {(autorizacionesGuardadas[row.id] || autorizacionesGuardadas['_all']) &&
+                     (autorizacionesGuardadas[row.id]?.length > 0 || autorizacionesGuardadas['_all']?.length > 0) && (
                       <div className="bg-neutral-900/30 rounded-md p-3 border border-neutral-600/50">
                         <div className="text-xs font-bold text-neutral-300 mb-2">
-                          📋 Autorizaciones guardadas ({autorizacionesGuardadas[row.id].length})
+                          📋 Autorizaciones guardadas ({(autorizacionesGuardadas[row.id] || autorizacionesGuardadas['_all']).length})
                         </div>
                         <div className="space-y-2">
-                          {autorizacionesGuardadas[row.id].map((aut, idx) => (
+                          {(autorizacionesGuardadas[row.id] || autorizacionesGuardadas['_all']).map((aut, idx) => (
                             <div
                               key={idx}
                               className={`rounded-md p-2 border ${
@@ -1393,13 +1415,14 @@ export default function ChoferModal({
                             </h3>
 
                             {/* Lista de autorizaciones guardadas */}
-                            {autorizacionesGuardadas[row.id] && autorizacionesGuardadas[row.id].length > 0 && (
+                            {(autorizacionesGuardadas[row.id] || autorizacionesGuardadas['_all']) &&
+                             (autorizacionesGuardadas[row.id]?.length > 0 || autorizacionesGuardadas['_all']?.length > 0) && (
                               <div className="bg-neutral-900/30 rounded-md p-3 border border-neutral-600/50">
                                 <div className="text-xs font-bold text-neutral-300 mb-3">
-                                  📋 Autorizaciones guardadas ({autorizacionesGuardadas[row.id].length})
+                                  📋 Autorizaciones guardadas ({(autorizacionesGuardadas[row.id] || autorizacionesGuardadas['_all']).length})
                                 </div>
                                 <div className="grid grid-cols-1 gap-2">
-                                  {autorizacionesGuardadas[row.id].map((aut, idx) => (
+                                  {(autorizacionesGuardadas[row.id] || autorizacionesGuardadas['_all']).map((aut, idx) => (
                                     <div
                                       key={idx}
                                       className={`rounded-md p-2 border flex items-center gap-3 ${

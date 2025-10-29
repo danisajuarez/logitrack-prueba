@@ -21,16 +21,16 @@ interface AutorizacionRequest {
   viajeId: number;
   choferId: number;
   estacionId: number;
+  patChasis?: string | null;
+  patAcoplado?: string | null;
   adelantos?: Array<{ importe: number }>;
-  combustibles?: Array<{ litros: number }>;
+  combustibles?: Array<{ litros: number; precioUnitario?: number }>;
 }
 
 // Artículos según sistema
 const ARTICULO_COMBUSTIBLE_ID = "COMB";
 const ARTICULO_COMBUSTIBLE_DESC = "COMBUSTIBLE";
-// Si la columna permite NULL para adelanto, dejalo en null.
-// Si NO permite, reemplazalo por el código real (p.ej. "ADE").
-const ARTICULO_ADELANTO_ID: string | null = null;
+const ARTICULO_ADELANTO_ID = "ADE";
 const ARTICULO_ADELANTO_DESC = "ADELANTO";
 
 export async function POST(request: NextRequest) {
@@ -117,7 +117,39 @@ export async function POST(request: NextRequest) {
           { status: 404 }
         );
       }
-      const ecpIdEcp = viajeRows[0].ENT_IdEnt;
+      const entIdEnt = viajeRows[0].ENT_IdEnt;
+
+      // Actualizar patentes en sige_ecp_enccarpor si vienen en el request
+      const { patChasis, patAcoplado } = body;
+      if (patChasis || patAcoplado) {
+        try {
+          const updates: string[] = [];
+          const params: any[] = [];
+
+          if (patChasis) {
+            updates.push('ECP_PatCamion = ?');
+            params.push(patChasis.toUpperCase());
+          }
+          if (patAcoplado) {
+            updates.push('ECP_PatAcoplado = ?');
+            params.push(patAcoplado.toUpperCase());
+          }
+
+          if (updates.length > 0) {
+            params.push(entIdEnt);
+            await connection.execute(
+              `UPDATE sige_ecp_enccarpor SET ${updates.join(', ')} WHERE ENT_IdEnt = ?`,
+              params
+            );
+            console.log('[DEBUG] Patentes actualizadas en carta porte:', { patChasis, patAcoplado, entIdEnt });
+          }
+        } catch (patError) {
+          console.error('[DEBUG] Error al actualizar patentes:', patError);
+          // No fallar la transacción por esto, solo loguear
+        }
+      }
+
+      const ecpIdEcp = entIdEnt;
 
       // Próximo renglón
       const getNextRenglon = async (ecpId: number): Promise<number> => {
@@ -150,27 +182,57 @@ export async function POST(request: NextRequest) {
           }
 
           const renglon = await getNextRenglon(ecpIdEcp);
-          console.log("[DEBUG API] Insertando adelanto en renglón:", renglon);
+          console.log("[DEBUG API] Insertando adelanto en renglón:", renglon, "para chofer:", choferId);
 
-          const [result] = await connection.query(
-            `INSERT INTO SIGE_OCP_OrdCarPor
-             (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
-              ART_IdArticulo, ART_DesArticulo, OCP_Importe,
-              OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
-              EFO_IdEfcFac, EFO_IdEfcRp)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0)`,
-            [
-              ecpIdEcp,
-              renglon,
-              estacionId,
-              estacionRazonSocial,
-              ARTICULO_ADELANTO_ID, // null si se permite, o el código real cuando lo pases
-              ARTICULO_ADELANTO_DESC, // "ADELANTO"
-              importe,
-            ]
-          );
-          console.log("[DEBUG API] Adelanto insertado correctamente");
-          adelantosIds.push(renglon);
+          // Intentar insertar con CHO_IdChofer si la columna existe
+          try {
+            const [result] = await connection.query(
+              `INSERT INTO SIGE_OCP_OrdCarPor
+               (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
+                ART_IdArticulo, ART_DesArticulo, OCP_Importe,
+                OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
+                EFO_IdEfcFac, EFO_IdEfcRp, CHO_IdChofer)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0, ?)`,
+              [
+                ecpIdEcp,
+                renglon,
+                estacionId,
+                estacionRazonSocial,
+                ARTICULO_ADELANTO_ID,
+                ARTICULO_ADELANTO_DESC,
+                importe,
+                choferId, // Guardar el ID del chofer
+              ]
+            );
+            console.log("[DEBUG API] Adelanto insertado correctamente con choferId");
+            adelantosIds.push(renglon);
+          } catch (e: any) {
+            // Si la columna CHO_IdChofer no existe, insertar sin ella
+            if (e?.code === 'ER_BAD_FIELD_ERROR') {
+              console.log("[DEBUG API] Columna CHO_IdChofer no existe, insertando sin ella");
+              const [result] = await connection.query(
+                `INSERT INTO SIGE_OCP_OrdCarPor
+                 (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
+                  ART_IdArticulo, ART_DesArticulo, OCP_Importe,
+                  OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
+                  EFO_IdEfcFac, EFO_IdEfcRp)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0)`,
+                [
+                  ecpIdEcp,
+                  renglon,
+                  estacionId,
+                  estacionRazonSocial,
+                  ARTICULO_ADELANTO_ID,
+                  ARTICULO_ADELANTO_DESC,
+                  importe,
+                ]
+              );
+              console.log("[DEBUG API] Adelanto insertado sin choferId (columna no existe)");
+              adelantosIds.push(renglon);
+            } else {
+              throw e;
+            }
+          }
         }
       }
 
@@ -190,33 +252,72 @@ export async function POST(request: NextRequest) {
             );
           }
 
+          // Calcular importe: litros * precio unitario (si viene, sino 0)
+          const precioUnitario = toDecimal(combustible.precioUnitario) ?? 0;
+          const importe = litros * precioUnitario;
+
           const renglon = await getNextRenglon(ecpIdEcp);
           console.log(
             "[DEBUG API] Insertando combustible en renglón:",
-            renglon
+            renglon,
+            { litros, precioUnitario, importe, choferId }
           );
 
-          const [result] = await connection.query(
-            `INSERT INTO SIGE_OCP_OrdCarPor
-             (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
-              ART_IdArticulo, ART_DesArticulo, OCP_Importe,
-              OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
-              EFO_IdEfcFac, EFO_IdEfcRp)
-             VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, 0, ?, 0, 0)`,
-            [
-              ecpIdEcp,
-              renglon,
-              estacionId,
-              estacionRazonSocial,
-              ARTICULO_COMBUSTIBLE_ID, // "COMB"
-              ARTICULO_COMBUSTIBLE_DESC, // "COMBUSTIBLE"
-              litros, // OCP_Cantidad
-              litros, // OCP_CantPend
-              litros, // OCP_CantRealPend
-            ]
-          );
-          console.log("[DEBUG API] Combustible insertado correctamente");
-          combustiblesIds.push(renglon);
+          // Intentar insertar con CHO_IdChofer si la columna existe
+          try {
+            await connection.query(
+              `INSERT INTO SIGE_OCP_OrdCarPor
+               (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
+                ART_IdArticulo, ART_DesArticulo, OCP_Importe,
+                OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
+                EFO_IdEfcFac, EFO_IdEfcRp, CHO_IdChofer)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, 0, ?)`,
+              [
+                ecpIdEcp,
+                renglon,
+                estacionId,
+                estacionRazonSocial,
+                ARTICULO_COMBUSTIBLE_ID,
+                ARTICULO_COMBUSTIBLE_DESC,
+                importe,
+                litros,
+                litros,
+                litros,
+                choferId, // Guardar el ID del chofer
+              ]
+            );
+            console.log("[DEBUG API] Combustible insertado correctamente con choferId");
+            combustiblesIds.push(renglon);
+          } catch (e: any) {
+            // Si la columna CHO_IdChofer no existe, insertar sin ella
+            if (e?.code === 'ER_BAD_FIELD_ERROR') {
+              console.log("[DEBUG API] Columna CHO_IdChofer no existe, insertando sin ella");
+              await connection.query(
+                `INSERT INTO SIGE_OCP_OrdCarPor
+                 (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
+                  ART_IdArticulo, ART_DesArticulo, OCP_Importe,
+                  OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
+                  EFO_IdEfcFac, EFO_IdEfcRp)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, 0)`,
+                [
+                  ecpIdEcp,
+                  renglon,
+                  estacionId,
+                  estacionRazonSocial,
+                  ARTICULO_COMBUSTIBLE_ID,
+                  ARTICULO_COMBUSTIBLE_DESC,
+                  importe,
+                  litros,
+                  litros,
+                  litros,
+                ]
+              );
+              console.log("[DEBUG API] Combustible insertado sin choferId (columna no existe)");
+              combustiblesIds.push(renglon);
+            } else {
+              throw e;
+            }
+          }
         }
       }
 
@@ -340,6 +441,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Trae renglones de ADELANTO y/o COMBUSTIBLE para el ECP
+    // Incluye CHO_IdChofer para filtrar por chofer (si la columna existe)
     const query = `
       SELECT
         ocp.ECP_IdEcp           AS ecpIdEcp,
@@ -351,19 +453,52 @@ export async function GET(request: NextRequest) {
         ocp.OCP_Importe         AS importe,
         ocp.OCP_Cantidad        AS cantidad,
         ocp.OCP_CantPend        AS cantidadPendiente,
-        ter.TER_CUITTer         AS estacionCuit
+        ter.TER_CUITTer         AS estacionCuit,
+        ocp.CHO_IdChofer        AS choferId
       FROM SIGE_OCP_OrdCarPor ocp
       LEFT JOIN sige_ter_tercero ter ON ter.TER_IDTercero = ocp.TER_IdTercero
       WHERE ocp.ECP_IdEcp = ?
         AND (
               ocp.ART_IdArticulo = ?                 -- "COMB"
            OR ocp.ART_DesArticulo IN ('ADELANTO','COMBUSTIBLE')
+           OR ocp.ART_IdArticulo = ?                 -- "ADE"
         )
       ORDER BY ocp.OCP_Renglon DESC
     `;
 
-    const [rows] = await db.query(query, [viajeId, ARTICULO_COMBUSTIBLE_ID]);
-    return NextResponse.json(rows);
+    try {
+      const [rows] = await db.query(query, [viajeId, ARTICULO_COMBUSTIBLE_ID, ARTICULO_ADELANTO_ID]);
+      return NextResponse.json(rows);
+    } catch (e: any) {
+      // Si la columna CHO_IdChofer no existe, consultar sin ella
+      if (e?.code === 'ER_BAD_FIELD_ERROR') {
+        const queryFallback = `
+          SELECT
+            ocp.ECP_IdEcp           AS ecpIdEcp,
+            ocp.OCP_Renglon         AS renglon,
+            ocp.TER_IdTercero       AS estacionId,
+            ocp.TER_RazonSocialTer  AS estacionNombre,
+            ocp.ART_IdArticulo      AS articuloId,
+            ocp.ART_DesArticulo     AS articuloDesc,
+            ocp.OCP_Importe         AS importe,
+            ocp.OCP_Cantidad        AS cantidad,
+            ocp.OCP_CantPend        AS cantidadPendiente,
+            ter.TER_CUITTer         AS estacionCuit
+          FROM SIGE_OCP_OrdCarPor ocp
+          LEFT JOIN sige_ter_tercero ter ON ter.TER_IDTercero = ocp.TER_IdTercero
+          WHERE ocp.ECP_IdEcp = ?
+            AND (
+                  ocp.ART_IdArticulo = ?
+               OR ocp.ART_DesArticulo IN ('ADELANTO','COMBUSTIBLE')
+               OR ocp.ART_IdArticulo = ?
+            )
+          ORDER BY ocp.OCP_Renglon DESC
+        `;
+        const [rows] = await db.query(queryFallback, [viajeId, ARTICULO_COMBUSTIBLE_ID, ARTICULO_ADELANTO_ID]);
+        return NextResponse.json(rows);
+      }
+      throw e;
+    }
   } catch (error) {
     console.error("Error al obtener autorizaciones:", error);
     return NextResponse.json(
