@@ -410,8 +410,8 @@ export async function POST(req: NextRequest) {
         0, // EPC_IdEpd = 0
         terIdTercero ?? 15, // TER_IDTerceroEst - usar el ID resuelto o fallback a 15
         razonSocial,
-        dest?.nombre ?? destino, // Estación/destino
-        orig?.nombre ?? origen, // Granel/origen
+        orig?.nombre ?? origen, // LOC_NomLocalidadEst = origen
+        dest?.nombre ?? destino, // LOC_NomLocalidadGran = destino
         tarifaNum,
         articulo,
         1, // DEP_IDDeposito
@@ -429,34 +429,11 @@ export async function POST(req: NextRequest) {
     );
 
     // Completar campos adicionales de localidades y provincias en carta porte
-    try {
-      if (dest?.id != null) {
-        await connection.execute(
-          `UPDATE sige_ecp_enccarpor SET LOC_IDLocalidadEst = ? WHERE ECP_IdEcp = ?`,
-          [dest.id, ecpIdEcp]
-        );
-      }
-    } catch {}
-    try {
-      if (dest?.proId != null) {
-        await connection.execute(
-          `UPDATE sige_ecp_enccarpor SET PRO_IDProvinciaEst = ? WHERE ECP_IdEcp = ?`,
-          [dest.proId, ecpIdEcp]
-        );
-      }
-    } catch {}
-    try {
-      if (dest?.proNom != null) {
-        await connection.execute(
-          `UPDATE sige_ecp_enccarpor SET PRO_NomProvinciaEst = ? WHERE ECP_IdEcp = ?`,
-          [dest.proNom, ecpIdEcp]
-        );
-      }
-    } catch {}
+    // LOC_NomLocalidadEst = origen, LOC_NomLocalidadGran = destino
     try {
       if (orig?.id != null) {
         await connection.execute(
-          `UPDATE sige_ecp_enccarpor SET LOC_IDLocalidadGran = ? WHERE ECP_IdEcp = ?`,
+          `UPDATE sige_ecp_enccarpor SET LOC_IDLocalidadEst = ? WHERE ECP_IdEcp = ?`,
           [orig.id, ecpIdEcp]
         );
       }
@@ -464,7 +441,7 @@ export async function POST(req: NextRequest) {
     try {
       if (orig?.proId != null) {
         await connection.execute(
-          `UPDATE sige_ecp_enccarpor SET PRO_IDProvinciaGran = ? WHERE ECP_IdEcp = ?`,
+          `UPDATE sige_ecp_enccarpor SET PRO_IDProvinciaEst = ? WHERE ECP_IdEcp = ?`,
           [orig.proId, ecpIdEcp]
         );
       }
@@ -472,8 +449,32 @@ export async function POST(req: NextRequest) {
     try {
       if (orig?.proNom != null) {
         await connection.execute(
-          `UPDATE sige_ecp_enccarpor SET PRO_NomProvinciaGran = ? WHERE ECP_IdEcp = ?`,
+          `UPDATE sige_ecp_enccarpor SET PRO_NomProvinciaEst = ? WHERE ECP_IdEcp = ?`,
           [orig.proNom, ecpIdEcp]
+        );
+      }
+    } catch {}
+    try {
+      if (dest?.id != null) {
+        await connection.execute(
+          `UPDATE sige_ecp_enccarpor SET LOC_IDLocalidadGran = ? WHERE ECP_IdEcp = ?`,
+          [dest.id, ecpIdEcp]
+        );
+      }
+    } catch {}
+    try {
+      if (dest?.proId != null) {
+        await connection.execute(
+          `UPDATE sige_ecp_enccarpor SET PRO_IDProvinciaGran = ? WHERE ECP_IdEcp = ?`,
+          [dest.proId, ecpIdEcp]
+        );
+      }
+    } catch {}
+    try {
+      if (dest?.proNom != null) {
+        await connection.execute(
+          `UPDATE sige_ecp_enccarpor SET PRO_NomProvinciaGran = ? WHERE ECP_IdEcp = ?`,
+          [dest.proNom, ecpIdEcp]
         );
       }
     } catch {}
