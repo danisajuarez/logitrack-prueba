@@ -189,6 +189,31 @@ export async function POST(request: NextRequest) {
             sendEmail ? 1 : 0,
           ]
         );
+
+        // Además, actualizar las patentes en la carta porte asociada (sige_ecp_enccarpor)
+        // para que ECP_PatCamion y ECP_PatAcoplado queden reflejadas apenas se postula el chofer.
+        // Se identifica la carta porte por ENT_IdEnt = viajeId (columna presente en la tabla ECP).
+        try {
+          await connection.query(
+            `UPDATE sige_ecp_enccarpor
+               SET ECP_PatCamion = ?, ECP_PatAcoplado = ?
+             WHERE ENT_IdEnt = ?`,
+            [
+              patenteChasis,
+              relacion.patAcoplado ? relacion.patAcoplado.toUpperCase() : null,
+              viajeId,
+            ]
+          );
+          console.log('[DEBUG] Patentes actualizadas en sige_ecp_enccarpor al postular chofer', {
+            viajeId,
+            choferId,
+            ECP_PatCamion: patenteChasis,
+            ECP_PatAcoplado: relacion.patAcoplado ? relacion.patAcoplado.toUpperCase() : null,
+          });
+        } catch (e) {
+          console.error('[DEBUG] Error al actualizar patentes en sige_ecp_enccarpor durante postulación:', e);
+          // No abortamos la transacción por esto; la postulación sigue siendo válida.
+        }
       } catch (error: any) {
         const code = typeof error?.code === "string" ? error.code : null;
         if (code === "ER_DUP_ENTRY") {
