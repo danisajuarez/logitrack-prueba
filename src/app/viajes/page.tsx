@@ -323,7 +323,7 @@ export default function ViajesPage() {
                         : ""}
                     </div>
                     <div className="text-lg font-bold text-neutral-900 dark:text-white">
-                      #{v.numero}
+                      #{v.numero || v.id}
                     </div>
                   </div>
                   <div
@@ -472,7 +472,7 @@ export default function ViajesPage() {
                           })
                         : ""}
                     </td>
-                    <td className="p-2">{v.numero}</td>
+                    <td className="p-2">{v.numero || v.id}</td>
                     <td className="p-2">{v.razonSocial}</td>
                     <td className="p-2">{v.origen}</td>
                     <td className="p-2">{v.destino}</td>
