@@ -214,6 +214,95 @@ export async function POST(request: NextRequest) {
           console.error('[DEBUG] Error al actualizar patentes en sige_ecp_enccarpor durante postulación:', e);
           // No abortamos la transacción por esto; la postulación sigue siendo válida.
         }
+
+        // Obtener ECP_IdEcp para insertar intermediarios en sige_icp_intcarpor
+        try {
+          const [ecpRows] = await connection.query<RowDataPacket[]>(
+            `SELECT ECP_IdEcp FROM sige_ecp_enccarpor WHERE ENT_IdEnt = ? LIMIT 1`,
+            [viajeId]
+          );
+
+          if (Array.isArray(ecpRows) && ecpRows.length > 0) {
+            const ecpIdEcp = Number(ecpRows[0].ECP_IdEcp);
+
+            // Obtener datos del chofer
+            const [choferRows] = await connection.query<RowDataPacket[]>(
+              `SELECT TER_RazonSocialTer, TER_CUITTer FROM sige_ter_tercero WHERE TER_IDTercero = ? LIMIT 1`,
+              [choferId]
+            );
+
+            // Obtener datos del transportista
+            const [transRows] = await connection.query<RowDataPacket[]>(
+              `SELECT TER_RazonSocialTer, TER_CUITTer FROM sige_ter_tercero WHERE TER_IDTercero = ? LIMIT 1`,
+              [relacion.transportistaId]
+            );
+
+            if (Array.isArray(transRows) && transRows.length > 0) {
+              const transportista = transRows[0];
+
+              // Insertar Transportista (TIC_IdTic = 8, Orden = 2)
+              try {
+                await connection.query(
+                  `INSERT INTO sige_icp_intcarpor (
+                    ECP_IdEcp, TIC_IdTic, ICP_Orden, TIC_DescripcionTic,
+                    TER_IDTerceroTic, TER_RazonSocialTerTic, TER_CUITTerTic
+                  ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                  [
+                    ecpIdEcp,
+                    8, // TIC_IdTic = 8 para Transportista
+                    2, // Orden 2
+                    "Transportista",
+                    relacion.transportistaId,
+                    transportista.TER_RazonSocialTer || "",
+                    transportista.TER_CUITTer || "",
+                  ]
+                );
+                console.log('[DEBUG] Transportista insertado en sige_icp_intcarpor', {
+                  ecpIdEcp,
+                  transportistaId: relacion.transportistaId,
+                });
+              } catch (icpError: any) {
+                if (icpError?.code !== "ER_DUP_ENTRY") {
+                  console.error('[DEBUG] Error al insertar transportista en ICP:', icpError);
+                }
+              }
+            }
+
+            if (Array.isArray(choferRows) && choferRows.length > 0) {
+              const chofer = choferRows[0];
+
+              // Insertar Chofer (TIC_IdTic = 9, Orden = 3)
+              try {
+                await connection.query(
+                  `INSERT INTO sige_icp_intcarpor (
+                    ECP_IdEcp, TIC_IdTic, ICP_Orden, TIC_DescripcionTic,
+                    TER_IDTerceroTic, TER_RazonSocialTerTic, TER_CUITTerTic
+                  ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                  [
+                    ecpIdEcp,
+                    9, // TIC_IdTic = 9 para Chofer
+                    3, // Orden 3
+                    "Chofer",
+                    choferId,
+                    chofer.TER_RazonSocialTer || "",
+                    chofer.TER_CUITTer || "",
+                  ]
+                );
+                console.log('[DEBUG] Chofer insertado en sige_icp_intcarpor', {
+                  ecpIdEcp,
+                  choferId,
+                });
+              } catch (icpError: any) {
+                if (icpError?.code !== "ER_DUP_ENTRY") {
+                  console.error('[DEBUG] Error al insertar chofer en ICP:', icpError);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.error('[DEBUG] Error al insertar intermediarios en sige_icp_intcarpor:', e);
+          // No abortamos la transacción por esto
+        }
       } catch (error: any) {
         const code = typeof error?.code === "string" ? error.code : null;
         if (code === "ER_DUP_ENTRY") {
@@ -242,6 +331,14 @@ export async function POST(request: NextRequest) {
             throw error;
           }
         }
+      } else {
+        // Actualizar ENT_CantCuposPend en sige_ent_encnegtra para viajes legacy
+        await connection.query(
+          `UPDATE sige_ent_encnegtra
+           SET ENT_CantCuposPend = ?
+           WHERE ENT_IdEnt = ?`,
+          [pendientesFinales, metrics.id]
+        );
       }
 
       await connection.commit();
@@ -381,6 +478,14 @@ export async function DELETE(request: NextRequest) {
             throw error;
           }
         }
+      } else {
+        // Actualizar ENT_CantCuposPend en sige_ent_encnegtra para viajes legacy
+        await connection.query(
+          `UPDATE sige_ent_encnegtra
+           SET ENT_CantCuposPend = ?
+           WHERE ENT_IdEnt = ?`,
+          [pendientesFinales, metrics.id]
+        );
       }
 
       await connection.commit();

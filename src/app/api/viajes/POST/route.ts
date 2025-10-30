@@ -58,15 +58,17 @@ export async function POST(req: NextRequest) {
     // PASO 0.5: Resolver IDs (tercero, vendedor, localidades)
     // ============================================
 
-    // Resolver TER_IDTercero por razón social
+    // Resolver TER_IDTercero por razón social y obtener CUIT
     let terIdTercero: number | null = null;
+    let terCUIT: string | null = null;
     try {
       const [terRows]: any = await connection.query(
-        `SELECT TER_IDTercero AS id FROM sige_ter_tercero WHERE TER_RazonSocialTer = ? LIMIT 1`,
+        `SELECT TER_IDTercero AS id, TER_CUITTer AS cuit FROM sige_ter_tercero WHERE TER_RazonSocialTer = ? LIMIT 1`,
         [razonSocial]
       );
       if (Array.isArray(terRows) && terRows.length > 0) {
         terIdTercero = Number(terRows[0].id) || null;
+        terCUIT = terRows[0].cuit ? String(terRows[0].cuit) : null;
       }
     } catch {}
 
@@ -174,39 +176,7 @@ export async function POST(req: NextRequest) {
     // PASO 1: Insertar en sige_ent_encnegtra
     // ============================================
 
-    // Primero obtener el número usando autonumerador
-    console.log("[DEBUG] Obteniendo número para sige_ent_encnegtra...");
-
-    const [updAutonumEnt]: any = await connection.execute(
-      "UPDATE sige_aut_autonum SET AUT_Numero = LAST_INSERT_ID(AUT_Numero + 1) WHERE AUT_Tabla = ?",
-      ["sige_ent_encnegtra"]
-    );
-
-    console.log("[DEBUG] Update autonum ENT result:", {
-      affectedRows: updAutonumEnt?.affectedRows,
-    });
-
-    if (!updAutonumEnt || updAutonumEnt.affectedRows === 0) {
-      throw new Error(
-        "No existe numerador configurado para sige_ent_encnegtra en la tabla sige_aut_autonum"
-      );
-    }
-
-    const [rowsEntNum]: any = await connection.query(
-      "SELECT LAST_INSERT_ID() AS numero"
-    );
-    const entNumeroRaw = rowsEntNum?.[0]?.numero;
-
-    console.log("[DEBUG] ENT Numero obtenido:", entNumeroRaw);
-
-    if (!entNumeroRaw && entNumeroRaw !== 0) {
-      throw new Error(
-        `No se pudo obtener el número de encnegtra. LAST_INSERT_ID retornó: ${entNumeroRaw}`
-      );
-    }
-
-    const entNumero = String(entNumeroRaw).padStart(6, "0");
-    console.log("[DEBUG] ENT Numero formateado:", entNumero);
+    console.log("[DEBUG] Insertando en sige_ent_encnegtra...");
 
     const [resultEnt] = await connection.execute(
       `INSERT INTO sige_ent_encnegtra (
@@ -225,12 +195,12 @@ export async function POST(req: NextRequest) {
         USU_IdUsuario
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        entNumero, // Ahora incluimos el número explícitamente
+        "", // ENT_Numero - debe ir en BLANCO según cliente
         fechaSQL,
         razonSocial,
         orig?.nombre ?? origen,
         dest?.nombre ?? destino,
-        articulo, // TVP_Caracteristicas - guardamos el artículo
+        "", // TVP_Caracteristicas - debe ir VACÍO (no descripción de artículo)
         1, // EQU_IDEquipo
         cuposNum,
         reservadosNum,
@@ -245,13 +215,11 @@ export async function POST(req: NextRequest) {
     // Asegurar campos derivados según requerimientos
     try {
       // ENT_FechaVencimiento = ENT_Fecha
-      // ENT_Numero = LPAD(ENT_IdEnt, 6, '0')
       // TCP_IDTipoComp = 60 (tipo de comprobante)
       await connection.execute(
         `UPDATE sige_ent_encnegtra
          SET TCP_IDTipoComp = 60,
-             ENT_FechaVencimiento = COALESCE(ENT_FechaVencimiento, ENT_Fecha),
-             ENT_Numero = LPAD(ENT_IdEnt, 6, '0')
+             ENT_FechaVencimiento = COALESCE(ENT_FechaVencimiento, ENT_Fecha)
          WHERE ENT_IdEnt = ?`,
         [entIdEnt]
       );
@@ -330,12 +298,7 @@ export async function POST(req: NextRequest) {
         );
       }
     } catch {}
-    try {
-      await connection.execute(
-        `UPDATE sige_ent_encnegtra SET TVP_Caracteristicas = ? WHERE ENT_IdEnt = ?`,
-        [articulo, entIdEnt]
-      );
-    } catch {}
+    // TVP_Caracteristicas se deja vacío - NO se actualiza con el artículo
 
     // ============================================
     // PASO 2: Insertar en sige_ecp_enccarpor (Carta Porte)
@@ -399,8 +362,10 @@ export async function POST(req: NextRequest) {
         VEN_IdVendPostula,
         USU_IdUsuario,
         EQU_IDEquipo,
-        ECP_PreCartaPorte
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ECP_PreCartaPorte,
+        ECP_CancCompra,
+        ECP_CancVenta
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         ecpIdEcp, // Insertar el ID manualmente
         ecpNumeroStr,
@@ -413,13 +378,15 @@ export async function POST(req: NextRequest) {
         orig?.nombre ?? origen, // LOC_NomLocalidadEst = origen
         dest?.nombre ?? destino, // LOC_NomLocalidadGran = destino
         tarifaNum,
-        articulo,
+        "", // TVP_Caracteristicas - dejar vacío (NO grabar descripción de artículo)
         1, // DEP_IDDeposito
         entIdEnt, // Relación con sige_ent_encnegtra
         vendedorId,
         1, // USU_IdUsuario
         1, // EQU_IDEquipo
-        "N", // Pre carta porte
+        "S", // ECP_PreCartaPorte = 'S' (corregido de 'N' a 'S')
+        "N", // ECP_CancCompra = 'N'
+        "N", // ECP_CancVenta = 'N'
       ]
     );
 
@@ -496,20 +463,20 @@ export async function POST(req: NextRequest) {
       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         ecpIdEcp,
-        1, // TIC_IdTic para Destinatario
+        6, // TIC_IdTic = 6 para Destinatario (corregido)
         1, // Orden
         "Destinatario",
-        15, // TER_IDTerceroTic - debería venir del cliente
+        terIdTercero ?? 15, // Usar el TER_IDTercero resuelto
         razonSocial,
-        "30-00000000-0", // CUIT - debería venir del cliente
+        terCUIT ?? "", // Usar el CUIT resuelto del tercero
       ]
     );
 
     // Transportista (orden 2) - OPCIONAL por ahora
-    // TODO: Agregar cuando se asigne chofer/transportista
+    // TODO: Agregar cuando se asigne chofer/transportista (TIC_IdTic = 8)
 
     // Chofer (orden 3) - OPCIONAL por ahora
-    // TODO: Agregar cuando se asigne chofer
+    // TODO: Agregar cuando se asigne chofer (TIC_IdTic = 9)
 
     // ============================================
     // PASO 4: Insertar detalle de producto en SIGE_DCP_DetCarPor
@@ -601,17 +568,16 @@ export async function POST(req: NextRequest) {
     await connection.commit();
     connection.release();
 
-    const entNumeroResp = String(entIdEnt).padStart(6, "0");
     return NextResponse.json({
       success: true,
       message: "Viaje creado exitosamente en todas las tablas",
       data: {
         entIdEnt,
-        entNumero: entNumeroResp,
+        entNumero: "", // ENT_Numero va vacío según requerimiento del cliente
         ecpIdEcp,
         ecpNumero: ecpNumeroStr,
       },
-      numero: entNumeroResp, // Para compatibilidad con el frontend
+      numero: String(entIdEnt).padStart(6, "0"), // Para compatibilidad con el frontend, usar el ID
     });
   } catch (error: any) {
     // Rollback en caso de error
