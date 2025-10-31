@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export async function GET() {
   try {
     const [rows] = (await db.query(
-      `SELECT 
+      `SELECT
         TER_IDTercero AS id,
         TER_RazonSocialTer AS razonSocial,
         TER_CUITTer AS cuit,
@@ -15,8 +15,9 @@ export async function GET() {
         TER_TipoDoc AS tipo,
         LOC_IDLocalidad AS localidad
       FROM sige_ter_tercero
-      WHERE TER_RazonSocialTer IS NOT NULL 
+      WHERE TER_RazonSocialTer IS NOT NULL
         AND TER_RazonSocialTer != ''
+        AND TTE_IDTipoTercero = 1
       ORDER BY TER_RazonSocialTer ASC
       LIMIT 500;`
     )) as unknown as [any[]];

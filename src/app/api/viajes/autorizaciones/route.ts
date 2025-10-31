@@ -119,6 +119,21 @@ export async function POST(request: NextRequest) {
       }
       const entIdEnt = viajeRows[0].ENT_IdEnt;
 
+      // Obtener el ECP_IdEcp real desde sige_ecp_enccarpor
+      const [ecpRows] = await connection.query<RowDataPacket[]>(
+        `SELECT ECP_IdEcp FROM sige_ecp_enccarpor WHERE ENT_IdEnt = ? LIMIT 1`,
+        [entIdEnt]
+      );
+      if (!Array.isArray(ecpRows) || ecpRows.length === 0) {
+        await connection.rollback();
+        return NextResponse.json(
+          { error: "No se encontró la carta porte para este viaje" },
+          { status: 404 }
+        );
+      }
+      const ecpIdEcp = ecpRows[0].ECP_IdEcp;
+      console.log('[DEBUG] ECP_IdEcp encontrado:', ecpIdEcp, 'para ENT_IdEnt:', entIdEnt);
+
       // Actualizar patentes en sige_ecp_enccarpor si vienen en el request
       const { patChasis, patAcoplado } = body;
       if (patChasis || patAcoplado) {
@@ -136,20 +151,18 @@ export async function POST(request: NextRequest) {
           }
 
           if (updates.length > 0) {
-            params.push(entIdEnt);
+            params.push(ecpIdEcp);
             await connection.execute(
-              `UPDATE sige_ecp_enccarpor SET ${updates.join(', ')} WHERE ENT_IdEnt = ?`,
+              `UPDATE sige_ecp_enccarpor SET ${updates.join(', ')} WHERE ECP_IdEcp = ?`,
               params
             );
-            console.log('[DEBUG] Patentes actualizadas en carta porte:', { patChasis, patAcoplado, entIdEnt });
+            console.log('[DEBUG] Patentes actualizadas en carta porte:', { patChasis, patAcoplado, ecpIdEcp });
           }
         } catch (patError) {
           console.error('[DEBUG] Error al actualizar patentes:', patError);
           // No fallar la transacción por esto, solo loguear
         }
       }
-
-      const ecpIdEcp = entIdEnt;
 
       // Próximo renglón
       const getNextRenglon = async (ecpId: number): Promise<number> => {
