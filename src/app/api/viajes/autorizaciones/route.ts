@@ -453,6 +453,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Primero obtener el ECP_IdEcp desde ENT_IdEnt (viajeId)
+    const [ecpRows]: any = await db.query(
+      `SELECT ECP_IdEcp FROM sige_ecp_enccarpor WHERE ENT_IdEnt = ? LIMIT 1`,
+      [viajeId]
+    );
+
+    if (!Array.isArray(ecpRows) || ecpRows.length === 0) {
+      // Si no hay carta porte, devolver array vacío (no es error, simplemente no hay autorizaciones aún)
+      return NextResponse.json([]);
+    }
+
+    const ecpIdEcp = ecpRows[0].ECP_IdEcp;
+    console.log('[DEBUG GET] Buscando autorizaciones para ENT_IdEnt:', viajeId, 'ECP_IdEcp:', ecpIdEcp);
+
     // Trae renglones de ADELANTO y/o COMBUSTIBLE para el ECP
     // Incluye CHO_IdChofer para filtrar por chofer (si la columna existe)
     const query = `
@@ -480,11 +494,13 @@ export async function GET(request: NextRequest) {
     `;
 
     try {
-      const [rows] = await db.query(query, [viajeId, ARTICULO_COMBUSTIBLE_ID, ARTICULO_ADELANTO_ID]);
+      const [rows] = await db.query(query, [ecpIdEcp, ARTICULO_COMBUSTIBLE_ID, ARTICULO_ADELANTO_ID]);
+      console.log('[DEBUG GET] Autorizaciones encontradas:', rows);
       return NextResponse.json(rows);
     } catch (e: any) {
       // Si la columna CHO_IdChofer no existe, consultar sin ella
       if (e?.code === 'ER_BAD_FIELD_ERROR') {
+        console.log('[DEBUG GET] Columna CHO_IdChofer no existe, usando query fallback');
         const queryFallback = `
           SELECT
             ocp.ECP_IdEcp           AS ecpIdEcp,
@@ -507,7 +523,8 @@ export async function GET(request: NextRequest) {
             )
           ORDER BY ocp.OCP_Renglon DESC
         `;
-        const [rows] = await db.query(queryFallback, [viajeId, ARTICULO_COMBUSTIBLE_ID, ARTICULO_ADELANTO_ID]);
+        const [rows] = await db.query(queryFallback, [ecpIdEcp, ARTICULO_COMBUSTIBLE_ID, ARTICULO_ADELANTO_ID]);
+        console.log('[DEBUG GET] Autorizaciones encontradas (fallback):', rows);
         return NextResponse.json(rows);
       }
       throw e;
