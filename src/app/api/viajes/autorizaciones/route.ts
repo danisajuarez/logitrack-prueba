@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
                 ART_IdArticulo, ART_DesArticulo, OCP_Importe,
                 OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
                 EFO_IdEfcFac, EFO_IdEfcRp, CHO_IdChofer)
-               VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0, ?)`,
+               VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, 0, 0, 0, 0, ?)`,
               [
                 ecpIdEcp,
                 renglon,
@@ -214,6 +214,7 @@ export async function POST(request: NextRequest) {
                 ARTICULO_ADELANTO_ID,
                 ARTICULO_ADELANTO_DESC,
                 importe,
+                importe, // OCP_CantPend = importe para adelantos
                 choferId, // Guardar el ID del chofer
               ]
             );
@@ -229,7 +230,7 @@ export async function POST(request: NextRequest) {
                   ART_IdArticulo, ART_DesArticulo, OCP_Importe,
                   OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
                   EFO_IdEfcFac, EFO_IdEfcRp)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0)`,
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, 0, 0, 0, 0)`,
                 [
                   ecpIdEcp,
                   renglon,
@@ -238,6 +239,7 @@ export async function POST(request: NextRequest) {
                   ARTICULO_ADELANTO_ID,
                   ARTICULO_ADELANTO_DESC,
                   importe,
+                  importe, // OCP_CantPend = importe para adelantos
                 ]
               );
               console.log("[DEBUG API] Adelanto insertado sin choferId (columna no existe)");
@@ -284,7 +286,7 @@ export async function POST(request: NextRequest) {
                 ART_IdArticulo, ART_DesArticulo, OCP_Importe,
                 OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
                 EFO_IdEfcFac, EFO_IdEfcRp, CHO_IdChofer)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, 0, ?)`,
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, ?)`,
               [
                 ecpIdEcp,
                 renglon,
@@ -293,7 +295,6 @@ export async function POST(request: NextRequest) {
                 ARTICULO_COMBUSTIBLE_ID,
                 ARTICULO_COMBUSTIBLE_DESC,
                 importe,
-                litros,
                 litros,
                 litros,
                 choferId, // Guardar el ID del chofer
@@ -311,7 +312,7 @@ export async function POST(request: NextRequest) {
                   ART_IdArticulo, ART_DesArticulo, OCP_Importe,
                   OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
                   EFO_IdEfcFac, EFO_IdEfcRp)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, 0)`,
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0)`,
                 [
                   ecpIdEcp,
                   renglon,
@@ -320,7 +321,6 @@ export async function POST(request: NextRequest) {
                   ARTICULO_COMBUSTIBLE_ID,
                   ARTICULO_COMBUSTIBLE_DESC,
                   importe,
-                  litros,
                   litros,
                   litros,
                 ]
