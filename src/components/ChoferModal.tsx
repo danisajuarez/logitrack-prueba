@@ -764,7 +764,9 @@ export default function ChoferModal({
         isVisible: true,
       });
 
-      // Resetear solo el campo de cantidad
+      // Resetear TODOS los campos para permitir agregar otra autorización
+      setTempEstacionId(null);
+      setTempTipo('combustible');
       setTempCantidad("");
     } catch (err: any) {
       console.error('[DEBUG] Error al guardar autorización:', err);

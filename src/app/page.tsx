@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import Header from "@/components/Header";
 
 interface Viaje {
   id: number;
@@ -82,6 +83,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 text-white">
+      <Header />
       <div className="max-w-7xl mx-auto px-4 py-8 md:py-12">
         {/* Header */}
         <div className="mb-8 md:mb-12">

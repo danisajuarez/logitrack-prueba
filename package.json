@@ -10,8 +10,11 @@
   },
   "dependencies": {
     "@headlessui/react": "^2.2.6",
+    "@types/bcryptjs": "^3.0.0",
+    "bcryptjs": "^3.0.2",
     "mysql2": "^3.14.2",
     "next": "15.4.2",
+    "next-auth": "^5.0.0-beta.29",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },

@@ -12,7 +12,9 @@
       "Bash(npx next:*)",
       "Bash(taskkill:*)",
       "Bash(cmd /c:*)",
-      "Bash(yarn lint)"
+      "Bash(yarn lint)",
+      "Bash(npm install:*)",
+      "Bash(powershell -Command \"git status\")"
     ],
     "deny": []
   }
