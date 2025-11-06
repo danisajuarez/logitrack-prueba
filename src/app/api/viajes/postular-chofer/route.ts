@@ -121,9 +121,26 @@ export async function POST(request: NextRequest) {
 
       const metrics = await fetchViajeMetrics(connection, viajeId);
 
+      // Obtener ECP_IdEcp desde ENT_IdEnt (viajeId)
+      const [ecpRows]: any = await connection.query(
+        `SELECT ECP_IdEcp FROM sige_ecp_enccarpor WHERE ENT_IdEnt = ? LIMIT 1`,
+        [viajeId]
+      );
+      if (!Array.isArray(ecpRows) || ecpRows.length === 0) {
+        await connection.rollback();
+        return NextResponse.json(
+          { error: "No se encontró la carta porte para este viaje" },
+          { status: 404 }
+        );
+      }
+      const ecpIdEcp = ecpRows[0].ECP_IdEcp;
+
+      // Verificar si el chofer ya está postulado (usando sige_icp_intcarpor)
       const [dupRows] = await connection.query<RowDataPacket[]>(
-        `SELECT 1 FROM viajes_choferes WHERE viaje_id = ? AND chofer_id = ? LIMIT 1`,
-        [viajeId, choferId]
+        `SELECT 1 FROM sige_icp_intcarpor
+         WHERE ECP_IdEcp = ? AND TER_IDTerceroTic = ? AND TIC_IdTic = 9
+         LIMIT 1`,
+        [ecpIdEcp, choferId]
       );
       if (Array.isArray(dupRows) && dupRows.length > 0) {
         await connection.rollback();
@@ -133,9 +150,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Contar choferes postulados (TIC_IdTic = 9)
       const [countRows] = await connection.query<RowDataPacket[]>(
-        `SELECT COUNT(*) AS total FROM viajes_choferes WHERE viaje_id = ?`,
-        [viajeId]
+        `SELECT COUNT(*) AS total FROM sige_icp_intcarpor
+         WHERE ECP_IdEcp = ? AND TIC_IdTic = 9`,
+        [ecpIdEcp]
       );
       const postuladosActuales = normalizeNumber(countRows?.[0]?.total);
       const pendientesAntes = metrics.cupos - metrics.reservados - postuladosActuales;
@@ -176,19 +195,110 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        await connection.query(
-          `INSERT INTO viajes_choferes
-             (viaje_id, chofer_id, vendedor_id, pat_chasis, pat_acoplado, send_email)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [
+        // Actualizar las patentes en la carta porte asociada (sige_ecp_enccarpor)
+        // para que ECP_PatCamion y ECP_PatAcoplado queden reflejadas apenas se postula el chofer.
+        // Se identifica la carta porte por ENT_IdEnt = viajeId (columna presente en la tabla ECP).
+        try {
+          await connection.query(
+            `UPDATE sige_ecp_enccarpor
+               SET ECP_PatCamion = ?, ECP_PatAcoplado = ?
+             WHERE ENT_IdEnt = ?`,
+            [
+              patenteChasis,
+              relacion.patAcoplado ? relacion.patAcoplado.toUpperCase() : null,
+              viajeId,
+            ]
+          );
+          console.log('[DEBUG] Patentes actualizadas en sige_ecp_enccarpor al postular chofer', {
             viajeId,
             choferId,
-            vendedorId,
-            patenteChasis,
-            relacion.patAcoplado ? relacion.patAcoplado.toUpperCase() : null,
-            sendEmail ? 1 : 0,
-          ]
-        );
+            ECP_PatCamion: patenteChasis,
+            ECP_PatAcoplado: relacion.patAcoplado ? relacion.patAcoplado.toUpperCase() : null,
+          });
+        } catch (e) {
+          console.error('[DEBUG] Error al actualizar patentes en sige_ecp_enccarpor durante postulación:', e);
+          // No abortamos la transacción por esto; la postulación sigue siendo válida.
+        }
+
+        // Insertar intermediarios en sige_icp_intcarpor (ya tenemos ecpIdEcp desde arriba)
+        try {
+          // Obtener datos del chofer
+          const [choferRows] = await connection.query<RowDataPacket[]>(
+            `SELECT TER_RazonSocialTer, TER_CUITTer FROM sige_ter_tercero WHERE TER_IDTercero = ? LIMIT 1`,
+            [choferId]
+          );
+
+          // Obtener datos del transportista
+          const [transRows] = await connection.query<RowDataPacket[]>(
+            `SELECT TER_RazonSocialTer, TER_CUITTer FROM sige_ter_tercero WHERE TER_IDTercero = ? LIMIT 1`,
+            [relacion.transportistaId]
+          );
+
+          if (Array.isArray(transRows) && transRows.length > 0) {
+            const transportista = transRows[0];
+
+            // Insertar Transportista (TIC_IdTic = 8, Orden = 2)
+            try {
+              await connection.query(
+                `INSERT INTO sige_icp_intcarpor (
+                  ECP_IdEcp, TIC_IdTic, ICP_Orden, TIC_DescripcionTic,
+                  TER_IDTerceroTic, TER_RazonSocialTerTic, TER_CUITTerTic
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  ecpIdEcp,
+                  8, // TIC_IdTic = 8 para Transportista
+                  2, // Orden 2
+                  "Transportista",
+                  relacion.transportistaId,
+                  transportista.TER_RazonSocialTer || "",
+                  transportista.TER_CUITTer || "",
+                ]
+              );
+              console.log('[DEBUG] Transportista insertado en sige_icp_intcarpor', {
+                ecpIdEcp,
+                transportistaId: relacion.transportistaId,
+              });
+            } catch (icpError: any) {
+              if (icpError?.code !== "ER_DUP_ENTRY") {
+                console.error('[DEBUG] Error al insertar transportista en ICP:', icpError);
+              }
+            }
+          }
+
+          if (Array.isArray(choferRows) && choferRows.length > 0) {
+            const chofer = choferRows[0];
+
+            // Insertar Chofer (TIC_IdTic = 9, Orden = 3)
+            try {
+              await connection.query(
+                `INSERT INTO sige_icp_intcarpor (
+                  ECP_IdEcp, TIC_IdTic, ICP_Orden, TIC_DescripcionTic,
+                  TER_IDTerceroTic, TER_RazonSocialTerTic, TER_CUITTerTic
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  ecpIdEcp,
+                  9, // TIC_IdTic = 9 para Chofer
+                  3, // Orden 3
+                  "Chofer",
+                  choferId,
+                  chofer.TER_RazonSocialTer || "",
+                  chofer.TER_CUITTer || "",
+                ]
+              );
+              console.log('[DEBUG] Chofer insertado en sige_icp_intcarpor', {
+                ecpIdEcp,
+                choferId,
+              });
+            } catch (icpError: any) {
+              if (icpError?.code !== "ER_DUP_ENTRY") {
+                console.error('[DEBUG] Error al insertar chofer en ICP:', icpError);
+              }
+            }
+          }
+        } catch (e) {
+          console.error('[DEBUG] Error al insertar intermediarios en sige_icp_intcarpor:', e);
+          // No abortamos la transacción por esto
+        }
       } catch (error: any) {
         const code = typeof error?.code === "string" ? error.code : null;
         if (code === "ER_DUP_ENTRY") {
@@ -217,6 +327,14 @@ export async function POST(request: NextRequest) {
             throw error;
           }
         }
+      } else {
+        // Actualizar ENT_CantCuposPend en sige_ent_encnegtra para viajes legacy
+        await connection.query(
+          `UPDATE sige_ent_encnegtra
+           SET ENT_CantCuposPend = ?
+           WHERE ENT_IdEnt = ?`,
+          [pendientesFinales, metrics.id]
+        );
       }
 
       await connection.commit();
@@ -288,22 +406,45 @@ export async function DELETE(request: NextRequest) {
     try {
       await connection.beginTransaction();
 
-      const metrics = await fetchViajeMetrics(connection, viajeId);
-
-      let whereClause: string;
-      let params: any[];
-
-      if (postulacionId) {
-        whereClause = "id = ? AND viaje_id = ?";
-        params = [postulacionId, viajeId];
-      } else {
-        whereClause = "viaje_id = ? AND chofer_id = ?";
-        params = [viajeId, choferId];
+      // Validar que el viaje no tenga órdenes de carga asociadas
+      // Si existen renglones en SIGE_OCP_OrdCarPor para el ECP relacionado, bloquear eliminación
+      const [ocpRows] = await connection.query<RowDataPacket[]>(
+        `SELECT 1
+         FROM SIGE_OCP_OrdCarPor ocp
+         WHERE ocp.ECP_IdEcp = ?
+         LIMIT 1`,
+        [viajeId]
+      );
+      if (Array.isArray(ocpRows) && ocpRows.length > 0) {
+        await connection.rollback();
+        return NextResponse.json(
+          { error: "No se puede eliminar la postulación: existen órdenes de carga" },
+          { status: 409 }
+        );
       }
 
+      const metrics = await fetchViajeMetrics(connection, viajeId);
+
+      // Obtener ECP_IdEcp desde ENT_IdEnt (viajeId)
+      const [ecpRows]: any = await connection.query(
+        `SELECT ECP_IdEcp FROM sige_ecp_enccarpor WHERE ENT_IdEnt = ? LIMIT 1`,
+        [viajeId]
+      );
+      if (!Array.isArray(ecpRows) || ecpRows.length === 0) {
+        await connection.rollback();
+        return NextResponse.json(
+          { error: "No se encontró la carta porte para este viaje" },
+          { status: 404 }
+        );
+      }
+      const ecpIdEcp = ecpRows[0].ECP_IdEcp;
+
+      // Verificar que el chofer esté postulado (TIC_IdTic = 9)
       const [rows] = await connection.query<RowDataPacket[]>(
-        `SELECT id, viaje_id, chofer_id FROM viajes_choferes WHERE ${whereClause} LIMIT 1`,
-        params
+        `SELECT ICP_IDIcp, TER_IDTerceroTic FROM sige_icp_intcarpor
+         WHERE ECP_IdEcp = ? AND TER_IDTerceroTic = ? AND TIC_IdTic = 9
+         LIMIT 1`,
+        [ecpIdEcp, choferId]
       );
 
       if (!Array.isArray(rows) || rows.length === 0) {
@@ -314,14 +455,32 @@ export async function DELETE(request: NextRequest) {
         );
       }
 
+      // Eliminar chofer de intermediarios (TIC_IdTic = 9)
       await connection.query(
-        `DELETE FROM viajes_choferes WHERE ${whereClause} LIMIT 1`,
-        params
+        `DELETE FROM sige_icp_intcarpor
+         WHERE ECP_IdEcp = ? AND TER_IDTerceroTic = ? AND TIC_IdTic = 9
+         LIMIT 1`,
+        [ecpIdEcp, choferId]
       );
 
+      // También eliminar el transportista asociado (TIC_IdTic = 8) si existe
+      try {
+        await connection.query(
+          `DELETE FROM sige_icp_intcarpor
+           WHERE ECP_IdEcp = ? AND TIC_IdTic = 8
+           LIMIT 1`,
+          [ecpIdEcp]
+        );
+      } catch (e) {
+        // No es crítico si no existe transportista
+        console.log('[DEBUG] No se eliminó transportista (puede que no exista)');
+      }
+
+      // Contar choferes restantes
       const [countRows] = await connection.query<RowDataPacket[]>(
-        `SELECT COUNT(*) AS total FROM viajes_choferes WHERE viaje_id = ?`,
-        [viajeId]
+        `SELECT COUNT(*) AS total FROM sige_icp_intcarpor
+         WHERE ECP_IdEcp = ? AND TIC_IdTic = 9`,
+        [ecpIdEcp]
       );
       const postuladosRestantes = normalizeNumber(countRows?.[0]?.total);
       const pendientesFinales = Math.max(metrics.cupos - metrics.reservados - postuladosRestantes, 0);
@@ -339,6 +498,14 @@ export async function DELETE(request: NextRequest) {
             throw error;
           }
         }
+      } else {
+        // Actualizar ENT_CantCuposPend en sige_ent_encnegtra para viajes legacy
+        await connection.query(
+          `UPDATE sige_ent_encnegtra
+           SET ENT_CantCuposPend = ?
+           WHERE ENT_IdEnt = ?`,
+          [pendientesFinales, metrics.id]
+        );
       }
 
       await connection.commit();

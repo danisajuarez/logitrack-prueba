@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
         e.TER_RazonSocialTer AS razonSocial,
         e.LOC_NomLocalidadOrig AS origen,
         e.LOC_NomLocalidadDest AS destino,
-        COALESCE(d.ART_DesArticulo, e.TVP_Caracteristicas) AS articulo,
+        COALESCE(dnt.art_desarticulo, e.TVP_Caracteristicas, '') AS articulo,
         COALESCE(eq.EQU_DesEquipo, CAST(e.EQU_IDEquipo AS CHAR)) AS equipo,
         e.ENT_CantCupos AS cupos,
         e.ENT_CantCuposReser AS cuposReservados,
@@ -116,9 +116,9 @@ export async function GET(req: NextRequest) {
         e.ENT_Tarifa AS tarifa,
         e.VEN_IdVendPostula AS vendedor
       FROM sige_ent_encnegtra e
-      LEFT JOIN sige_dnt_detnegtra d ON e.ENT_IdEnt = d.ENT_IdEnt
       LEFT JOIN sige_equ_equipos eq ON e.EQU_IDEquipo = eq.EQU_IDEquipo
       LEFT JOIN sige_ven_vendedor v ON e.VEN_IdVendPostula = v.VEN_IdVendedor
+      LEFT JOIN sige_dnt_detnegtra dnt ON e.ENT_IdEnt = dnt.ent_ident AND dnt.dnt_renglondcp = 1
       WHERE e.ENT_IdEnt > 0
       ${whereClauseViejos.replace('AND', 'AND')}
       ORDER BY e.ENT_Fecha DESC, e.ENT_Numero DESC
@@ -141,11 +141,14 @@ export async function GET(req: NextRequest) {
     if (uniqueIds.length > 0) {
       const placeholders = uniqueIds.map(() => "?").join(", ");
       try {
+        // Buscar postulados usando sige_icp_intcarpor en lugar de viajes_choferes
         const [postuladosRows] = await db.query(
-          `SELECT viaje_id, COUNT(*) AS total
-           FROM viajes_choferes
-           WHERE viaje_id IN (${placeholders})
-           GROUP BY viaje_id`,
+          `SELECT ecp.ENT_IdEnt AS viaje_id, COUNT(*) AS total
+           FROM sige_icp_intcarpor icp
+           INNER JOIN sige_ecp_enccarpor ecp ON ecp.ECP_IdEcp = icp.ECP_IdEcp
+           WHERE ecp.ENT_IdEnt IN (${placeholders})
+             AND icp.TIC_IdTic = 9
+           GROUP BY ecp.ENT_IdEnt`,
           uniqueIds
         ) as unknown as [RowDataPacket[]];
         if (Array.isArray(postuladosRows)) {

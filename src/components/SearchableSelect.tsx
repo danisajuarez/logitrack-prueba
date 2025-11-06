@@ -38,9 +38,25 @@ export default function SearchableSelect({
   const [displayValue, setDisplayValue] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const filteredOptions = options.filter((option) =>
-    option.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOptions = options
+    .filter((option) =>
+      option.nombre.toLowerCase().includes((searchTerm || "").toLowerCase())
+    )
+    .sort((a, b) => {
+      const searchLower = (searchTerm || "").toLowerCase();
+      const aLower = a.nombre.toLowerCase();
+      const bLower = b.nombre.toLowerCase();
+
+      // Priorizar coincidencias que empiezan con el término de búsqueda
+      const aStarts = aLower.startsWith(searchLower);
+      const bStarts = bLower.startsWith(searchLower);
+
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+
+      // Si ambos empiezan igual, ordenar alfabéticamente
+      return a.nombre.localeCompare(b.nombre);
+    });
 
   // Mostrar nombre según valueId (nuevo) o value (legacy)
   useEffect(() => {

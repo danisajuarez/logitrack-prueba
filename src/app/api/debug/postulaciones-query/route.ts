@@ -1,23 +1,14 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import type { RowDataPacket } from "mysql2";
 
 export const runtime = "nodejs";
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const viajeIdParam = searchParams.get("viajeId");
-  const viajeId = viajeIdParam ? Number(viajeIdParam) : NaN;
-
-  if (!Number.isInteger(viajeId) || viajeId <= 0) {
-    return NextResponse.json(
-      { error: "viajeId es requerido y debe ser un entero válido" },
-      { status: 400 }
-    );
-  }
-
+export async function GET(request: Request) {
   try {
-    // Primero obtener ECP_IdEcp desde ENT_IdEnt
+    const { searchParams } = new URL(request.url);
+    const viajeId = Number(searchParams.get("viajeId") || "683");
+
+    // Obtener ECP_IdEcp
     const [ecpRows]: any = await db.query(
       `SELECT ECP_IdEcp, VEN_IdVendPostula, ECP_PatCamion, ECP_PatAcoplado
        FROM sige_ecp_enccarpor
@@ -25,16 +16,44 @@ export async function GET(req: NextRequest) {
       [viajeId]
     );
 
-    if (!Array.isArray(ecpRows) || ecpRows.length === 0) {
-      return NextResponse.json([]);
+    if (!ecpRows || ecpRows.length === 0) {
+      return NextResponse.json({ error: "No se encontró carta porte" });
     }
 
     const { ECP_IdEcp: ecpIdEcp, VEN_IdVendPostula: vendedorId, ECP_PatCamion: patCamion, ECP_PatAcoplado: patAcoplado } = ecpRows[0];
 
-    // Buscar choferes postulados en sige_icp_intcarpor (TIC_IdTic = 9)
-    const query = `
+    // Query simplificado SIN joins complejos
+    const querySimple = `
       SELECT
-        CAST(CONCAT(?, '-', icp.TER_IDTerceroTic) AS CHAR) AS id,
+        CONCAT(?, '-', icp.TER_IDTerceroTic) AS id,
+        ? AS viaje_id,
+        icp.TER_IDTerceroTic AS chofer_id,
+        ch.TER_RazonSocialTer AS choferNombre,
+        ? AS vendedor_id,
+        ven.VEN_NomVen AS vendedorNombre,
+        ? AS pat_chasis,
+        ? AS pat_acoplado
+      FROM sige_icp_intcarpor icp
+      LEFT JOIN sige_ter_tercero ch ON ch.TER_IDTercero = icp.TER_IDTerceroTic
+      LEFT JOIN sige_ven_vendedor ven ON ven.VEN_IDVendedor = ?
+      WHERE icp.ECP_IdEcp = ? AND icp.TIC_IdTic = 9
+      ORDER BY icp.TER_IDTerceroTic
+    `;
+
+    const [rowsSimple] = await db.query(querySimple, [
+      viajeId,
+      viajeId,
+      vendedorId,
+      patCamion,
+      patAcoplado,
+      vendedorId,
+      ecpIdEcp
+    ]) as any;
+
+    // Query completo (el que está en el código actual)
+    const queryCompleto = `
+      SELECT
+        CONCAT(?, '-', icp.TER_IDTerceroTic) AS id,
         ? AS viaje_id,
         CASE
           WHEN rel.TER_IDTercero = icp.TER_IDTerceroTic THEN rel.TER_IDTerceroAsoc
@@ -70,34 +89,29 @@ export async function GET(req: NextRequest) {
       ORDER BY icp.TER_IDTerceroTic
     `;
 
-    const [rows] = (await db.query(query, [viajeId, viajeId, vendedorId, patCamion, patAcoplado, vendedorId, ecpIdEcp]) as unknown as [RowDataPacket[]]) ?? [];
-    if (!Array.isArray(rows)) {
-      return NextResponse.json([]);
-    }
+    const [rowsCompleto] = await db.query(queryCompleto, [
+      viajeId,
+      viajeId,
+      vendedorId,
+      patCamion,
+      patAcoplado,
+      vendedorId,
+      ecpIdEcp
+    ]) as any;
 
-    const mapped = rows.map((row: any) => ({
-      id: row.id ?? `${row.viaje_id}-${row.chofer_id}`,
-      viajeId: row.viaje_id,
-      transporteId: row.transporte_id ?? null,
-      transportistaNombre: row.transportistaNombre ?? null,
-      choferId: row.chofer_id,
-      choferNombre: row.choferNombre ?? null,
-      vendedorId: row.vendedor_id ?? null,
-      vendedorNombre: row.vendedorNombre ?? null,
-      patChasis: row.pat_chasis ?? null,
-      patAcoplado: row.pat_acoplado ?? null,
-      sendEmail: Boolean(row.send_email),
-    }));
-
-    return NextResponse.json(mapped);
+    return NextResponse.json({
+      ecpIdEcp,
+      vendedorId,
+      patCamion,
+      patAcoplado,
+      resultados_query_simple: rowsSimple,
+      resultados_query_completo: rowsCompleto,
+      mensaje: `Query simple: ${rowsSimple?.length || 0} resultados. Query completo: ${rowsCompleto?.length || 0} resultados.`
+    });
   } catch (error: any) {
-    if (error?.code === "ER_NO_SUCH_TABLE") {
-      return NextResponse.json([]);
-    }
-    console.error("Error al obtener postulaciones:", error);
-    return NextResponse.json(
-      { error: "Error al obtener las postulaciones" },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      error: error.message,
+      stack: error.stack
+    }, { status: 500 });
   }
 }
