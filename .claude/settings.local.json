@@ -19,7 +19,10 @@
       "Bash(yarn add:*)",
       "Bash(yarn install:*)",
       "Bash(git log:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nMerge: Resolver conflictos entre branches divergentes\n\nConflictos resueltos:\n- Usar NextAuth en lugar de autenticación custom\n- Mantener componente Header en página principal\n- Actualizar middleware para usar NextAuth\n- Unificar UI del login\n- Regenerar lockfile\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(powershell -Command \"yarn dev\")",
+      "Bash(powershell -Command \"Remove-Item ''c:\\Users\\danis\\proyecto-gustavo\\src\\auth.ts'' -Force\")"
     ],
     "deny": []
   }

@@ -1,4 +1,1 @@
-import NextAuth from "next-auth";
-import { authConfig } from "./auth.config";
-
-export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
+// Este archivo está deprecado - usar src/lib/auth.ts en su lugar
