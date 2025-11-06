@@ -306,6 +306,24 @@ export default function ChoferModal({
     loadAutorizaciones();
   }, [isOpen, viajeId, loadPostulaciones, loadAutorizaciones]);
 
+  // Proponer vendedor por defecto desde la sesión del usuario
+  useEffect(() => {
+    if (!isOpen || !viajeId) return;
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/session');
+        if (!res.ok) return;
+        const data = await res.json();
+        const vendedorId = data?.user?.vendedorId;
+        if (vendedorId && !selectedVendedor) {
+          setSelectedVendedor(Number(vendedorId));
+        }
+      } catch (err) {
+        console.log('[DEBUG] No se pudo obtener vendedor de sesión:', err);
+      }
+    })();
+  }, [isOpen, viajeId, selectedVendedor]);
+
   // Cargar choferes filtrados por transportista (con patentes)
   useEffect(() => {
     if (!isOpen) return;

@@ -141,11 +141,14 @@ export async function GET(req: NextRequest) {
     if (uniqueIds.length > 0) {
       const placeholders = uniqueIds.map(() => "?").join(", ");
       try {
+        // Buscar postulados usando sige_icp_intcarpor en lugar de viajes_choferes
         const [postuladosRows] = await db.query(
-          `SELECT viaje_id, COUNT(*) AS total
-           FROM viajes_choferes
-           WHERE viaje_id IN (${placeholders})
-           GROUP BY viaje_id`,
+          `SELECT ecp.ENT_IdEnt AS viaje_id, COUNT(*) AS total
+           FROM sige_icp_intcarpor icp
+           INNER JOIN sige_ecp_enccarpor ecp ON ecp.ECP_IdEcp = icp.ECP_IdEcp
+           WHERE ecp.ENT_IdEnt IN (${placeholders})
+             AND icp.TIC_IdTic = 9
+           GROUP BY ecp.ENT_IdEnt`,
           uniqueIds
         ) as unknown as [RowDataPacket[]];
         if (Array.isArray(postuladosRows)) {

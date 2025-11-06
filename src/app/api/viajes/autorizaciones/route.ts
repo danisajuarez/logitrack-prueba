@@ -73,10 +73,26 @@ export async function POST(request: NextRequest) {
     try {
       await connection.beginTransaction();
 
-      // Validar que el chofer pertenece al viaje
+      // Obtener ECP_IdEcp desde ENT_IdEnt (viajeId) primero
+      const [ecpValidRows]: any = await connection.query(
+        `SELECT ECP_IdEcp FROM sige_ecp_enccarpor WHERE ENT_IdEnt = ? LIMIT 1`,
+        [viajeId]
+      );
+      if (!Array.isArray(ecpValidRows) || ecpValidRows.length === 0) {
+        await connection.rollback();
+        return NextResponse.json(
+          { error: "No se encontró la carta porte para este viaje" },
+          { status: 404 }
+        );
+      }
+      const ecpIdEcpValid = ecpValidRows[0].ECP_IdEcp;
+
+      // Validar que el chofer pertenece al viaje (usando sige_icp_intcarpor)
       const [choferRows] = await connection.query<RowDataPacket[]>(
-        `SELECT id FROM viajes_choferes WHERE viaje_id = ? AND chofer_id = ? LIMIT 1`,
-        [viajeId, choferId]
+        `SELECT ICP_IDIcp FROM sige_icp_intcarpor
+         WHERE ECP_IdEcp = ? AND TER_IDTerceroTic = ? AND TIC_IdTic = 9
+         LIMIT 1`,
+        [ecpIdEcpValid, choferId]
       );
       if (!Array.isArray(choferRows) || choferRows.length === 0) {
         await connection.rollback();
