@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
 
       // Validar que el chofer pertenece al viaje (usando sige_icp_intcarpor)
       const [choferRows] = await connection.query<RowDataPacket[]>(
-        `SELECT ICP_IDIcp FROM sige_icp_intcarpor
+        `SELECT 1 FROM sige_icp_intcarpor
          WHERE ECP_IdEcp = ? AND TER_IDTerceroTic = ? AND TIC_IdTic = 9
          LIMIT 1`,
         [ecpIdEcpValid, choferId]
