@@ -349,6 +349,7 @@ export async function generateNegocioPDF(
     const html = generatePDFHTML(data);
 
     // Importar puppeteer de forma diferida para evitar problemas en build/edge
+    // @ts-ignore - puppeteer es opcional y se instala bajo demanda
     const { default: puppeteer } = await import("puppeteer");
 
     // Lanzar navegador headless
