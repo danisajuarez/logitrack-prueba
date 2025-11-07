@@ -78,6 +78,7 @@ interface ChoferRelacionResponse {
 interface PostulacionRow {
   id: number | string;
   viajeId: number;
+  ecpId: number; // ID específico de la ECP de esta postulación
   transporteId: number | null;
   transportistaNombre: string | null;
   choferId: number;
@@ -250,8 +251,8 @@ export default function ChoferModal({
       if (res.ok && Array.isArray(data)) {
         console.log(`[DEBUG] Autorizaciones cargadas:`, data);
 
-        // Agrupar autorizaciones por chofer ID
-        const autsPorChofer: Record<
+        // Agrupar autorizaciones por ECP ID (cada postulación tiene su propia ECP)
+        const autsPorEcp: Record<
           number | string,
           Array<{
             tipo: "adelanto" | "combustible";
@@ -262,7 +263,7 @@ export default function ChoferModal({
         > = {};
 
         data.forEach((row: any) => {
-          const choferId = row.choferId; // CHO_IdChofer from database
+          const ecpId = row.ecpIdEcp; // ECP_IdEcp from database - specific to each posting
           const esAdelanto =
             row.articuloDesc?.toUpperCase() === "ADELANTO" ||
             row.articuloId === "ADE";
@@ -278,19 +279,19 @@ export default function ChoferModal({
             renglonId: Number(row.renglon),
           };
 
-          // Si existe choferId, agrupar por ese ID, si no, usar '_all' como fallback
-          const key = choferId ?? "_all";
-          if (!autsPorChofer[key]) {
-            autsPorChofer[key] = [];
+          // Agrupar por ecpId para que cada postulación tenga sus propias autorizaciones
+          const key = ecpId ?? "_all";
+          if (!autsPorEcp[key]) {
+            autsPorEcp[key] = [];
           }
-          autsPorChofer[key].push(autorizacion);
+          autsPorEcp[key].push(autorizacion);
         });
 
-        setAutorizacionesGuardadas(autsPorChofer);
+        setAutorizacionesGuardadas(autsPorEcp);
 
         console.log(
-          `[DEBUG] Se encontraron ${data.length} autorizaciones guardadas agrupadas por chofer:`,
-          autsPorChofer
+          `[DEBUG] Se encontraron ${data.length} autorizaciones guardadas agrupadas por ECP:`,
+          autsPorEcp
         );
       } else {
         console.warn(
@@ -699,12 +700,17 @@ export default function ChoferModal({
         }
       }
 
+      // Limpiar todos los campos después de postular exitosamente
       setSelectedChofer(null);
       setSelectedVendedor(null);
+      setSelectedTransportistaId(null);
       setTransportista(null);
       setPatChasis("");
       setPatAcoplado(null);
       setSendEmail(false);
+
+      // Resetear las opciones de choferes a todas (no filtradas por transportista)
+      setChoferOptions(choferOptionsAll);
     } catch (err: any) {
       console.error(err);
       setNotification({
@@ -807,6 +813,7 @@ export default function ChoferModal({
     try {
       const payload: any = {
         viajeId: viaje.id,
+        ecpId: row.ecpId, // ID específico de la ECP de esta postulación
         choferId: row.choferId,
         estacionId: tempEstacionId,
         patChasis: row.patChasis || null,
@@ -820,7 +827,7 @@ export default function ChoferModal({
       }
 
       console.log("[DEBUG] Enviando autorización:", payload);
-
+      console.log("🔍 PAYLOAD AUTORIZACION:", payload);
       const res = await fetch("/api/viajes/autorizaciones", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -877,7 +884,7 @@ export default function ChoferModal({
       setAutorizacionesGuardadas((prev) => {
         const updated = {
           ...prev,
-          [row.id]: [...(prev[row.id] || []), nuevaAutorizacion],
+          [row.ecpId]: [...(prev[row.ecpId] || []), nuevaAutorizacion],
         };
         console.log("[DEBUG] Estado actualizado de autorizaciones:", updated);
         return updated;
@@ -1018,7 +1025,7 @@ export default function ChoferModal({
 
       setAutorizacionesGuardadas((prev) => ({
         ...prev,
-        [row.id]: [...(prev[row.id] || []), ...nuevasAutorizaciones],
+        [row.ecpId]: [...(prev[row.ecpId] || []), ...nuevasAutorizaciones],
       }));
 
       const totalLineas = autorizacionesLineas.length;
@@ -1477,16 +1484,16 @@ export default function ChoferModal({
                       </h3>
 
                       {/* Lista de autorizaciones guardadas */}
-                      {(autorizacionesGuardadas[row.id] ||
+                      {(autorizacionesGuardadas[row.ecpId] ||
                         autorizacionesGuardadas["_all"]) &&
-                        (autorizacionesGuardadas[row.id]?.length > 0 ||
+                        (autorizacionesGuardadas[row.ecpId]?.length > 0 ||
                           autorizacionesGuardadas["_all"]?.length > 0) && (
                           <div className="bg-neutral-900/30 rounded-md p-3 border border-neutral-600/50">
                             <div className="text-xs font-bold text-neutral-300 mb-2">
                               📋 Autorizaciones guardadas (
                               {
                                 (
-                                  autorizacionesGuardadas[row.id] ||
+                                  autorizacionesGuardadas[row.ecpId] ||
                                   autorizacionesGuardadas["_all"]
                                 ).length
                               }
@@ -1494,7 +1501,7 @@ export default function ChoferModal({
                             </div>
                             <div className="space-y-2">
                               {(
-                                autorizacionesGuardadas[row.id] ||
+                                autorizacionesGuardadas[row.ecpId] ||
                                 autorizacionesGuardadas["_all"]
                               ).map((aut, idx) => (
                                 <div
@@ -2038,9 +2045,9 @@ export default function ChoferModal({
                                 </h3>
 
                                 {/* Lista de autorizaciones guardadas */}
-                                {(autorizacionesGuardadas[row.id] ||
+                                {(autorizacionesGuardadas[row.ecpId] ||
                                   autorizacionesGuardadas["_all"]) &&
-                                  (autorizacionesGuardadas[row.id]?.length >
+                                  (autorizacionesGuardadas[row.ecpId]?.length >
                                     0 ||
                                     autorizacionesGuardadas["_all"]?.length >
                                       0) && (
@@ -2049,7 +2056,7 @@ export default function ChoferModal({
                                         📋 Autorizaciones guardadas (
                                         {
                                           (
-                                            autorizacionesGuardadas[row.id] ||
+                                            autorizacionesGuardadas[row.ecpId] ||
                                             autorizacionesGuardadas["_all"]
                                           ).length
                                         }
@@ -2057,7 +2064,7 @@ export default function ChoferModal({
                                       </div>
                                       <div className="grid grid-cols-1 gap-2">
                                         {(
-                                          autorizacionesGuardadas[row.id] ||
+                                          autorizacionesGuardadas[row.ecpId] ||
                                           autorizacionesGuardadas["_all"]
                                         ).map((aut, idx) => (
                                           <div

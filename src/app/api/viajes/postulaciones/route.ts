@@ -44,8 +44,9 @@ export async function GET(req: NextRequest) {
     const placeholders = ecpIds.map(() => '?').join(', ');
     const query = `
       SELECT
-        CAST(CONCAT(ecp.ENT_IdEnt, '-', icp.TER_IDTerceroTic) AS CHAR) AS id,
+        CAST(CONCAT(ecp.ENT_IdEnt, '-', icp.TER_IDTerceroTic, '-', ecp.ECP_IdEcp) AS CHAR) AS id,
         ecp.ENT_IdEnt AS viaje_id,
+        ecp.ECP_IdEcp AS ecp_id,
         CASE
           WHEN rel.TER_IDTercero = icp.TER_IDTerceroTic THEN rel.TER_IDTerceroAsoc
           ELSE rel.TER_IDTercero
@@ -93,8 +94,9 @@ export async function GET(req: NextRequest) {
     }
 
     const mapped = rows.map((row: any) => ({
-      id: row.id ?? `${row.viaje_id}-${row.chofer_id}`,
+      id: row.id ?? `${row.viaje_id}-${row.chofer_id}-${row.ecp_id}`,
       viajeId: row.viaje_id,
+      ecpId: row.ecp_id, // ID específico de la ECP de esta postulación
       transporteId: row.transporte_id ?? null,
       transportistaNombre: row.transportistaNombre ?? null,
       choferId: row.chofer_id,

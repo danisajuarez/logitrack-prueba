@@ -19,6 +19,7 @@ function toDecimal(value: unknown): number | null {
 
 interface AutorizacionRequest {
   viajeId: number;
+  ecpId?: number; // ID específico de la ECP (opcional para backward compatibility)
   choferId: number;
   estacionId: number;
   patChasis?: string | null;
@@ -39,11 +40,13 @@ export async function POST(request: NextRequest) {
     console.log("[DEBUG API] Request body recibido:", body);
 
     const viajeId = toInt(body?.viajeId);
+    const ecpIdFromRequest = toInt(body?.ecpId); // ECP específico desde el frontend
     const choferId = toInt(body?.choferId);
     const estacionId = toInt(body?.estacionId);
 
     console.log("[DEBUG API] Parámetros parseados:", {
       viajeId,
+      ecpIdFromRequest,
       choferId,
       estacionId,
     });
@@ -73,34 +76,43 @@ export async function POST(request: NextRequest) {
     try {
       await connection.beginTransaction();
 
-      // Obtener ECP_IdEcp desde ENT_IdEnt (viajeId) primero
-      const [ecpValidRows]: any = await connection.query(
-        `SELECT ECP_IdEcp FROM sige_ecp_enccarpor WHERE ENT_IdEnt = ? LIMIT 1`,
-        [viajeId]
-      );
-      if (!Array.isArray(ecpValidRows) || ecpValidRows.length === 0) {
-        await connection.rollback();
-        return NextResponse.json(
-          { error: "No se encontró la carta porte para este viaje" },
-          { status: 404 }
-        );
-      }
-      const ecpIdEcpValid = ecpValidRows[0].ECP_IdEcp;
+      // Si viene ecpId en el request, usarlo directamente; sino buscarlo
+      let ecpIdEcpValid: number;
 
-      // Validar que el chofer pertenece al viaje (usando sige_icp_intcarpor)
-      const [choferRows] = await connection.query<RowDataPacket[]>(
-        `SELECT 1 FROM sige_icp_intcarpor
-         WHERE ECP_IdEcp = ? AND TER_IDTerceroTic = ? AND TIC_IdTic = 9
+      if (ecpIdFromRequest) {
+        // Usar el ECP específico que vino del frontend
+        ecpIdEcpValid = ecpIdFromRequest;
+        console.log('[DEBUG] Usando ECP específico del frontend:', ecpIdEcpValid);
+      } else {
+        // Fallback: buscar la ECP del chofer (para backward compatibility)
+        const [ecpDelChoferRows]: any = await connection.query(
+          `SELECT DISTINCT ecp.ECP_IdEcp
+         FROM sige_ecp_enccarpor ecp
+         INNER JOIN sige_icp_intcarpor icp ON ecp.ECP_IdEcp = icp.ECP_IdEcp
+         WHERE ecp.ENT_IdEnt = ?
+           AND icp.TER_IDTerceroTic = ?
+           AND icp.TIC_IdTic = 9
          LIMIT 1`,
-        [ecpIdEcpValid, choferId]
-      );
-      if (!Array.isArray(choferRows) || choferRows.length === 0) {
-        await connection.rollback();
-        return NextResponse.json(
-          { error: "El chofer no está postulado para este viaje" },
-          { status: 404 }
+          [viajeId, choferId]
         );
+
+        if (!Array.isArray(ecpDelChoferRows) || ecpDelChoferRows.length === 0) {
+          await connection.rollback();
+          return NextResponse.json(
+            { error: "No se encontró la carta porte para este chofer en este viaje" },
+            { status: 404 }
+          );
+        }
+
+        ecpIdEcpValid = ecpDelChoferRows[0].ECP_IdEcp;
+        console.log('[DEBUG] ECP encontrada mediante búsqueda:', ecpIdEcpValid);
       }
+
+      console.log('[DEBUG] ECP final a usar:', {
+        viajeId,
+        choferId,
+        ecpIdEcp: ecpIdEcpValid
+      });
 
       // Traer estación válida (tipo=2, categoría=9)
       const [estacionRows] = await connection.query<RowDataPacket[]>(
@@ -121,34 +133,8 @@ export async function POST(request: NextRequest) {
       }
       const estacionRazonSocial = estacionRows[0].TER_RazonSocialTer;
 
-      // Obtener ECP (id del encabezado) desde la tabla de viajes (ajustado a tu DB)
-      const [viajeRows] = await connection.query<RowDataPacket[]>(
-        `SELECT ENT_IdEnt FROM sige_ent_encnegtra WHERE ENT_IdEnt = ? LIMIT 1`,
-        [viajeId]
-      );
-      if (!Array.isArray(viajeRows) || viajeRows.length === 0) {
-        await connection.rollback();
-        return NextResponse.json(
-          { error: "No se encontró el viaje en el sistema" },
-          { status: 404 }
-        );
-      }
-      const entIdEnt = viajeRows[0].ENT_IdEnt;
-
-      // Obtener el ECP_IdEcp real desde sige_ecp_enccarpor
-      const [ecpRows] = await connection.query<RowDataPacket[]>(
-        `SELECT ECP_IdEcp FROM sige_ecp_enccarpor WHERE ENT_IdEnt = ? LIMIT 1`,
-        [entIdEnt]
-      );
-      if (!Array.isArray(ecpRows) || ecpRows.length === 0) {
-        await connection.rollback();
-        return NextResponse.json(
-          { error: "No se encontró la carta porte para este viaje" },
-          { status: 404 }
-        );
-      }
-      const ecpIdEcp = ecpRows[0].ECP_IdEcp;
-      console.log('[DEBUG] ECP_IdEcp encontrado:', ecpIdEcp, 'para ENT_IdEnt:', entIdEnt);
+      // Usar la ECP específica del chofer que encontramos arriba
+      const ecpIdEcp = ecpIdEcpValid;
 
       // Actualizar patentes en sige_ecp_enccarpor si vienen en el request
       const { patChasis, patAcoplado } = body;
@@ -469,22 +455,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Primero obtener el ECP_IdEcp desde ENT_IdEnt (viajeId)
+    // Obtener TODAS las ECPs del viaje (no solo la primera)
     const [ecpRows]: any = await db.query(
-      `SELECT ECP_IdEcp FROM sige_ecp_enccarpor WHERE ENT_IdEnt = ? LIMIT 1`,
+      `SELECT ECP_IdEcp FROM sige_ecp_enccarpor WHERE ENT_IdEnt = ? ORDER BY ECP_IdEcp`,
       [viajeId]
     );
 
     if (!Array.isArray(ecpRows) || ecpRows.length === 0) {
-      // Si no hay carta porte, devolver array vacío (no es error, simplemente no hay autorizaciones aún)
+      // Si no hay carta porte, devolver array vacío
       return NextResponse.json([]);
     }
 
-    const ecpIdEcp = ecpRows[0].ECP_IdEcp;
-    console.log('[DEBUG GET] Buscando autorizaciones para ENT_IdEnt:', viajeId, 'ECP_IdEcp:', ecpIdEcp);
+    const ecpIds = ecpRows.map((r: any) => r.ECP_IdEcp);
+    console.log('[DEBUG GET] Buscando autorizaciones para ENT_IdEnt:', viajeId, 'ECPs:', ecpIds);
 
-    // Trae renglones de ADELANTO y/o COMBUSTIBLE para el ECP
-    // Incluye CHO_IdChofer para filtrar por chofer (si la columna existe)
+    // Trae renglones de ADELANTO y/o COMBUSTIBLE para TODAS las ECPs del viaje
+    const placeholders = ecpIds.map(() => '?').join(', ');
     const query = `
       SELECT
         ocp.ECP_IdEcp           AS ecpIdEcp,
@@ -500,17 +486,17 @@ export async function GET(request: NextRequest) {
         ocp.CHO_IdChofer        AS choferId
       FROM SIGE_OCP_OrdCarPor ocp
       LEFT JOIN sige_ter_tercero ter ON ter.TER_IDTercero = ocp.TER_IdTercero
-      WHERE ocp.ECP_IdEcp = ?
+      WHERE ocp.ECP_IdEcp IN (${placeholders})
         AND (
               ocp.ART_IdArticulo = ?                 -- "COMB"
            OR ocp.ART_DesArticulo IN ('ADELANTO','COMBUSTIBLE')
            OR ocp.ART_IdArticulo = ?                 -- "ADE"
         )
-      ORDER BY ocp.OCP_Renglon DESC
+      ORDER BY ocp.ECP_IdEcp, ocp.OCP_Renglon DESC
     `;
 
     try {
-      const [rows] = await db.query(query, [ecpIdEcp, ARTICULO_COMBUSTIBLE_ID, ARTICULO_ADELANTO_ID]);
+      const [rows] = await db.query(query, [...ecpIds, ARTICULO_COMBUSTIBLE_ID, ARTICULO_ADELANTO_ID]);
       console.log('[DEBUG GET] Autorizaciones encontradas:', rows);
       return NextResponse.json(rows);
     } catch (e: any) {
@@ -531,15 +517,15 @@ export async function GET(request: NextRequest) {
             ter.TER_CUITTer         AS estacionCuit
           FROM SIGE_OCP_OrdCarPor ocp
           LEFT JOIN sige_ter_tercero ter ON ter.TER_IDTercero = ocp.TER_IdTercero
-          WHERE ocp.ECP_IdEcp = ?
+          WHERE ocp.ECP_IdEcp IN (${placeholders})
             AND (
                   ocp.ART_IdArticulo = ?
                OR ocp.ART_DesArticulo IN ('ADELANTO','COMBUSTIBLE')
                OR ocp.ART_IdArticulo = ?
             )
-          ORDER BY ocp.OCP_Renglon DESC
+          ORDER BY ocp.ECP_IdEcp, ocp.OCP_Renglon DESC
         `;
-        const [rows] = await db.query(queryFallback, [ecpIdEcp, ARTICULO_COMBUSTIBLE_ID, ARTICULO_ADELANTO_ID]);
+        const [rows] = await db.query(queryFallback, [...ecpIds, ARTICULO_COMBUSTIBLE_ID, ARTICULO_ADELANTO_ID]);
         console.log('[DEBUG GET] Autorizaciones encontradas (fallback):', rows);
         return NextResponse.json(rows);
       }
