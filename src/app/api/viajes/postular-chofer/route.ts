@@ -399,6 +399,76 @@ export async function POST(request: NextRequest) {
           console.error('[DEBUG] Error al insertar intermediarios en sige_icp_intcarpor:', e);
           // No abortamos la transacción por esto
         }
+
+        // ============================================
+        // PASO 4: Insertar registro en SIGE_DCP_DetCarPor para este chofer
+        // ============================================
+        try {
+          // Verificar si ya existe un registro DCP para esta ECP
+          const [existingDcp] = await connection.query<RowDataPacket[]>(
+            `SELECT 1 FROM SIGE_DCP_DetCarPor WHERE ecp_idecp = ? LIMIT 1`,
+            [ecpIdForInsert]
+          );
+
+          // Solo insertar si NO existe (para evitar duplicados)
+          if (!Array.isArray(existingDcp) || existingDcp.length === 0) {
+            // Copiar el registro DCP desde la primera ECP del viaje (la ECP original)
+            const ecpOriginal = ecpIds[0]; // La primera ECP tiene todos los datos completos
+
+            console.log('[DEBUG] Copiando registro DCP desde ECP original', {
+              ecpOriginal,
+              ecpNueva: ecpIdForInsert
+            });
+
+            // Copiar TODOS los datos del DCP original a la nueva ECP
+            await connection.execute(
+              `INSERT INTO SIGE_DCP_DetCarPor (
+                ecp_idecp,
+                dcp_renglondcp,
+                art_idarticulo,
+                art_desarticulo,
+                dcp_cosecha,
+                dcp_pesobruto,
+                dcp_pesotara,
+                dcp_pesoneto,
+                DCP_PesoBrutoDescarga,
+                DCP_PesoTaraDescarga,
+                DCP_PesoNetoDescarga,
+                DEP_IDDeposito
+              )
+              SELECT
+                ?, -- nueva ecp_idecp
+                dcp_renglondcp,
+                art_idarticulo,
+                art_desarticulo,
+                dcp_cosecha,
+                dcp_pesobruto,
+                dcp_pesotara,
+                dcp_pesoneto,
+                DCP_PesoBrutoDescarga,
+                DCP_PesoTaraDescarga,
+                DCP_PesoNetoDescarga,
+                DEP_IDDeposito
+              FROM SIGE_DCP_DetCarPor
+              WHERE ecp_idecp = ?
+              LIMIT 1`,
+              [ecpIdForInsert, ecpOriginal]
+            );
+
+            console.log('[DEBUG] Registro DCP copiado exitosamente', {
+              ecpOriginal,
+              ecpNueva: ecpIdForInsert,
+              choferId,
+            });
+          } else {
+            console.log('[DEBUG] DCP ya existe para esta ECP, saltando inserción', {
+              ecpId: ecpIdForInsert
+            });
+          }
+        } catch (e) {
+          console.error('[DEBUG] Error al copiar registro en SIGE_DCP_DetCarPor:', e);
+          // No abortamos la transacción por esto
+        }
       } catch (error: any) {
         const code = typeof error?.code === "string" ? error.code : null;
         if (code === "ER_DUP_ENTRY") {
