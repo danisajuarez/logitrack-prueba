@@ -1,4 +1,4 @@
-Ôªøimport { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import type { PoolConnection, RowDataPacket } from "mysql2/promise";
 import { db } from "@/lib/db";
 import { obtenerRelacionActivaChofer } from "@/lib/choferes";
@@ -100,14 +100,14 @@ export async function POST(request: NextRequest) {
 
     if (!viajeId || !choferId) {
       return NextResponse.json(
-        { error: "viajeId y choferId son obligatorios y deben ser enteros v√°lidos" },
+        { error: "viajeId y choferId son obligatorios y deben ser enteros v·lidos" },
         { status: 400 }
       );
     }
 
     if (!vendedorId) {
       return NextResponse.json(
-        { error: "Debe seleccionar un vendedor v√°lido" },
+        { error: "Debe seleccionar un vendedor v·lido" },
         { status: 400 }
       );
     }
@@ -129,15 +129,14 @@ export async function POST(request: NextRequest) {
       if (!Array.isArray(ecpRows) || ecpRows.length === 0) {
         await connection.rollback();
         return NextResponse.json(
-          { error: "No se encontr√≥ la carta porte para este viaje" },
+          { error: "No se encontrÛ la carta porte para este viaje" },
           { status: 404 }
         );
       }
       const ecpIds: number[] = ecpRows.map((r: any) => Number(r.ECP_IdEcp)).filter((n: number) => Number.isInteger(n));
-      const ecpIdEcp = ecpIds[ecpIds.length - 1]; // usar la ECP m√°s reciente
+      const ecpIdEcp = ecpIds[ecpIds.length - 1]; // usar la ECP m·s reciente
 
-      // Verificar si ESTE MISMO chofer ya est√° postulado para este viaje
-      // (Solo bloqueamos duplicados del mismo chofer, NO otros choferes)
+      // Verificar si el chofer ya est· postulado (usando sige_icp_intcarpor)
       const placeholders = ecpIds.map(() => '?').join(', ');
       const [dupRows] = await connection.query<RowDataPacket[]>(
         `SELECT 1 FROM sige_icp_intcarpor
@@ -148,87 +147,9 @@ export async function POST(request: NextRequest) {
       if (Array.isArray(dupRows) && dupRows.length > 0) {
         await connection.rollback();
         return NextResponse.json(
-          { error: "Este chofer ya est√° postulado para este viaje" },
+          { error: "El chofer ya est· postulado para este viaje" },
           { status: 409 }
         );
-      }
-
-      // Estrategia: Crear una nueva ECP para CADA chofer nuevo
-      // Esto permite tener m√∫ltiples choferes por viaje (seg√∫n cupos disponibles)
-      let ecpIdForInsert = ecpIdEcp;
-
-      console.log(`[DEBUG] ===== INICIO ASIGNACI√ìN ECP =====`);
-      console.log(`[DEBUG] ViajeId: ${viajeId}, ChoferId: ${choferId}`);
-      console.log(`[DEBUG] ECPs existentes para este viaje:`, ecpIds);
-
-      // SIEMPRE crear una nueva ECP para cada chofer (excepto si es el primero y la ECP original est√° vac√≠a)
-      const placeholdersCheck = ecpIds.map(() => '?').join(', ');
-      const [perEcpCounts] = await connection.query<RowDataPacket[]>(
-        `SELECT ECP_IdEcp AS id, COUNT(*) AS total
-         FROM sige_icp_intcarpor
-         WHERE ECP_IdEcp IN (${placeholdersCheck}) AND TIC_IdTic = 9
-         GROUP BY ECP_IdEcp`,
-        ecpIds
-      );
-
-      console.log(`[DEBUG] Conteo de choferes por ECP:`, perEcpCounts);
-
-      const countsMap = new Map<number, number>(
-        (Array.isArray(perEcpCounts) ? perEcpCounts : []).map((r: any) => [Number(r.id ?? r.ECP_IdEcp), Number(r.total) || 0])
-      );
-
-      console.log(`[DEBUG] Mapa de conteos:`, Object.fromEntries(countsMap));
-
-      // Buscar una ECP libre (sin choferes asignados)
-      const libre = ecpIds.find((id) => (countsMap.get(id) ?? 0) === 0);
-      console.log(`[DEBUG] ECP libre encontrada:`, libre);
-
-      if (libre != null) {
-        // Usar la ECP libre existente
-        ecpIdForInsert = libre;
-        console.log(`[DEBUG] Usando ECP libre existente: ${libre}`);
-      } else {
-        // NO hay ECPs libres, crear una nueva para este chofer
-        console.log(`[DEBUG] Todas las ECPs tienen choferes, creando nueva ECP para chofer ${choferId}`);
-        try {
-          await connection.execute(
-            "UPDATE sige_aut_autonum SET AUT_Numero = LAST_INSERT_ID(AUT_Numero + 1) WHERE AUT_Tabla = ?",
-            ["sige_ecp_enccarpor"]
-          );
-          const [rowsEcpNum]: any = await connection.query("SELECT LAST_INSERT_ID() AS numero");
-          const newEcpId = Number(rowsEcpNum?.[0]?.numero);
-          if (Number.isFinite(newEcpId)) {
-            const newNumero = String(newEcpId).padStart(6, "0");
-            await connection.execute(
-              `INSERT INTO sige_ecp_enccarpor (
-                 ECP_IdEcp, ECP_Numero, ECP_Fecha, ECP_FechaVencimiento,
-                 TCP_IDTipoComp, EPC_IdEpd,
-                 TER_IDTerceroEst, TER_RazonSocialTerEst,
-                 LOC_NomLocalidadEst, LOC_NomLocalidadGran,
-                 ECP_Tarifa, TVP_Caracteristicas, DEP_IDDeposito,
-                 ENT_IdEnt, VEN_IdVendPostula, USU_IdUsuario, EQU_IDEquipo,
-                 ECP_PreCartaPorte, ECP_CancCompra, ECP_CancVenta
-               )
-               SELECT ?, ?, NOW(), NOW(),
-                      38, 0,
-                      COALESCE(ENT.TER_IDTercero, 15), ENT.TER_RazonSocialTer,
-                      ENT.LOC_NomLocalidadOrig, ENT.LOC_NomLocalidadDest,
-                      COALESCE(ENT.ENT_Tarifa, 0), '', 1,
-                      ENT.ENT_IdEnt, ?, 1, COALESCE(ENT.EQU_IDEquipo, 1),
-                      'S', 'N', 'N'
-               FROM sige_ent_encnegtra ENT
-               WHERE ENT.ENT_IdEnt = ?
-               LIMIT 1`,
-              [newEcpId, newNumero, vendedorId, viajeId]
-            );
-            ecpIdForInsert = newEcpId;
-            ecpIds.push(newEcpId);
-            console.log(`[DEBUG] Nueva ECP creada: ${newEcpId} para viaje ${viajeId}`);
-          }
-        } catch (error) {
-          console.error('[DEBUG] Error al crear nueva ECP:', error);
-          throw error;
-        }
       }
 
       // Contar choferes postulados (TIC_IdTic = 9)
@@ -253,7 +174,7 @@ export async function POST(request: NextRequest) {
         relacion = await obtenerRelacionActivaChofer(choferId, connection);
       } catch (error: any) {
         await connection.rollback();
-        const message = error?.message ?? "No se pudo determinar la relaci√≥n activa del chofer";
+        const message = error?.message ?? "No se pudo determinar la relaciÛn activa del chofer";
         const status = typeof error?.statusCode === "number" ? error.statusCode : 409;
         return NextResponse.json({ error: message }, { status });
       }
@@ -261,7 +182,7 @@ export async function POST(request: NextRequest) {
       if (!relacion.relacionActiva) {
         await connection.rollback();
         return NextResponse.json(
-          { error: "La relaci√≥n del chofer con el transportista/veh√≠culo no est√° activa" },
+          { error: "La relaciÛn del chofer con el transportista/vehÌculo no est· activa" },
           { status: 409 }
         );
       }
@@ -270,7 +191,7 @@ export async function POST(request: NextRequest) {
       if (!patenteChasis) {
         await connection.rollback();
         return NextResponse.json(
-          { error: "No se pudo determinar una patente v√°lida para el chofer seleccionado" },
+          { error: "No se pudo determinar una patente v·lida para el chofer seleccionado" },
           { status: 409 }
         );
       }
@@ -283,11 +204,11 @@ export async function POST(request: NextRequest) {
           await connection.query(
             `UPDATE sige_ecp_enccarpor
                SET ECP_PatCamion = ?, ECP_PatAcoplado = ?
-             WHERE ECP_IdEcp = ?`,
+             WHERE ENT_IdEnt = ?`,
             [
               patenteChasis,
               relacion.patAcoplado ? relacion.patAcoplado.toUpperCase() : null,
-              ecpIdForInsert,
+              viajeId,
             ]
           );
           console.log('[DEBUG] Patentes actualizadas en sige_ecp_enccarpor al postular chofer', {
@@ -297,20 +218,12 @@ export async function POST(request: NextRequest) {
             ECP_PatAcoplado: relacion.patAcoplado ? relacion.patAcoplado.toUpperCase() : null,
           });
         } catch (e) {
-          console.error('[DEBUG] Error al actualizar patentes en sige_ecp_enccarpor durante postulaci√≥n:', e);
-          // No abortamos la transacci√≥n por esto; la postulaci√≥n sigue siendo v√°lida.
+          console.error('[DEBUG] Error al actualizar patentes en sige_ecp_enccarpor durante postulaciÛn:', e);
+          // No abortamos la transacciÛn por esto; la postulaciÛn sigue siendo v·lida.
         }
 
         // Insertar intermediarios en sige_icp_intcarpor (ya tenemos ecpIdEcp desde arriba)
         try {
-          // Determinar orden din√°mico para evitar colisiones (hacerlo ANTES de insertar)
-          const [ordenRows] = await connection.query<RowDataPacket[]>(
-            `SELECT COALESCE(MAX(ICP_Orden), 0) AS maxOrden FROM sige_icp_intcarpor WHERE ECP_IdEcp = ?`,
-            [ecpIdForInsert]
-          );
-          const baseOrden = Number((ordenRows as any)?.[0]?.maxOrden) || 0;
-          let currentOrden = baseOrden;
-
           // Obtener datos del chofer
           const [choferRows] = await connection.query<RowDataPacket[]>(
             `SELECT TER_RazonSocialTer, TER_CUITTer FROM sige_ter_tercero WHERE TER_IDTercero = ? LIMIT 1`,
@@ -325,10 +238,8 @@ export async function POST(request: NextRequest) {
 
           if (Array.isArray(transRows) && transRows.length > 0) {
             const transportista = transRows[0];
-            currentOrden += 1;
-            const ordenTrans = currentOrden;
 
-            // Insertar Transportista (TIC_IdTic = 8)
+            // Insertar Transportista (TIC_IdTic = 8, Orden = 2)
             try {
               await connection.query(
                 `INSERT INTO sige_icp_intcarpor (
@@ -336,9 +247,9 @@ export async function POST(request: NextRequest) {
                   TER_IDTerceroTic, TER_RazonSocialTerTic, TER_CUITTerTic
                 ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [
-                  ecpIdForInsert,
+                  ecpIdEcp,
                   8, // TIC_IdTic = 8 para Transportista
-                  ordenTrans,
+                  2, // Orden 2
                   "Transportista",
                   relacion.transportistaId,
                   transportista.TER_RazonSocialTer || "",
@@ -346,7 +257,7 @@ export async function POST(request: NextRequest) {
                 ]
               );
               console.log('[DEBUG] Transportista insertado en sige_icp_intcarpor', {
-                ecpId: ecpIdForInsert,
+                ecpIdEcp,
                 transportistaId: relacion.transportistaId,
               });
             } catch (icpError: any) {
@@ -358,10 +269,8 @@ export async function POST(request: NextRequest) {
 
           if (Array.isArray(choferRows) && choferRows.length > 0) {
             const chofer = choferRows[0];
-            currentOrden += 1;
-            const ordenChofer = currentOrden;
 
-            // Insertar Chofer (TIC_IdTic = 9)
+            // Insertar Chofer (TIC_IdTic = 9, Orden = 3)
             try {
               await connection.query(
                 `INSERT INTO sige_icp_intcarpor (
@@ -369,9 +278,9 @@ export async function POST(request: NextRequest) {
                   TER_IDTerceroTic, TER_RazonSocialTerTic, TER_CUITTerTic
                 ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [
-                  ecpIdForInsert,
+                  ecpIdEcp,
                   9, // TIC_IdTic = 9 para Chofer
-                  ordenChofer,
+                  3, // Orden 3
                   "Chofer",
                   choferId,
                   chofer.TER_RazonSocialTer || "",
@@ -379,7 +288,7 @@ export async function POST(request: NextRequest) {
                 ]
               );
               console.log('[DEBUG] Chofer insertado en sige_icp_intcarpor', {
-                ecpId: ecpIdForInsert,
+                ecpIdEcp,
                 choferId,
               });
             } catch (icpError: any) {
@@ -390,14 +299,14 @@ export async function POST(request: NextRequest) {
           }
         } catch (e) {
           console.error('[DEBUG] Error al insertar intermediarios en sige_icp_intcarpor:', e);
-          // No abortamos la transacci√≥n por esto
+          // No abortamos la transacciÛn por esto
         }
       } catch (error: any) {
         const code = typeof error?.code === "string" ? error.code : null;
         if (code === "ER_DUP_ENTRY") {
           await connection.rollback();
           return NextResponse.json(
-            { error: "El chofer ya est√° postulado para este viaje" },
+            { error: "El chofer ya est· postulado para este viaje" },
             { status: 409 }
           );
         }
@@ -490,7 +399,7 @@ export async function DELETE(request: NextRequest) {
 
     if (!postulacionId && !choferId) {
       return NextResponse.json(
-        { error: "Debe indicar el identificador de la postulaci√≥n o del chofer" },
+        { error: "Debe indicar el identificador de la postulaciÛn o del chofer" },
         { status: 400 }
       );
     }
@@ -499,8 +408,8 @@ export async function DELETE(request: NextRequest) {
     try {
       await connection.beginTransaction();
 
-      // Validar que el viaje no tenga √≥rdenes de carga asociadas
-      // Si existen renglones en SIGE_OCP_OrdCarPor para el ECP relacionado, bloquear eliminaci√≥n
+      // Validar que el viaje no tenga Ûrdenes de carga asociadas
+      // Si existen renglones en SIGE_OCP_OrdCarPor para el ECP relacionado, bloquear eliminaciÛn
       const [ocpRows] = await connection.query<RowDataPacket[]>(
         `SELECT 1
          FROM SIGE_OCP_OrdCarPor ocp
@@ -511,7 +420,7 @@ export async function DELETE(request: NextRequest) {
       if (Array.isArray(ocpRows) && ocpRows.length > 0) {
         await connection.rollback();
         return NextResponse.json(
-          { error: "No se puede eliminar la postulaci√≥n: existen √≥rdenes de carga" },
+          { error: "No se puede eliminar la postulaciÛn: existen Ûrdenes de carga" },
           { status: 409 }
         );
       }
@@ -526,7 +435,7 @@ export async function DELETE(request: NextRequest) {
       if (!Array.isArray(ecpRows) || ecpRows.length === 0) {
         await connection.rollback();
         return NextResponse.json(
-          { error: "No se encontr√≥ la carta porte para este viaje" },
+          { error: "No se encontrÛ la carta porte para este viaje" },
           { status: 404 }
         );
       }
@@ -535,7 +444,7 @@ export async function DELETE(request: NextRequest) {
         .map((r: any) => Number(r.ECP_IdEcp))
         .filter((n: number) => Number.isInteger(n));
 
-      // Verificar que el chofer est√© postulado (TIC_IdTic = 9)
+      // Verificar que el chofer estÈ postulado (TIC_IdTic = 9)
       const placeholders = ecpIds.map(() => '?').join(', ');
       const [rows] = await connection.query<RowDataPacket[]>(
         `SELECT ICP_IDIcp, TER_IDTerceroTic FROM sige_icp_intcarpor
@@ -547,7 +456,7 @@ export async function DELETE(request: NextRequest) {
       if (!Array.isArray(rows) || rows.length === 0) {
         await connection.rollback();
         return NextResponse.json(
-          { error: "Postulaci√≥n no encontrada" },
+          { error: "PostulaciÛn no encontrada" },
           { status: 404 }
         );
       }
@@ -559,7 +468,7 @@ export async function DELETE(request: NextRequest) {
         [...ecpIds, choferId]
       );
 
-      // Tambi√©n eliminar el transportista asociado (TIC_IdTic = 8) si existe
+      // TambiÈn eliminar el transportista asociado (TIC_IdTic = 8) si existe
       try {
         await connection.query(
           `DELETE FROM sige_icp_intcarpor
@@ -568,8 +477,8 @@ export async function DELETE(request: NextRequest) {
           [ecpIdEcp]
         );
       } catch (e) {
-        // No es cr√≠tico si no existe transportista
-        console.log('[DEBUG] No se elimin√≥ transportista (puede que no exista)');
+        // No es crÌtico si no existe transportista
+        console.log('[DEBUG] No se eliminÛ transportista (puede que no exista)');
       }
 
       // Contar choferes restantes
@@ -608,7 +517,7 @@ export async function DELETE(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        message: "Postulaci√≥n eliminada",
+        message: "PostulaciÛn eliminada",
         data: {
           viajeId,
           postulados: postuladosRestantes,
@@ -624,20 +533,20 @@ export async function DELETE(request: NextRequest) {
       const status = typeof error?.statusCode === "number" ? error.statusCode : 500;
       if (status !== 500) {
         return NextResponse.json(
-          { error: error?.message ?? "No se pudo eliminar la postulaci√≥n" },
+          { error: error?.message ?? "No se pudo eliminar la postulaciÛn" },
           { status }
         );
       }
-      console.error("Error al eliminar postulaci√≥n:", error);
+      console.error("Error al eliminar postulaciÛn:", error);
       return NextResponse.json(
-        { error: "Error al eliminar la postulaci√≥n" },
+        { error: "Error al eliminar la postulaciÛn" },
         { status: 500 }
       );
     } finally {
       connection.release();
     }
   } catch (error) {
-    console.error("Error inesperado al eliminar postulaci√≥n:", error);
+    console.error("Error inesperado al eliminar postulaciÛn:", error);
     return NextResponse.json(
       { error: "Error interno del servidor" },
       { status: 500 }

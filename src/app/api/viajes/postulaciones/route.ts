@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import type { RowDataPacket } from "mysql2";
 
@@ -17,25 +17,35 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Primero obtener ECP_IdEcp desde ENT_IdEnt
+    console.log('[DEBUG postulaciones] Buscando viaje ID:', viajeId);
+
+    // Obtener todos los ECP_IdEcp asociados al ENT_IdEnt (pueden existir múltiples)
     const [ecpRows]: any = await db.query(
       `SELECT ECP_IdEcp, VEN_IdVendPostula, ECP_PatCamion, ECP_PatAcoplado
        FROM sige_ecp_enccarpor
-       WHERE ENT_IdEnt = ? LIMIT 1`,
+       WHERE ENT_IdEnt = ?
+       ORDER BY ECP_IdEcp`,
       [viajeId]
     );
 
+    console.log('[DEBUG postulaciones] ECP rows:', Array.isArray(ecpRows) ? ecpRows.length : 0);
+
     if (!Array.isArray(ecpRows) || ecpRows.length === 0) {
+      console.log('[DEBUG postulaciones] No se encontró carta porte');
       return NextResponse.json([]);
     }
 
-    const { ECP_IdEcp: ecpIdEcp, VEN_IdVendPostula: vendedorId, ECP_PatCamion: patCamion, ECP_PatAcoplado: patAcoplado } = ecpRows[0];
+    const ecpIds: number[] = ecpRows.map((r: any) => Number(r.ECP_IdEcp)).filter((n: number) => Number.isInteger(n));
+    if (ecpIds.length === 0) {
+      return NextResponse.json([]);
+    }
 
-    // Buscar choferes postulados en sige_icp_intcarpor (TIC_IdTic = 9)
+    // Buscar choferes postulados (TIC_IdTic = 9) para TODOS los ECP del viaje
+    const placeholders = ecpIds.map(() => '?').join(', ');
     const query = `
       SELECT
-        CAST(CONCAT(?, '-', icp.TER_IDTerceroTic) AS CHAR) AS id,
-        ? AS viaje_id,
+        CAST(CONCAT(ecp.ENT_IdEnt, '-', icp.TER_IDTerceroTic) AS CHAR) AS id,
+        ecp.ENT_IdEnt AS viaje_id,
         CASE
           WHEN rel.TER_IDTercero = icp.TER_IDTerceroTic THEN rel.TER_IDTerceroAsoc
           ELSE rel.TER_IDTercero
@@ -52,26 +62,33 @@ export async function GET(req: NextRequest) {
         ) AS transportistaNombre,
         icp.TER_IDTerceroTic AS chofer_id,
         ch.TER_RazonSocialTer AS choferNombre,
-        ? AS vendedor_id,
+        ecp.VEN_IdVendPostula AS vendedor_id,
         ven.VEN_NomVen AS vendedorNombre,
-        ? AS pat_chasis,
-        ? AS pat_acoplado,
+        ecp.ECP_PatCamion AS pat_chasis,
+        ecp.ECP_PatAcoplado AS pat_acoplado,
         1 AS send_email
       FROM sige_icp_intcarpor icp
+      INNER JOIN sige_ecp_enccarpor ecp ON ecp.ECP_IdEcp = icp.ECP_IdEcp
       LEFT JOIN sige_ter_tercero ch ON ch.TER_IDTercero = icp.TER_IDTerceroTic
-      LEFT JOIN sige_ven_vendedor ven ON ven.VEN_IDVendedor = ?
+      LEFT JOIN sige_ven_vendedor ven ON ven.VEN_IDVendedor = ecp.VEN_IdVendPostula
       LEFT JOIN sige_tvp_terveipat rel ON (rel.TER_IDTercero = icp.TER_IDTerceroTic OR rel.TER_IDTerceroAsoc = icp.TER_IDTerceroTic)
       LEFT JOIN sige_tra_transport tra_chofer ON tra_chofer.TRA_IDTransporte = rel.TER_IDTercero
       LEFT JOIN sige_tra_transport tra_asoc ON tra_asoc.TRA_IDTransporte = rel.TER_IDTerceroAsoc
       LEFT JOIN sige_ter_tercero ter_chofer ON ter_chofer.TER_IDTercero = rel.TER_IDTercero
       LEFT JOIN sige_ter_tercero ter_asoc ON ter_asoc.TER_IDTercero = rel.TER_IDTerceroAsoc
-      WHERE icp.ECP_IdEcp = ? AND icp.TIC_IdTic = 9
-      GROUP BY icp.TER_IDTerceroTic
-      ORDER BY icp.TER_IDTerceroTic
+      WHERE icp.ECP_IdEcp IN (${placeholders}) AND icp.TIC_IdTic = 9
+      GROUP BY icp.TER_IDTerceroTic, ecp.ECP_IdEcp
+      ORDER BY ecp.ECP_IdEcp ASC
     `;
 
-    const [rows] = (await db.query(query, [viajeId, viajeId, vendedorId, patCamion, patAcoplado, vendedorId, ecpIdEcp]) as unknown as [RowDataPacket[]]) ?? [];
+    console.log('[DEBUG postulaciones] Ejecutando query con ECPs:', ecpIds);
+
+    const [rows] = (await db.query(query, ecpIds) as unknown as [RowDataPacket[]]) ?? [];
+
+    console.log('[DEBUG postulaciones] Rows obtenidas:', rows?.length || 0);
+
     if (!Array.isArray(rows)) {
+      console.log('[DEBUG postulaciones] Rows no es un array');
       return NextResponse.json([]);
     }
 
@@ -89,14 +106,19 @@ export async function GET(req: NextRequest) {
       sendEmail: Boolean(row.send_email),
     }));
 
+    console.log('[DEBUG postulaciones] Devolviendo', mapped.length, 'postulaciones');
     return NextResponse.json(mapped);
   } catch (error: any) {
     if (error?.code === "ER_NO_SUCH_TABLE") {
+      console.log('[DEBUG postulaciones] Tabla no existe');
       return NextResponse.json([]);
     }
-    console.error("Error al obtener postulaciones:", error);
+    console.error("[ERROR postulaciones] Error completo:", error);
+    console.error("[ERROR postulaciones] Error stack:", error?.stack);
+    console.error("[ERROR postulaciones] Error code:", error?.code);
+    console.error("[ERROR postulaciones] Error sqlMessage:", error?.sqlMessage);
     return NextResponse.json(
-      { error: "Error al obtener las postulaciones" },
+      { error: "Error al obtener las postulaciones", details: error?.message || String(error) },
       { status: 500 }
     );
   }

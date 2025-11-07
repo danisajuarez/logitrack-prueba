@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import SearchableSelect from "./SearchableSelect";
 import Notification from "./Notification";
 
@@ -174,21 +174,30 @@ export default function ChoferModal({
     }
     setLoadingPostulaciones(true);
     try {
+      console.log('[FRONTEND] Cargando postulaciones para viaje:', viajeId);
       const res = await fetch(`/api/viajes/postulaciones?viajeId=${viajeId}`);
       const data = await res.json();
+      console.log('[FRONTEND] Respuesta postulaciones:', { ok: res.ok, isArray: Array.isArray(data), length: data?.length, data });
       if (res.ok && Array.isArray(data)) {
-        setPostulaciones(
-          data.map((row: PostulacionRow) => ({
+        console.log('[FRONTEND] Data RAW antes de mapear:', JSON.stringify(data, null, 2));
+        const mapped = data.map((row: any) => {
+          console.log('[FRONTEND] Mapeando row:', row);
+          const result = {
             ...row,
             patChasis: row.patChasis ? row.patChasis.toUpperCase() : null,
             patAcoplado: row.patAcoplado ? row.patAcoplado.toUpperCase() : null,
-          }))
-        );
+          };
+          console.log('[FRONTEND] Row mapeada:', result);
+          return result;
+        });
+        console.log('[FRONTEND] Seteando postulaciones:', mapped);
+        setPostulaciones(mapped);
       } else {
+        console.log('[FRONTEND] No se cargaron postulaciones - res.ok:', res.ok, 'isArray:', Array.isArray(data));
         setPostulaciones([]);
       }
     } catch (error) {
-      console.error("Error al obtener postulaciones del viaje:", error);
+      console.error("[FRONTEND] Error al obtener postulaciones del viaje:", error);
       setPostulaciones([]);
     } finally {
       setLoadingPostulaciones(false);
@@ -1031,6 +1040,7 @@ export default function ChoferModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Vista mobile: Cards */}
           <div className="md:hidden space-y-3">
+            {console.log('[FRONTEND RENDER MOBILE] postulaciones.length:', postulaciones.length, 'loadingPostulaciones:', loadingPostulaciones, 'postulaciones:', postulaciones)}
             {postulaciones.length === 0 && !loadingPostulaciones && (
               <div className="text-center py-8 text-neutral-400 text-sm">
                 No hay choferes postulados para este viaje.
@@ -1044,7 +1054,9 @@ export default function ChoferModal({
                 </div>
               </div>
             )}
-            {postulaciones.map((row, index) => (
+            {postulaciones.map((row, index) => {
+              console.log('[FRONTEND RENDER MOBILE] Renderizando chofer:', index, row);
+              return (
               <div
                 key={`mobile-postulacion-${row.id}`}
                 className="bg-neutral-900/60 border border-neutral-700 rounded-md p-3"
@@ -1305,7 +1317,8 @@ export default function ChoferModal({
                   </div>
                 )}
               </div>
-            ))}
+            );
+            })}
           </div>
 
           {/* Vista desktop: Tabla */}
@@ -1327,6 +1340,7 @@ export default function ChoferModal({
                 </tr>
               </thead>
               <tbody>
+                {console.log('[FRONTEND RENDER DESKTOP] postulaciones.length:', postulaciones.length, 'postulaciones:', postulaciones)}
                 {postulaciones.length === 0 && !loadingPostulaciones && (
                   <tr>
                     <td
@@ -1337,10 +1351,11 @@ export default function ChoferModal({
                     </td>
                   </tr>
                 )}
-                {postulaciones.map((row, index) => (
-                  <>
+                {postulaciones.map((row, index) => {
+                  console.log('[FRONTEND RENDER DESKTOP] Renderizando chofer:', index, row);
+                  return (
+                  <React.Fragment key={`postulacion-fragment-${row.id}`}>
                     <tr
-                      key={`postulacion-${row.id}`}
                       className="border-t border-neutral-700 bg-neutral-900/60 hover:bg-neutral-800/80 transition-colors duration-200"
                     >
                       <td className="px-2 py-2 align-middle text-neutral-300">
@@ -1588,8 +1603,9 @@ export default function ChoferModal({
                         </td>
                       </tr>
                     )}
-                  </>
-                ))}
+                  </React.Fragment>
+                );
+                })}
 
                 {!viajeSinCupos && (
                   <tr className="border-t-2 border-blue-600/30 bg-gradient-to-r from-blue-900/10 to-purple-900/10">
