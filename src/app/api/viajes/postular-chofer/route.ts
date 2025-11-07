@@ -135,25 +135,9 @@ export async function POST(request: NextRequest) {
       }
       const ecpIds: number[] = ecpRows.map((r: any) => Number(r.ECP_IdEcp)).filter((n: number) => Number.isInteger(n));
       const ecpIdEcp = ecpIds[ecpIds.length - 1]; // usar la ECP más reciente
-
-      // Verificar si ESTE MISMO chofer ya está postulado para este viaje
-      // (Solo bloqueamos duplicados del mismo chofer, NO otros choferes)
       const placeholders = ecpIds.map(() => '?').join(', ');
-      const [dupRows] = await connection.query<RowDataPacket[]>(
-        `SELECT 1 FROM sige_icp_intcarpor
-         WHERE ECP_IdEcp IN (${placeholders}) AND TER_IDTerceroTic = ? AND TIC_IdTic = 9
-         LIMIT 1`,
-        [...ecpIds, choferId]
-      );
-      if (Array.isArray(dupRows) && dupRows.length > 0) {
-        await connection.rollback();
-        return NextResponse.json(
-          { error: "Este chofer ya está postulado para este viaje" },
-          { status: 409 }
-        );
-      }
 
-      // Estrategia: Crear una nueva ECP para CADA chofer nuevo
+      // Estrategia: Crear una nueva ECP para CADA postulación (permite duplicados del mismo chofer)
       // Esto permite tener múltiples choferes por viaje (según cupos disponibles)
       let ecpIdForInsert = ecpIdEcp;
 
@@ -318,6 +302,35 @@ export async function POST(request: NextRequest) {
           const baseOrden = Number((ordenRows as any)?.[0]?.maxOrden) || 0;
           let currentOrden = baseOrden;
 
+          // Obtener datos del destinatario (tercero del viaje) desde la ECP
+          const [ecpDestRows] = await connection.query<RowDataPacket[]>(
+            `SELECT TER_IDTerceroEst, TER_RazonSocialTerEst
+             FROM sige_ecp_enccarpor
+             WHERE ECP_IdEcp = ?
+             LIMIT 1`,
+            [ecpIdForInsert]
+          );
+
+          let destinatarioId: number | null = null;
+          let destinatarioNombre: string = "";
+          let destinatarioCUIT: string = "";
+
+          if (Array.isArray(ecpDestRows) && ecpDestRows.length > 0) {
+            destinatarioId = ecpDestRows[0].TER_IDTerceroEst || null;
+            destinatarioNombre = ecpDestRows[0].TER_RazonSocialTerEst || "";
+
+            // Obtener CUIT del destinatario
+            if (destinatarioId) {
+              const [destCuitRows] = await connection.query<RowDataPacket[]>(
+                `SELECT TER_CUITTer FROM sige_ter_tercero WHERE TER_IDTercero = ? LIMIT 1`,
+                [destinatarioId]
+              );
+              if (Array.isArray(destCuitRows) && destCuitRows.length > 0) {
+                destinatarioCUIT = destCuitRows[0].TER_CUITTer || "";
+              }
+            }
+          }
+
           // Obtener datos del chofer
           const [choferRows] = await connection.query<RowDataPacket[]>(
             `SELECT TER_RazonSocialTer, TER_CUITTer FROM sige_ter_tercero WHERE TER_IDTercero = ? LIMIT 1`,
@@ -330,12 +343,41 @@ export async function POST(request: NextRequest) {
             [relacion.transportistaId]
           );
 
+          // 1. Insertar Destinatario (TIC_IdTic = 6) - SIEMPRE primero
+          if (destinatarioId) {
+            currentOrden += 1;
+            try {
+              await connection.query(
+                `INSERT INTO sige_icp_intcarpor (
+                  ECP_IdEcp, TIC_IdTic, ICP_Orden, TIC_DescripcionTic,
+                  TER_IDTerceroTic, TER_RazonSocialTerTic, TER_CUITTerTic
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  ecpIdForInsert,
+                  6, // TIC_IdTic = 6 para Destinatario
+                  currentOrden,
+                  "Destinatario",
+                  destinatarioId,
+                  destinatarioNombre,
+                  destinatarioCUIT,
+                ]
+              );
+              console.log('[DEBUG] Destinatario insertado en sige_icp_intcarpor', {
+                ecpId: ecpIdForInsert,
+                destinatarioId,
+              });
+            } catch (icpError: any) {
+              if (icpError?.code !== "ER_DUP_ENTRY") {
+                console.error('[DEBUG] Error al insertar destinatario en ICP:', icpError);
+              }
+            }
+          }
+
+          // 2. Insertar Transportista (TIC_IdTic = 8)
           if (Array.isArray(transRows) && transRows.length > 0) {
             const transportista = transRows[0];
             currentOrden += 1;
             const ordenTrans = currentOrden;
-
-            // Insertar Transportista (TIC_IdTic = 8)
             try {
               await connection.query(
                 `INSERT INTO sige_icp_intcarpor (
@@ -363,12 +405,11 @@ export async function POST(request: NextRequest) {
             }
           }
 
+          // 3. Insertar Chofer (TIC_IdTic = 9)
           if (Array.isArray(choferRows) && choferRows.length > 0) {
             const chofer = choferRows[0];
             currentOrden += 1;
             const ordenChofer = currentOrden;
-
-            // Insertar Chofer (TIC_IdTic = 9)
             try {
               await connection.query(
                 `INSERT INTO sige_icp_intcarpor (
@@ -612,10 +653,10 @@ export async function DELETE(request: NextRequest) {
         .map((r: any) => Number(r.ECP_IdEcp))
         .filter((n: number) => Number.isInteger(n));
 
-      // Verificar que el chofer esté postulado (TIC_IdTic = 9)
+      // Buscar la ECP específica de este chofer
       const placeholders = ecpIds.map(() => '?').join(', ');
       const [rows] = await connection.query<RowDataPacket[]>(
-        `SELECT ICP_IDIcp, TER_IDTerceroTic FROM sige_icp_intcarpor
+        `SELECT ECP_IdEcp, TER_IDTerceroTic FROM sige_icp_intcarpor
          WHERE ECP_IdEcp IN (${placeholders}) AND TER_IDTerceroTic = ? AND TIC_IdTic = 9
          LIMIT 1`,
         [...ecpIds, choferId]
@@ -629,24 +670,48 @@ export async function DELETE(request: NextRequest) {
         );
       }
 
-      // Eliminar chofer de intermediarios (TIC_IdTic = 9)
+      const ecpDelChofer = rows[0].ECP_IdEcp;
+
+      console.log('[DEBUG] Eliminando postulación', {
+        viajeId,
+        choferId,
+        ecpDelChofer,
+      });
+
+      // Eliminar TODOS los intermediarios de la ECP de este chofer (destinatario, transportista, chofer)
       await connection.query(
         `DELETE FROM sige_icp_intcarpor
-         WHERE ECP_IdEcp IN (${placeholders}) AND TER_IDTerceroTic = ? AND TIC_IdTic = 9`,
-        [...ecpIds, choferId]
+         WHERE ECP_IdEcp = ?`,
+        [ecpDelChofer]
       );
 
-      // También eliminar el transportista asociado (TIC_IdTic = 8) si existe
+      console.log('[DEBUG] Eliminados todos los intermediarios de ECP', ecpDelChofer);
+
+      // Eliminar registro DCP de esta ECP
       try {
         await connection.query(
-          `DELETE FROM sige_icp_intcarpor
-           WHERE ECP_IdEcp = ? AND TIC_IdTic = 8
-           LIMIT 1`,
-          [ecpIdEcp]
+          `DELETE FROM SIGE_DCP_DetCarPor
+           WHERE ecp_idecp = ?`,
+          [ecpDelChofer]
         );
+        console.log('[DEBUG] Eliminado registro DCP de ECP', ecpDelChofer);
       } catch (e) {
-        // No es crítico si no existe transportista
-        console.log('[DEBUG] No se eliminó transportista (puede que no exista)');
+        console.log('[DEBUG] No se pudo eliminar DCP (puede que no exista):', e);
+      }
+
+      // Si esta ECP NO es la primera del viaje, eliminarla completamente
+      const primeraEcp = ecpIds[0];
+      if (ecpDelChofer !== primeraEcp) {
+        try {
+          await connection.query(
+            `DELETE FROM sige_ecp_enccarpor
+             WHERE ECP_IdEcp = ?`,
+            [ecpDelChofer]
+          );
+          console.log('[DEBUG] Eliminada ECP completa', ecpDelChofer);
+        } catch (e) {
+          console.log('[DEBUG] No se pudo eliminar ECP:', e);
+        }
       }
 
       // Contar choferes restantes
