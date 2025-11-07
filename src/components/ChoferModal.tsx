@@ -108,17 +108,24 @@ export default function ChoferModal({
   const viajeId = viaje?.id ?? null;
   const [choferOptions, setChoferOptions] = useState<ChoferOption[]>([]);
   const [choferOptionsAll, setChoferOptionsAll] = useState<ChoferOption[]>([]);
-  const [choferPatentesById, setChoferPatentesById] = useState<Record<number, { patChasis: string; patAcoplado: string | null }>>({});
+  const [choferPatentesById, setChoferPatentesById] = useState<
+    Record<number, { patChasis: string; patAcoplado: string | null }>
+  >({});
 
-  const [transportistas, setTransportistas] = useState<TransportistaOption[]>([]);
-  const [selectedTransportistaId, setSelectedTransportistaId] = useState<number | null>(null);
+  const [transportistas, setTransportistas] = useState<TransportistaOption[]>(
+    []
+  );
+  const [selectedTransportistaId, setSelectedTransportistaId] = useState<
+    number | null
+  >(null);
   const [vendedores, setVendedores] = useState<Vendedor[]>([]);
   const [postulaciones, setPostulaciones] = useState<PostulacionRow[]>([]);
 
   const [loadingCatalogos, setLoadingCatalogos] = useState(false);
   const [loadingRelacion, setLoadingRelacion] = useState(false);
   const [loadingTransportistas, setLoadingTransportistas] = useState(false);
-  const [loadingChoferesPorTransportista, setLoadingChoferesPorTransportista] = useState(false);
+  const [loadingChoferesPorTransportista, setLoadingChoferesPorTransportista] =
+    useState(false);
   const [loadingPostulaciones, setLoadingPostulaciones] = useState(false);
 
   const [selectedChofer, setSelectedChofer] = useState<number | null>(null);
@@ -134,11 +141,13 @@ export default function ChoferModal({
   const [removingId, setRemovingId] = useState<number | string | null>(null);
 
   // Estados para el panel de autorizaciones
-  const [expandedAutorizacionId, setExpandedAutorizacionId] = useState<number | string | null>(null);
+  const [expandedAutorizacionId, setExpandedAutorizacionId] = useState<
+    number | string | null
+  >(null);
   const [estaciones, setEstaciones] = useState<EstacionServicio[]>([]);
   const [loadingEstaciones, setLoadingEstaciones] = useState(false);
   // Array unificado para todas las autorizaciones
-  type TipoEvento = 'adelanto' | 'combustible';
+  type TipoEvento = "adelanto" | "combustible";
   interface AutorizacionLinea {
     tempId: number;
     estacionId: number;
@@ -147,15 +156,27 @@ export default function ChoferModal({
     cantidad: number; // importe para adelanto, litros para combustible
   }
 
-  const [autorizacionesLineas, setAutorizacionesLineas] = useState<AutorizacionLinea[]>([]);
+  const [autorizacionesLineas, setAutorizacionesLineas] = useState<
+    AutorizacionLinea[]
+  >([]);
 
   // Estados temporales para el formulario de agregar línea
   const [tempEstacionId, setTempEstacionId] = useState<number | null>(null);
-  const [tempTipo, setTempTipo] = useState<TipoEvento>('combustible');
+  const [tempTipo, setTempTipo] = useState<TipoEvento>("combustible");
   const [tempCantidad, setTempCantidad] = useState<string>("");
 
   const [savingAutorizaciones, setSavingAutorizaciones] = useState(false);
-  const [autorizacionesGuardadas, setAutorizacionesGuardadas] = useState<Record<number | string, Array<{tipo: 'adelanto' | 'combustible', valor: number, estacion: string, renglonId?: number}>>>({});
+  const [autorizacionesGuardadas, setAutorizacionesGuardadas] = useState<
+    Record<
+      number | string,
+      Array<{
+        tipo: "adelanto" | "combustible";
+        valor: number;
+        estacion: string;
+        renglonId?: number;
+      }>
+    >
+  >({});
   const [nextTempId, setNextTempId] = useState(1);
 
   const [notification, setNotification] = useState<{
@@ -172,30 +193,46 @@ export default function ChoferModal({
     }
     setLoadingPostulaciones(true);
     try {
-      console.log('[FRONTEND] Cargando postulaciones para viaje:', viajeId);
+      console.log("[FRONTEND] Cargando postulaciones para viaje:", viajeId);
       const res = await fetch(`/api/viajes/postulaciones?viajeId=${viajeId}`);
       const data = await res.json();
-      console.log('[FRONTEND] Respuesta postulaciones:', { ok: res.ok, isArray: Array.isArray(data), length: data?.length, data });
+      console.log("[FRONTEND] Respuesta postulaciones:", {
+        ok: res.ok,
+        isArray: Array.isArray(data),
+        length: data?.length,
+        data,
+      });
       if (res.ok && Array.isArray(data)) {
-        console.log('[FRONTEND] Data RAW antes de mapear:', JSON.stringify(data, null, 2));
+        console.log(
+          "[FRONTEND] Data RAW antes de mapear:",
+          JSON.stringify(data, null, 2)
+        );
         const mapped = data.map((row: any) => {
-          console.log('[FRONTEND] Mapeando row:', row);
+          console.log("[FRONTEND] Mapeando row:", row);
           const result = {
             ...row,
             patChasis: row.patChasis ? row.patChasis.toUpperCase() : null,
             patAcoplado: row.patAcoplado ? row.patAcoplado.toUpperCase() : null,
           };
-          console.log('[FRONTEND] Row mapeada:', result);
+          console.log("[FRONTEND] Row mapeada:", result);
           return result;
         });
-        console.log('[FRONTEND] Seteando postulaciones:', mapped);
+        console.log("[FRONTEND] Seteando postulaciones:", mapped);
         setPostulaciones(mapped);
       } else {
-        console.log('[FRONTEND] No se cargaron postulaciones - res.ok:', res.ok, 'isArray:', Array.isArray(data));
+        console.log(
+          "[FRONTEND] No se cargaron postulaciones - res.ok:",
+          res.ok,
+          "isArray:",
+          Array.isArray(data)
+        );
         setPostulaciones([]);
       }
     } catch (error) {
-      console.error("[FRONTEND] Error al obtener postulaciones del viaje:", error);
+      console.error(
+        "[FRONTEND] Error al obtener postulaciones del viaje:",
+        error
+      );
       setPostulaciones([]);
     } finally {
       setLoadingPostulaciones(false);
@@ -214,21 +251,35 @@ export default function ChoferModal({
         console.log(`[DEBUG] Autorizaciones cargadas:`, data);
 
         // Agrupar autorizaciones por chofer ID
-        const autsPorChofer: Record<number | string, Array<{tipo: 'adelanto' | 'combustible', valor: number, estacion: string, renglonId?: number}>> = {};
+        const autsPorChofer: Record<
+          number | string,
+          Array<{
+            tipo: "adelanto" | "combustible";
+            valor: number;
+            estacion: string;
+            renglonId?: number;
+          }>
+        > = {};
 
         data.forEach((row: any) => {
           const choferId = row.choferId; // CHO_IdChofer from database
-          const esAdelanto = row.articuloDesc?.toUpperCase() === 'ADELANTO' || row.articuloId === 'ADE';
+          const esAdelanto =
+            row.articuloDesc?.toUpperCase() === "ADELANTO" ||
+            row.articuloId === "ADE";
 
           const autorizacion = {
-            tipo: esAdelanto ? 'adelanto' : 'combustible' as 'adelanto' | 'combustible',
-            valor: esAdelanto ? Number(row.importe || 0) : Number(row.cantidad || 0),
-            estacion: String(row.estacionNombre || 'Estación'),
-            renglonId: Number(row.renglon)
+            tipo: esAdelanto
+              ? "adelanto"
+              : ("combustible" as "adelanto" | "combustible"),
+            valor: esAdelanto
+              ? Number(row.importe || 0)
+              : Number(row.cantidad || 0),
+            estacion: String(row.estacionNombre || "Estación"),
+            renglonId: Number(row.renglon),
           };
 
           // Si existe choferId, agrupar por ese ID, si no, usar '_all' como fallback
-          const key = choferId ?? '_all';
+          const key = choferId ?? "_all";
           if (!autsPorChofer[key]) {
             autsPorChofer[key] = [];
           }
@@ -237,9 +288,14 @@ export default function ChoferModal({
 
         setAutorizacionesGuardadas(autsPorChofer);
 
-        console.log(`[DEBUG] Se encontraron ${data.length} autorizaciones guardadas agrupadas por chofer:`, autsPorChofer);
+        console.log(
+          `[DEBUG] Se encontraron ${data.length} autorizaciones guardadas agrupadas por chofer:`,
+          autsPorChofer
+        );
       } else {
-        console.warn('[DEBUG] No se pudieron cargar autorizaciones o respuesta inválida');
+        console.warn(
+          "[DEBUG] No se pudieron cargar autorizaciones o respuesta inválida"
+        );
       }
     } catch (error) {
       console.error("Error al cargar autorizaciones:", error);
@@ -275,24 +331,25 @@ export default function ChoferModal({
           throw new Error("No se pudieron obtener transportistas");
 
         const choferesData: Chofer[] = await rChoferes.json();
-        const optionsAll =
-          choferesData.map((c) => ({
-            id: c.id,
-            nombre: c.nombre,
-          }))
-        ;
+        const optionsAll = choferesData.map((c) => ({
+          id: c.id,
+          nombre: c.nombre,
+        }));
         setChoferOptionsAll(optionsAll);
         setChoferOptions(optionsAll);
 
         const vendedoresData: Vendedor[] = await rVendedores.json();
         setVendedores(vendedoresData);
 
-        const transportistasData: TransportistaOption[] = await rTransportistas.json();
+        const transportistasData: TransportistaOption[] =
+          await rTransportistas.json();
         setTransportistas(
-          (Array.isArray(transportistasData) ? transportistasData : []).map((t) => ({
-            id: Number(t.id),
-            nombre: t.nombre ?? `Transportista ${t.id}`,
-          }))
+          (Array.isArray(transportistasData) ? transportistasData : []).map(
+            (t) => ({
+              id: Number(t.id),
+              nombre: t.nombre ?? `Transportista ${t.id}`,
+            })
+          )
         );
       } catch (err: any) {
         console.error(err);
@@ -317,7 +374,7 @@ export default function ChoferModal({
     if (!isOpen || !viajeId) return;
     (async () => {
       try {
-        const res = await fetch('/api/auth/session');
+        const res = await fetch("/api/auth/session");
         if (!res.ok) return;
         const data = await res.json();
         const vendedorId = data?.user?.vendedorId;
@@ -325,7 +382,7 @@ export default function ChoferModal({
           setSelectedVendedor(Number(vendedorId));
         }
       } catch (err) {
-        console.log('[DEBUG] No se pudo obtener vendedor de sesión:', err);
+        console.log("[DEBUG] No se pudo obtener vendedor de sesión:", err);
       }
     })();
   }, [isOpen, viajeId, selectedVendedor]);
@@ -343,38 +400,63 @@ export default function ChoferModal({
     (async () => {
       setLoadingChoferesPorTransportista(true);
       try {
-        const res = await fetch(`/api/transportistas/${selectedTransportistaId}/choferes`);
+        const res = await fetch(
+          `/api/transportistas/${selectedTransportistaId}/choferes`
+        );
         const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "No se pudieron obtener choferes del transportista");
+        if (!res.ok)
+          throw new Error(
+            data?.error || "No se pudieron obtener choferes del transportista"
+          );
 
         if (abort) return;
 
-        const patMap: Record<number, { patChasis: string; patAcoplado: string | null }> = {};
-        const opts: ChoferOption[] = (Array.isArray(data) ? data : []).map((row: any) => {
-          const id = Number(row.id);
-          const nombre = String(row.nombre ?? `Chofer ${id}`);
-          const chasis = String(row.patChasis ?? "").toUpperCase();
-          const acoplado = row.patAcoplado ? String(row.patAcoplado).toUpperCase() : null;
-          patMap[id] = { patChasis: chasis, patAcoplado: acoplado };
-          const label = `${nombre} — ${chasis}${acoplado ? ` / ${acoplado}` : ""}`;
-          return { id, nombre: label };
-        });
+        const patMap: Record<
+          number,
+          { patChasis: string; patAcoplado: string | null }
+        > = {};
+        const opts: ChoferOption[] = (Array.isArray(data) ? data : []).map(
+          (row: any) => {
+            const id = Number(row.id);
+            const nombre = String(row.nombre ?? `Chofer ${id}`);
+            const chasis = String(row.patChasis ?? "").toUpperCase();
+            const acoplado = row.patAcoplado
+              ? String(row.patAcoplado).toUpperCase()
+              : null;
+            patMap[id] = { patChasis: chasis, patAcoplado: acoplado };
+            const label = `${nombre} — ${chasis}${
+              acoplado ? ` / ${acoplado}` : ""
+            }`;
+            return { id, nombre: label };
+          }
+        );
 
         setChoferPatentesById(patMap);
         setChoferOptions(opts);
         // Preseleccionar transportista info mínima para mostrar mientras verifica
-        const t = transportistas.find((t) => t.id === selectedTransportistaId) || null;
-        setTransportista(t ? { id: t.id, nombre: t.nombre, cuit: null, telefono: null, direccion: null } : null);
+        const t =
+          transportistas.find((t) => t.id === selectedTransportistaId) || null;
+        setTransportista(
+          t
+            ? {
+                id: t.id,
+                nombre: t.nombre,
+                cuit: null,
+                telefono: null,
+                direccion: null,
+              }
+            : null
+        );
         // Solo resetear chofer si no hay uno seleccionado (evita borrar el chofer al autocompletar transportista)
         setSelectedChofer((prev) => {
           // Si ya hay un chofer seleccionado y está en la lista de opciones del transportista, mantenerlo
-          if (prev && opts.some(opt => opt.id === prev)) {
+          if (prev && opts.some((opt) => opt.id === prev)) {
             return prev;
           }
           return null;
         });
         // Solo resetear patentes si se resetea el chofer
-        if (!selectedChofer || !opts.some(opt => opt.id === selectedChofer)) {
+        if (!selectedChofer || !opts.some((opt) => opt.id === selectedChofer)) {
           setPatChasis("");
           setPatAcoplado(null);
         }
@@ -383,7 +465,9 @@ export default function ChoferModal({
         setNotification({
           type: "error",
           title: "Error al cargar choferes",
-          message: err?.message || "No fue posible listar choferes de este transportista",
+          message:
+            err?.message ||
+            "No fue posible listar choferes de este transportista",
           isVisible: true,
         });
         setChoferOptions([]);
@@ -484,7 +568,8 @@ export default function ChoferModal({
       setLoadingEstaciones(true);
       try {
         const res = await fetch("/api/estaciones-servicio");
-        if (!res.ok) throw new Error("No se pudieron cargar las estaciones de servicio");
+        if (!res.ok)
+          throw new Error("No se pudieron cargar las estaciones de servicio");
         const data: EstacionServicio[] = await res.json();
         setEstaciones(data);
       } catch (err: any) {
@@ -492,7 +577,8 @@ export default function ChoferModal({
         setNotification({
           type: "error",
           title: "Error al cargar estaciones",
-          message: err?.message || "No se pudieron cargar las estaciones de servicio",
+          message:
+            err?.message || "No se pudieron cargar las estaciones de servicio",
           isVisible: true,
         });
       } finally {
@@ -509,7 +595,6 @@ export default function ChoferModal({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen, onClose]);
-
 
   if (!isOpen || !viaje) return null;
 
@@ -697,7 +782,7 @@ export default function ChoferModal({
   const resetAutorizacionForm = () => {
     setAutorizacionesLineas([]);
     setTempEstacionId(null);
-    setTempTipo('combustible');
+    setTempTipo("combustible");
     setTempCantidad("");
     setNextTempId(1);
   };
@@ -705,13 +790,16 @@ export default function ChoferModal({
   // Función para agregar y guardar una línea de autorización directamente
   const agregarLinea = async (row: PostulacionRow) => {
     if (!tempEstacionId || !tempCantidad || Number(tempCantidad) <= 0) {
-      console.warn('[DEBUG] Validación fallida:', { tempEstacionId, tempCantidad });
+      console.warn("[DEBUG] Validación fallida:", {
+        tempEstacionId,
+        tempCantidad,
+      });
       return;
     }
 
-    const estacion = estaciones.find(e => e.id === tempEstacionId);
+    const estacion = estaciones.find((e) => e.id === tempEstacionId);
     if (!estacion) {
-      console.warn('[DEBUG] Estación no encontrada:', tempEstacionId);
+      console.warn("[DEBUG] Estación no encontrada:", tempEstacionId);
       return;
     }
 
@@ -725,13 +813,13 @@ export default function ChoferModal({
         patAcoplado: row.patAcoplado || null,
       };
 
-      if (tempTipo === 'adelanto') {
+      if (tempTipo === "adelanto") {
         payload.adelantos = [{ importe: Number(tempCantidad) }];
       } else {
         payload.combustibles = [{ litros: Number(tempCantidad) }];
       }
 
-      console.log('[DEBUG] Enviando autorización:', payload);
+      console.log("[DEBUG] Enviando autorización:", payload);
 
       const res = await fetch("/api/viajes/autorizaciones", {
         method: "POST",
@@ -740,57 +828,76 @@ export default function ChoferModal({
       });
 
       const data = await res.json().catch(() => ({} as any));
-      console.log('[DEBUG] Respuesta del servidor:', { status: res.status, data });
+      console.log("[DEBUG] Respuesta del servidor:", {
+        status: res.status,
+        data,
+      });
 
       if (!res.ok) {
-        if (data?.error?.includes("chofer no postulado") || data?.error?.includes("no pertenece")) {
-          throw new Error("Este chofer ya no pertenece al viaje. Actualizá la lista antes de autorizar");
+        if (
+          data?.error?.includes("chofer no postulado") ||
+          data?.error?.includes("no pertenece")
+        ) {
+          throw new Error(
+            "Este chofer ya no pertenece al viaje. Actualizá la lista antes de autorizar"
+          );
         }
         throw new Error(data?.error || "Error al guardar autorización");
       }
 
       // Obtener el renglonId guardado
       let renglonId: number | undefined;
-      if (tempTipo === 'adelanto' && Array.isArray(data?.renglones?.adelantos)) {
+      if (
+        tempTipo === "adelanto" &&
+        Array.isArray(data?.renglones?.adelantos)
+      ) {
         renglonId = data.renglones.adelantos[0];
-      } else if (tempTipo === 'combustible' && Array.isArray(data?.renglones?.combustibles)) {
+      } else if (
+        tempTipo === "combustible" &&
+        Array.isArray(data?.renglones?.combustibles)
+      ) {
         renglonId = data.renglones.combustibles[0];
       }
 
-      console.log('[DEBUG] Renglón ID recibido:', renglonId);
+      console.log("[DEBUG] Renglón ID recibido:", renglonId);
 
       // Agregar a las autorizaciones guardadas
       const nuevaAutorizacion = {
         tipo: tempTipo,
         valor: Number(tempCantidad),
         estacion: estacion.razonSocial,
-        renglonId
+        renglonId,
       };
 
-      console.log('[DEBUG] Agregando autorización al estado local:', nuevaAutorizacion);
+      console.log(
+        "[DEBUG] Agregando autorización al estado local:",
+        nuevaAutorizacion
+      );
 
-      setAutorizacionesGuardadas(prev => {
+      setAutorizacionesGuardadas((prev) => {
         const updated = {
           ...prev,
-          [row.id]: [...(prev[row.id] || []), nuevaAutorizacion]
+          [row.id]: [...(prev[row.id] || []), nuevaAutorizacion],
         };
-        console.log('[DEBUG] Estado actualizado de autorizaciones:', updated);
+        console.log("[DEBUG] Estado actualizado de autorizaciones:", updated);
         return updated;
       });
 
       setNotification({
         type: "success",
         title: "✓ Autorización guardada",
-        message: `${tempTipo === 'adelanto' ? 'Adelanto' : 'Combustible'} guardado correctamente (Renglón ${renglonId})`,
+        message: `${
+          tempTipo === "adelanto" ? "Adelanto" : "Combustible"
+        } guardado correctamente (Renglón ${renglonId})`,
         isVisible: true,
       });
 
       // Resetear TODOS los campos para permitir agregar otra autorización
       setTempEstacionId(null);
-      setTempTipo('combustible');
+      setTempTipo("combustible");
       setTempCantidad("");
     } catch (err: any) {
-      console.error('[DEBUG] Error al guardar autorización:', err);
+      console.error("[DEBUG] Error al guardar autorización:", err);
       setNotification({
         type: "error",
         title: "Error al guardar",
@@ -803,7 +910,7 @@ export default function ChoferModal({
   };
 
   const eliminarLinea = (tempId: number) => {
-    setAutorizacionesLineas(prev => prev.filter(l => l.tempId !== tempId));
+    setAutorizacionesLineas((prev) => prev.filter((l) => l.tempId !== tempId));
   };
 
   const handleSaveAutorizaciones = async (row: PostulacionRow) => {
@@ -829,16 +936,21 @@ export default function ChoferModal({
           };
         }
 
-        if (linea.tipo === 'adelanto') {
+        if (linea.tipo === "adelanto") {
           acc[linea.estacionId].adelantos.push({ importe: linea.cantidad });
         } else {
           acc[linea.estacionId].combustibles.push({ litros: linea.cantidad });
         }
 
         return acc;
-      }, {} as Record<number, { estacionNombre: string; adelantos: Array<{importe: number}>; combustibles: Array<{litros: number}> }>);
+      }, {} as Record<number, { estacionNombre: string; adelantos: Array<{ importe: number }>; combustibles: Array<{ litros: number }> }>);
 
-      const nuevasAutorizaciones: Array<{tipo: 'adelanto' | 'combustible', valor: number, estacion: string, renglonId?: number}> = [];
+      const nuevasAutorizaciones: Array<{
+        tipo: "adelanto" | "combustible";
+        valor: number;
+        estacion: string;
+        renglonId?: number;
+      }> = [];
 
       // Procesar cada estación
       for (const [estacionIdStr, datos] of Object.entries(lineasPorEstacion)) {
@@ -868,8 +980,13 @@ export default function ChoferModal({
 
         const data = await res.json().catch(() => ({} as any));
         if (!res.ok) {
-          if (data?.error?.includes("chofer no postulado") || data?.error?.includes("no pertenece")) {
-            throw new Error("Este chofer ya no pertenece al viaje. Actualizá la lista antes de autorizar");
+          if (
+            data?.error?.includes("chofer no postulado") ||
+            data?.error?.includes("no pertenece")
+          ) {
+            throw new Error(
+              "Este chofer ya no pertenece al viaje. Actualizá la lista antes de autorizar"
+            );
           }
           throw new Error(data?.error || "Error al guardar autorizaciones");
         }
@@ -878,10 +995,10 @@ export default function ChoferModal({
         if (Array.isArray(data?.renglones?.adelantos)) {
           datos.adelantos.forEach((adelanto, idx) => {
             nuevasAutorizaciones.push({
-              tipo: 'adelanto',
+              tipo: "adelanto",
               valor: adelanto.importe,
               estacion: datos.estacionNombre,
-              renglonId: data.renglones.adelantos[idx]
+              renglonId: data.renglones.adelantos[idx],
             });
           });
         }
@@ -890,22 +1007,24 @@ export default function ChoferModal({
         if (Array.isArray(data?.renglones?.combustibles)) {
           datos.combustibles.forEach((combustible, idx) => {
             nuevasAutorizaciones.push({
-              tipo: 'combustible',
+              tipo: "combustible",
               valor: combustible.litros,
               estacion: datos.estacionNombre,
-              renglonId: data.renglones.combustibles[idx]
+              renglonId: data.renglones.combustibles[idx],
             });
           });
         }
       }
 
-      setAutorizacionesGuardadas(prev => ({
+      setAutorizacionesGuardadas((prev) => ({
         ...prev,
-        [row.id]: [...(prev[row.id] || []), ...nuevasAutorizaciones]
+        [row.id]: [...(prev[row.id] || []), ...nuevasAutorizaciones],
       }));
 
       const totalLineas = autorizacionesLineas.length;
-      const mensaje = `Se guardaron ${totalLineas} línea${totalLineas !== 1 ? 's' : ''} de autorización`;
+      const mensaje = `Se guardaron ${totalLineas} línea${
+        totalLineas !== 1 ? "s" : ""
+      } de autorización`;
 
       setNotification({
         type: "success",
@@ -922,7 +1041,8 @@ export default function ChoferModal({
       setNotification({
         type: "error",
         title: "Error al guardar",
-        message: err?.message ?? "Ocurrió un error al guardar las autorizaciones",
+        message:
+          err?.message ?? "Ocurrió un error al guardar las autorizaciones",
         isVisible: true,
       });
     } finally {
@@ -931,62 +1051,62 @@ export default function ChoferModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex md:items-center md:justify-center md:p-4"
-    >
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex md:items-center md:justify-center md:p-2">
       <div
         role="dialog"
         aria-modal="true"
-        className="bg-gradient-to-br from-neutral-900 to-neutral-800 text-white w-full h-full md:h-auto md:max-w-5xl md:rounded-lg p-4 md:p-6 shadow-2xl border-0 md:border border-neutral-700 overflow-y-auto"
+        className="bg-gradient-to-br from-neutral-900 to-neutral-800 text-white w-full h-full md:h-auto md:max-w-6xl md:rounded-lg p-2 md:p-3 shadow-2xl border-0 md:border border-neutral-700 overflow-y-auto"
       >
-        <div className="flex items-start justify-between mb-4 sticky top-0 bg-gradient-to-br from-neutral-900 to-neutral-800 z-10 pb-3 -mx-4 px-4 md:-mx-6 md:px-6">
+        <div className="flex items-start justify-between mb-2 sticky top-0 bg-gradient-to-br from-neutral-900 to-neutral-800 z-10 pb-1.5 -mx-2 px-2 md:-mx-3 md:px-3">
           <div className="flex-1">
-            <h2 className="text-lg md:text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            <h2 className="text-sm md:text-base font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent leading-tight">
               Choferes
             </h2>
-            <p className="text-xs text-neutral-400 mt-0.5 hidden md:block">
+            <p className="text-xs text-neutral-400 hidden md:block leading-tight">
               Gestiona los choferes para este viaje
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-10 h-10 flex items-center justify-center bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors duration-200 border border-neutral-600 ml-3 shrink-0"
+            className="w-7 h-7 flex items-center justify-center bg-neutral-800 hover:bg-neutral-700 rounded text-sm transition-colors duration-200 border border-neutral-600 ml-2 shrink-0"
             aria-label="Cerrar"
           >
             ✕
           </button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          <div className="bg-neutral-800/50 rounded-md p-3 border border-neutral-700">
-            <span className="text-xs text-blue-400 font-medium block mb-1">Total</span>
-            <div className="text-xl md:text-2xl font-bold text-white">
+        <div className="grid grid-cols-4 gap-1.5 mb-2">
+          <div className="bg-neutral-800/50 rounded p-1.5 border border-neutral-700">
+            <span className="text-xs text-blue-400 font-medium block leading-tight">
+              Total
+            </span>
+            <div className="text-base md:text-lg font-bold text-white leading-tight">
               {viaje.cupos ?? 0}
             </div>
           </div>
-          <div className="bg-neutral-800/50 rounded-md p-3 border border-neutral-700">
-            <span className="text-xs text-orange-400 font-medium block mb-1">
-              Reservados
+          <div className="bg-neutral-800/50 rounded p-1.5 border border-neutral-700">
+            <span className="text-xs text-orange-400 font-medium block leading-tight">
+              Reserv.
             </span>
-            <div className="text-xl md:text-2xl font-bold text-white">
+            <div className="text-base md:text-lg font-bold text-white leading-tight">
               {viaje.cuposReservados ?? 0}
             </div>
           </div>
-          <div className="bg-neutral-800/50 rounded-md p-3 border border-neutral-700">
-            <span className="text-xs text-purple-400 font-medium block mb-1">
-              Postulados
+          <div className="bg-neutral-800/50 rounded p-1.5 border border-neutral-700">
+            <span className="text-xs text-purple-400 font-medium block leading-tight">
+              Postul.
             </span>
-            <div className="text-xl md:text-2xl font-bold text-white">
+            <div className="text-base md:text-lg font-bold text-white leading-tight">
               {postuladosActuales}
             </div>
           </div>
-          <div className="bg-neutral-800/50 rounded-md p-3 border border-neutral-700">
-            <span className="text-xs text-green-400 font-medium block mb-1">
-              Disponibles
+          <div className="bg-neutral-800/50 rounded p-1.5 border border-neutral-700">
+            <span className="text-xs text-green-400 font-medium block leading-tight">
+              Dispon.
             </span>
             <div
-              className={`text-xl md:text-2xl font-bold ${
+              className={`text-base md:text-lg font-bold leading-tight ${
                 pendientesCalculados > 0 ? "text-green-400" : "text-red-400"
               }`}
             >
@@ -995,13 +1115,13 @@ export default function ChoferModal({
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-neutral-800/40 to-neutral-700/40 border border-neutral-600 rounded-md p-3 md:p-4 mb-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+        <div className="bg-gradient-to-r from-neutral-800/40 to-neutral-700/40 border border-neutral-600 rounded p-1.5 mb-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-1.5 text-xs">
             <div className="flex items-center justify-between md:block">
-              <span className="text-neutral-400 text-xs block mb-1">
+              <span className="text-neutral-400 leading-tight">
                 Viaje #{viaje.numero}
               </span>
-              <div className="font-medium text-white">
+              <div className="font-medium text-white leading-tight">
                 {new Date(viaje.fecha).toLocaleDateString("es-ES", {
                   day: "2-digit",
                   month: "2-digit",
@@ -1009,20 +1129,22 @@ export default function ChoferModal({
               </div>
             </div>
             <div className="md:col-span-2">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
                 <div>
-                  <span className="text-neutral-400 text-xs block mb-1">Cliente</span>
+                  <span className="text-neutral-400 leading-tight">
+                    Cliente
+                  </span>
                   <div
-                    className="font-medium text-white truncate"
+                    className="font-medium text-white truncate leading-tight"
                     title={viaje.razonSocial}
                   >
                     {viaje.razonSocial}
                   </div>
                 </div>
                 <div>
-                  <span className="text-neutral-400 text-xs block mb-1">Ruta</span>
+                  <span className="text-neutral-400 leading-tight">Ruta</span>
                   <div
-                    className="font-medium text-white truncate"
+                    className="font-medium text-white truncate leading-tight"
                     title={`${viaje.origen} → ${viaje.destino}`}
                   >
                     {viaje.origen} → {viaje.destino}
@@ -1033,757 +1155,22 @@ export default function ChoferModal({
           </div>
         </div>
 
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Vista mobile: Cards */}
-          <div className="md:hidden space-y-3">
-            {postulaciones.length === 0 && !loadingPostulaciones && (
-              <div className="text-center py-8 text-neutral-400 text-sm">
-                No hay choferes postulados para este viaje.
-              </div>
-            )}
-            {loadingPostulaciones && (
-              <div className="py-4 text-center">
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-xs text-blue-400">Actualizando...</span>
-                </div>
-              </div>
-            )}
-            {postulaciones.map((row, index) => (
-              <div
-                key={`mobile-postulacion-${row.id}`}
-                className="bg-neutral-900/60 border border-neutral-700 rounded-md p-3"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2 flex-1">
-                    <span className="text-neutral-400 text-xs">
-                      #{index + 1}
-                    </span>
-                    <div className="flex-1">
-                      <div className="text-white font-medium text-sm">
-                        {row.choferNombre ?? "Sin datos"}
-                      </div>
-                      <div className="text-neutral-400 text-xs">
-                        ID: {row.choferId}
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(row)}
-                    disabled={removingId === row.id}
-                    className="w-11 h-11 flex items-center justify-center text-sm rounded-md bg-red-600 hover:bg-red-500 active:bg-red-700 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200 shrink-0"
-                    aria-label="Eliminar"
-                  >
-                    {removingId === row.id ? "..." : "✖"}
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs mb-2">
-                  <div>
-                    <span className="text-neutral-400">Transportista:</span>
-                    <div className="text-white font-medium">
-                      {row.transportistaNombre ?? "Sin datos"}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-neutral-400">ID Trans:</span>
-                    <div className="text-neutral-300">
-                      {row.transporteId ?? "N/A"}
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-                  <div>
-                    <span className="text-neutral-400">Chasis:</span>
-                    <div className="font-mono text-green-400">
-                      {formatPatente(row.patChasis)}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-neutral-400">Acoplado:</span>
-                    <div className="font-mono text-blue-400">
-                      {formatPatente(row.patAcoplado)}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-neutral-400">Vendedor:</span>
-                    <div className="text-white">
-                      {row.vendedorNombre ?? "-"}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-neutral-400">Email:</span>
-                    <input
-                      type="checkbox"
-                      checked={row.sendEmail}
-                      readOnly
-                      disabled
-                      className="scale-75"
-                    />
-                  </div>
-                </div>
-
-                {/* Botón Autorizaciones Mobile */}
-                <button
-                  type="button"
-                  onClick={() => toggleAutorizacionPanel(row.id)}
-                  className="w-full px-3 py-2 text-sm rounded-md bg-blue-600 hover:bg-blue-500 active:bg-blue-700 transition-colors duration-200"
-                >
-                  {expandedAutorizacionId === row.id ? "▼ Ocultar" : "▶ Autorizaciones"}
-                </button>
-
-                {/* Panel de autorizaciones mobile */}
-                {expandedAutorizacionId === row.id && (
-                  <div className="mt-3 p-3 bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-600/30 rounded-md space-y-3">
-                    <h3 className="text-sm font-bold text-blue-400">
-                      Gestión de Autorizaciones
-                    </h3>
-
-                    {/* Lista de autorizaciones guardadas */}
-                    {(autorizacionesGuardadas[row.id] || autorizacionesGuardadas['_all']) &&
-                     (autorizacionesGuardadas[row.id]?.length > 0 || autorizacionesGuardadas['_all']?.length > 0) && (
-                      <div className="bg-neutral-900/30 rounded-md p-3 border border-neutral-600/50">
-                        <div className="text-xs font-bold text-neutral-300 mb-2">
-                          📋 Autorizaciones guardadas ({(autorizacionesGuardadas[row.id] || autorizacionesGuardadas['_all']).length})
-                        </div>
-                        <div className="space-y-2">
-                          {(autorizacionesGuardadas[row.id] || autorizacionesGuardadas['_all']).map((aut, idx) => (
-                            <div
-                              key={idx}
-                              className={`rounded-md p-2 border ${
-                                aut.tipo === 'adelanto'
-                                  ? 'bg-green-900/20 border-green-600/30'
-                                  : 'bg-blue-900/20 border-blue-600/30'
-                              }`}
-                            >
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-lg">{aut.tipo === 'adelanto' ? '💸' : '⛽'}</span>
-                                    <span className={`text-sm font-bold ${
-                                      aut.tipo === 'adelanto' ? 'text-green-400' : 'text-blue-400'
-                                    }`}>
-                                      {aut.tipo === 'adelanto' ? 'Adelanto' : 'Combustible'}
-                                    </span>
-                                  </div>
-                                  <div className="text-xs text-neutral-300 space-y-0.5">
-                                    <div><span className="text-neutral-400">Estación:</span> {aut.estacion}</div>
-                                    <div>
-                                      <span className="text-neutral-400">
-                                        {aut.tipo === 'adelanto' ? 'Importe:' : 'Litros:'}
-                                      </span>
-                                      <span className={`font-mono ml-1 font-bold ${
-                                        aut.tipo === 'adelanto' ? 'text-green-400' : 'text-blue-400'
-                                      }`}>
-                                        {aut.tipo === 'adelanto' ? `$${aut.valor.toFixed(2)}` : `${aut.valor.toFixed(2)} L`}
-                                      </span>
-                                    </div>
-                                    {aut.renglonId && (
-                                      <div className="text-neutral-500">Renglón: {aut.renglonId}</div>
-                                    )}
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (confirm('¿Eliminar esta autorización?')) {
-                                      // TODO: Implementar eliminación
-                                      alert('Función de eliminar en desarrollo');
-                                    }
-                                  }}
-                                  className="text-red-400 hover:text-red-300 text-sm ml-2 px-2 py-1"
-                                >
-                                  ✖
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Formulario para agregar nueva línea */}
-                    <div className="bg-neutral-900/50 rounded-md p-3 border border-neutral-700/50 space-y-3">
-                      <div className="text-sm font-medium text-neutral-200">+ Agregar Autorización</div>
-
-                      {/* Selector de estación */}
-                      <div>
-                        <label className="text-xs text-neutral-400 mb-1 block">Estación</label>
-                        <div className="flex gap-2">
-                          <div className="flex-1">
-                            <SearchableSelect
-                              options={estaciones.map((e) => ({
-                                id: e.id,
-                                nombre: `${e.razonSocial}`,
-                              }))}
-                              valueId={tempEstacionId}
-                              onChangeId={(id) => setTempEstacionId(Number(id))}
-                              placeholder={loadingEstaciones ? "Cargando..." : "Seleccionar estación"}
-                              name="estacion-mobile"
-                              loading={loadingEstaciones}
-                            />
-                          </div>
-                          {tempEstacionId && (
-                            <button
-                              type="button"
-                              onClick={() => setTempEstacionId(null)}
-                              className="w-11 h-11 flex items-center justify-center text-sm rounded bg-red-600 hover:bg-red-500 active:bg-red-700 transition-colors duration-200 shrink-0"
-                              title="Limpiar selección"
-                              aria-label="Limpiar estación"
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Tipo de evento */}
-                      <div>
-                        <label className="text-xs text-neutral-400 mb-1 block">Tipo</label>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setTempTipo('combustible')}
-                            className={`flex-1 px-3 py-2 text-xs rounded-md transition-colors duration-200 ${
-                              tempTipo === 'combustible'
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-neutral-700 text-neutral-300 hover:bg-neutral-600'
-                            }`}
-                          >
-                            ⛽ Combustible
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setTempTipo('adelanto')}
-                            className={`flex-1 px-3 py-2 text-xs rounded-md transition-colors duration-200 ${
-                              tempTipo === 'adelanto'
-                                ? 'bg-green-600 text-white'
-                                : 'bg-neutral-700 text-neutral-300 hover:bg-neutral-600'
-                            }`}
-                          >
-                            💸 Adelanto
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Cantidad */}
-                      <div>
-                        <label className="text-xs text-neutral-400 mb-1 block">
-                          {tempTipo === 'adelanto' ? 'Importe ($)' : 'Litros'}
-                        </label>
-                        <div className="flex gap-2">
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={tempCantidad}
-                            onChange={(e) => setTempCantidad(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && tempEstacionId && Number(tempCantidad) > 0 && !savingAutorizaciones) {
-                                agregarLinea(row);
-                              }
-                            }}
-                            className="flex-1 rounded bg-neutral-900 px-3 py-2 text-sm border border-neutral-700 min-h-[44px]"
-                            placeholder={tempTipo === 'adelanto' ? 'Importe en $' : 'Litros'}
-                            disabled={savingAutorizaciones}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => agregarLinea(row)}
-                            disabled={!tempEstacionId || !tempCantidad || Number(tempCantidad) <= 0 || savingAutorizaciones}
-                            className="px-4 py-2 text-sm font-bold rounded-md bg-purple-600 hover:bg-purple-500 active:bg-purple-700 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200 min-h-[44px]"
-                          >
-                            {savingAutorizaciones ? "..." : "+"}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Botón Cerrar */}
-                    <button
-                      type="button"
-                      onClick={() => toggleAutorizacionPanel(row.id)}
-                      className="w-full px-4 py-3 text-sm rounded-md bg-neutral-700 hover:bg-neutral-600 active:bg-neutral-800 transition-colors duration-200 min-h-[44px]"
-                    >
-                      Cerrar
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Vista desktop: Tabla */}
-          <div className="hidden md:block overflow-x-auto border border-neutral-700 rounded-md shadow-lg">
-            <table className="min-w-full text-xs">
-              <thead className="bg-gradient-to-r from-neutral-800 to-neutral-700 text-neutral-200">
-                <tr>
-                  <th className="px-2 py-2 text-left w-8 font-medium">#</th>
-                  <th className="px-2 py-2 text-left font-medium">Chofer</th>
-                  <th className="px-2 py-2 text-left font-medium">
-                    Transportista
-                  </th>
-                  <th className="px-2 py-2 text-left font-medium">Patentes</th>
-                  <th className="px-2 py-2 text-center font-medium">Email</th>
-                  <th className="px-2 py-2 text-left font-medium">Vendedor</th>
-                  <th className="px-2 py-2 text-center font-medium" colSpan={2}>
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {postulaciones.length === 0 && !loadingPostulaciones && (
-                  <tr>
-                    <td
-                      colSpan={8}
-                      className="px-4 py-4 text-center text-neutral-400 text-sm"
-                    >
-                      No hay choferes postulados para este viaje.
-                    </td>
-                  </tr>
-                )}
-                {postulaciones.map((row, index) => (
-                  <React.Fragment key={`postulacion-fragment-${row.id}`}>
-                    <tr
-                      className="border-t border-neutral-700 bg-neutral-900/60 hover:bg-neutral-800/80 transition-colors duration-200"
-                    >
-                      <td className="px-2 py-2 align-middle text-neutral-300">
-                        {index + 1}
-                      </td>
-                      <td className="px-2 py-2 align-middle">
-                        <div className="text-neutral-200 font-medium">
-                          {row.choferNombre ?? "Sin datos"}
-                        </div>
-                        <div className="text-neutral-400 text-xs">
-                          ID: {row.choferId}
-                        </div>
-                      </td>
-                      <td className="px-2 py-2 align-middle">
-                        <div className="text-neutral-200 font-medium text-xs">
-                          {row.transportistaNombre ?? "Sin datos"}
-                        </div>
-                        <div className="text-neutral-400 text-xs">
-                          ID: {row.transporteId ?? "N/A"}
-                        </div>
-                      </td>
-                      <td className="px-2 py-2 align-middle">
-                        <div className="font-mono text-xs text-green-400">
-                          {formatPatente(row.patChasis)}
-                        </div>
-                        <div className="font-mono text-xs text-blue-400">
-                          {formatPatente(row.patAcoplado)}
-                        </div>
-                      </td>
-                      <td className="px-2 py-2 align-middle text-center">
-                        <input
-                          type="checkbox"
-                          checked={row.sendEmail}
-                          readOnly
-                          disabled
-                          className="scale-75"
-                        />
-                      </td>
-                      <td className="px-2 py-2 align-middle text-neutral-200 text-xs">
-                        {row.vendedorNombre ?? "-"}
-                      </td>
-                      <td className="px-3 py-2 align-middle text-center">
-                        <button
-                          type="button"
-                          onClick={() => toggleAutorizacionPanel(row.id)}
-                          className="px-3 py-1 text-xs rounded-md bg-blue-600 hover:bg-blue-500 transition-colors duration-200"
-                        >
-                          {expandedAutorizacionId === row.id ? "▼" : "▶"} Autorizaciones
-                        </button>
-                      </td>
-                      <td className="px-3 py-2 align-middle text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleRemove(row)}
-                          disabled={removingId === row.id}
-                          className="px-3 py-1 text-xs rounded-md bg-red-600 hover:bg-red-500 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200"
-                        >
-                          {removingId === row.id ? "..." : "✖"}
-                        </button>
-                      </td>
-                    </tr>
-                    {expandedAutorizacionId === row.id && (
-                      <tr key={`autorizacion-panel-${row.id}`}>
-                        <td colSpan={8} className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border-t border-blue-600/30">
-                          <div className="p-4 space-y-4">
-                            <h3 className="text-sm font-bold text-blue-400 mb-3">
-                              Gestión de Autorizaciones
-                            </h3>
-
-                            {/* Lista de autorizaciones guardadas */}
-                            {(autorizacionesGuardadas[row.id] || autorizacionesGuardadas['_all']) &&
-                             (autorizacionesGuardadas[row.id]?.length > 0 || autorizacionesGuardadas['_all']?.length > 0) && (
-                              <div className="bg-neutral-900/30 rounded-md p-3 border border-neutral-600/50">
-                                <div className="text-xs font-bold text-neutral-300 mb-3">
-                                  📋 Autorizaciones guardadas ({(autorizacionesGuardadas[row.id] || autorizacionesGuardadas['_all']).length})
-                                </div>
-                                <div className="grid grid-cols-1 gap-2">
-                                  {(autorizacionesGuardadas[row.id] || autorizacionesGuardadas['_all']).map((aut, idx) => (
-                                    <div
-                                      key={idx}
-                                      className={`rounded-md p-2 border flex items-center gap-3 ${
-                                        aut.tipo === 'adelanto'
-                                          ? 'bg-green-900/20 border-green-600/30'
-                                          : 'bg-blue-900/20 border-blue-600/30'
-                                      }`}
-                                    >
-                                      <span className="text-xl">{aut.tipo === 'adelanto' ? '💸' : '⛽'}</span>
-                                      <div className="flex-1 grid grid-cols-4 gap-2 text-xs">
-                                        <div>
-                                          <span className="text-neutral-400 block">Tipo</span>
-                                          <span className={`font-medium ${
-                                            aut.tipo === 'adelanto' ? 'text-green-400' : 'text-blue-400'
-                                          }`}>
-                                            {aut.tipo === 'adelanto' ? 'Adelanto' : 'Combustible'}
-                                          </span>
-                                        </div>
-                                        <div className="col-span-2">
-                                          <span className="text-neutral-400 block">Estación</span>
-                                          <span className="text-neutral-200">{aut.estacion}</span>
-                                        </div>
-                                        <div>
-                                          <span className="text-neutral-400 block">
-                                            {aut.tipo === 'adelanto' ? 'Importe' : 'Litros'}
-                                          </span>
-                                          <span className={`font-mono font-bold ${
-                                            aut.tipo === 'adelanto' ? 'text-green-400' : 'text-blue-400'
-                                          }`}>
-                                            {aut.tipo === 'adelanto' ? `$${aut.valor.toFixed(2)}` : `${aut.valor.toFixed(2)} L`}
-                                          </span>
-                                        </div>
-                                      </div>
-                                      {aut.renglonId && (
-                                        <div className="text-neutral-500 text-xs">
-                                          Renglón: {aut.renglonId}
-                                        </div>
-                                      )}
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          if (confirm('¿Eliminar esta autorización?')) {
-                                            // TODO: Implementar eliminación
-                                            alert('Función de eliminar en desarrollo');
-                                          }
-                                        }}
-                                        className="text-red-400 hover:text-red-300 text-xs px-2 py-1"
-                                      >
-                                        ✖
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Formulario para agregar nueva línea */}
-                            <div className="bg-neutral-900/50 rounded-md p-3 border border-neutral-700/50 space-y-3">
-                              <div className="text-sm font-medium text-neutral-200">+ Agregar Autorización</div>
-
-                              <div className="grid grid-cols-3 gap-3">
-                                {/* Selector de estación */}
-                                <div>
-                                  <label className="text-xs text-neutral-400 mb-1 block">Estación</label>
-                                  <div className="flex gap-2">
-                                    <div className="flex-1">
-                                      <SearchableSelect
-                                        options={estaciones.map((e) => ({
-                                          id: e.id,
-                                          nombre: `${e.razonSocial}`,
-                                        }))}
-                                        valueId={tempEstacionId}
-                                        onChangeId={(id) => setTempEstacionId(Number(id))}
-                                        placeholder={loadingEstaciones ? "Cargando..." : "Seleccionar estación"}
-                                        name="estacion"
-                                        loading={loadingEstaciones}
-                                      />
-                                    </div>
-                                    {tempEstacionId && (
-                                      <button
-                                        type="button"
-                                        onClick={() => setTempEstacionId(null)}
-                                        className="w-7 h-7 flex items-center justify-center text-xs rounded bg-red-600 hover:bg-red-500 transition-colors duration-200 shrink-0"
-                                        title="Limpiar selección"
-                                        aria-label="Limpiar estación"
-                                      >
-                                        ✕
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Tipo de evento */}
-                                <div>
-                                  <label className="text-xs text-neutral-400 mb-1 block">Tipo</label>
-                                  <div className="flex gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => setTempTipo('combustible')}
-                                      className={`flex-1 px-2 py-1.5 text-xs rounded-md transition-colors duration-200 ${
-                                        tempTipo === 'combustible'
-                                          ? 'bg-blue-600 text-white'
-                                          : 'bg-neutral-700 text-neutral-300 hover:bg-neutral-600'
-                                      }`}
-                                    >
-                                      ⛽
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setTempTipo('adelanto')}
-                                      className={`flex-1 px-2 py-1.5 text-xs rounded-md transition-colors duration-200 ${
-                                        tempTipo === 'adelanto'
-                                          ? 'bg-green-600 text-white'
-                                          : 'bg-neutral-700 text-neutral-300 hover:bg-neutral-600'
-                                      }`}
-                                    >
-                                      💸
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* Cantidad */}
-                                <div>
-                                  <label className="text-xs text-neutral-400 mb-1 block">
-                                    {tempTipo === 'adelanto' ? '$ Importe' : 'Litros'}
-                                  </label>
-                                  <div className="flex gap-2">
-                                    <input
-                                      type="number"
-                                      step="0.01"
-                                      min="0"
-                                      value={tempCantidad}
-                                      onChange={(e) => setTempCantidad(e.target.value)}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && tempEstacionId && Number(tempCantidad) > 0 && !savingAutorizaciones) {
-                                          agregarLinea(row);
-                                        }
-                                      }}
-                                      className="flex-1 rounded bg-neutral-900 px-2 py-1.5 text-xs border border-neutral-700"
-                                      placeholder={tempTipo === 'adelanto' ? '$' : 'L'}
-                                      disabled={savingAutorizaciones}
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => agregarLinea(row)}
-                                      disabled={!tempEstacionId || !tempCantidad || Number(tempCantidad) <= 0 || savingAutorizaciones}
-                                      className="px-2 py-1.5 text-xs font-bold rounded-md bg-purple-600 hover:bg-purple-500 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200"
-                                    >
-                                      {savingAutorizaciones ? "..." : "+"}
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Botón Cerrar */}
-                            <div className="flex gap-2 justify-end">
-                              <button
-                                type="button"
-                                onClick={() => toggleAutorizacionPanel(row.id)}
-                                className="px-4 py-2 text-xs rounded-md bg-neutral-700 hover:bg-neutral-600 transition-colors duration-200"
-                              >
-                                Cerrar
-                              </button>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                ))}
-
-                {!viajeSinCupos && (
-                  <tr className="border-t-2 border-blue-600/30 bg-gradient-to-r from-blue-900/10 to-purple-900/10">
-                    <td className="px-2 py-2 align-top font-medium text-neutral-300">
-                      +
-                    </td>
-                    {/* Chofer */}
-                    <td className="px-2 py-2 align-top min-w-[220px]">
-                      <div className="flex items-start gap-1">
-                        <div className="flex-1">
-                          <SearchableSelect
-                            options={choferOptions}
-                            valueId={selectedChofer}
-                            onChangeId={(id) => {
-                              const choferId = Number(id);
-                              setSelectedChofer(choferId);
-                              // Si tenemos patentes precargadas por selección de transportista, mostrarlas de inmediato
-                              const pat = choferPatentesById[choferId];
-                              if (pat) {
-                                setPatChasis(pat.patChasis || "");
-                                setPatAcoplado(pat.patAcoplado ?? null);
-                              }
-                            }}
-                            placeholder={
-                              loadingCatalogos || loadingChoferesPorTransportista
-                                ? "Cargando..."
-                                : selectedTransportistaId
-                                ? "Chofer del transportista"
-                                : "Seleccionar chofer"
-                            }
-                            name="chofer"
-                            required
-                            loading={loadingCatalogos || loadingChoferesPorTransportista}
-                          />
-                          {selectedChofer && loadingRelacion && (
-                            <div className="mt-1 text-xs text-blue-400">
-                              Verificando...
-                            </div>
-                          )}
-                        </div>
-                        {selectedChofer && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedChofer(null);
-                              setTransportista(null);
-                              setPatChasis("");
-                              setPatAcoplado(null);
-                            }}
-                            className="w-7 h-7 flex items-center justify-center text-xs rounded bg-red-600 hover:bg-red-500 transition-colors duration-200 shrink-0"
-                            title="Limpiar selección"
-                            aria-label="Limpiar chofer"
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                    {/* Transportista */}
-                    <td className="px-2 py-2 align-top min-w-[220px]">
-                      <div className="space-y-1">
-                        <div className="flex items-start gap-1">
-                          <div className="flex-1">
-                            <SearchableSelect
-                              options={transportistas}
-                              valueId={selectedTransportistaId}
-                              onChangeId={(id) => {
-                                setSelectedTransportistaId(Number(id));
-                              }}
-                              placeholder={
-                                loadingTransportistas ? "Cargando..." :
-                                "Seleccionar transportista"
-                              }
-                              name="transportista"
-                              loading={loadingTransportistas}
-                              disabled={!!selectedChofer}
-                            />
-                          </div>
-                          {selectedTransportistaId && !selectedChofer && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedTransportistaId(null);
-                                setChoferOptions(choferOptionsAll);
-                                setChoferPatentesById({});
-                              }}
-                              className="w-7 h-7 flex items-center justify-center text-xs rounded bg-red-600 hover:bg-red-500 transition-colors duration-200 shrink-0"
-                              title="Limpiar selección"
-                              aria-label="Limpiar transportista"
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-                        <div className="text-xs text-neutral-400">
-                          ID: {transportista?.id ?? (selectedTransportistaId ?? "N/A")}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-2 py-2 align-top">
-                      <div className="text-xs space-y-1">
-                        <div className="font-mono text-green-400">
-                          {patChasis || "Auto"}
-                        </div>
-                        <div className="font-mono text-blue-400">
-                          {formatPatente(patAcoplado)}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-2 py-2 align-top text-center">
-                      <input
-                        type="checkbox"
-                        checked={sendEmail}
-                        onChange={(e) => setSendEmail(e.target.checked)}
-                        className="scale-75"
-                      />
-                    </td>
-                    <td className="px-2 py-2 align-top min-w-[150px]">
-                      <div className="flex items-start gap-1">
-                        <select
-                          className="flex-1 rounded bg-neutral-900 border border-neutral-700 px-2 py-1 text-xs"
-                          value={selectedVendedor ?? ""}
-                          onChange={(e) =>
-                            setSelectedVendedor(
-                              e.target.value ? Number(e.target.value) : null
-                            )
-                          }
-                        >
-                          <option value="" disabled>
-                            {loadingCatalogos ? "Cargando..." : "Vendedor"}
-                          </option>
-                          {vendedores.map((v) => (
-                            <option key={v.id} value={v.id}>
-                              {v.nombre}
-                            </option>
-                          ))}
-                        </select>
-                        {selectedVendedor && (
-                          <button
-                            type="button"
-                            onClick={() => setSelectedVendedor(null)}
-                            className="w-7 h-7 flex items-center justify-center text-xs rounded bg-red-600 hover:bg-red-500 transition-colors duration-200 shrink-0"
-                            title="Limpiar selección"
-                            aria-label="Limpiar vendedor"
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-2 py-2 align-top text-center">
-                      <button
-                        type="submit"
-                        disabled={
-                          submitting ||
-                          loadingRelacion ||
-                          loadingCatalogos ||
-                          viajeSinCupos ||
-                          !selectedChofer ||
-                          !transportista ||
-                          !patChasis ||
-                          !selectedVendedor
-                        }
-                        className="px-4 py-1.5 text-xs font-medium rounded-md bg-green-600 hover:bg-green-500 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200"
-                      >
-                        {submitting ? "..." : "✓ Agregar"}
-                      </button>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-            {loadingPostulaciones && (
-              <div className="py-3 text-center">
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-xs text-blue-400">Actualizando...</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Formulario para agregar nuevo chofer - Mobile */}
+        <form onSubmit={handleSubmit} className="space-y-2">
+          {/* Formulario para agregar nuevo chofer - Mobile (ARRIBA) */}
           {!viajeSinCupos && (
-            <div className="md:hidden bg-gradient-to-r from-blue-900/10 to-purple-900/10 border-2 border-blue-600/30 rounded-md p-4">
-              <div className="space-y-4">
+            <div className="md:hidden bg-gradient-to-r from-blue-900/10 to-purple-900/10 border-2 border-blue-600/30 rounded p-2 mb-2">
+              <h3 className="text-xs font-bold text-blue-400 mb-2">
+                ➕ Agregar Chofer
+              </h3>
+              <div className="space-y-2">
                 <div>
                   <label className="text-xs text-neutral-400 mb-2 block font-medium">
-                    Transportista {selectedChofer && <span className="text-blue-400">(Asignado automáticamente)</span>}
+                    Transportista{" "}
+                    {selectedChofer && (
+                      <span className="text-blue-400">
+                        (Asignado automáticamente)
+                      </span>
+                    )}
                   </label>
                   <div className="flex items-start gap-2">
                     <div className="flex-1">
@@ -1794,8 +1181,9 @@ export default function ChoferModal({
                           setSelectedTransportistaId(Number(id));
                         }}
                         placeholder={
-                          loadingTransportistas ? "Cargando..." :
-                          "Seleccionar transportista"
+                          loadingTransportistas
+                            ? "Cargando..."
+                            : "Seleccionar transportista"
                         }
                         name="transportista"
                         loading={loadingTransportistas}
@@ -1846,7 +1234,9 @@ export default function ChoferModal({
                         }
                         name="chofer"
                         required
-                        loading={loadingCatalogos || loadingChoferesPorTransportista}
+                        loading={
+                          loadingCatalogos || loadingChoferesPorTransportista
+                        }
                       />
                       {selectedChofer && loadingRelacion && (
                         <div className="mt-2 text-xs text-blue-400 flex items-center gap-2">
@@ -1878,13 +1268,17 @@ export default function ChoferModal({
                   <div className="bg-neutral-900/50 rounded-md p-3 border border-neutral-700">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <span className="text-xs text-neutral-400 block mb-1">Chasis</span>
+                        <span className="text-xs text-neutral-400 block mb-1">
+                          Chasis
+                        </span>
                         <div className="font-mono text-green-400 font-medium">
                           {patChasis}
                         </div>
                       </div>
                       <div>
-                        <span className="text-xs text-neutral-400 block mb-1">Acoplado</span>
+                        <span className="text-xs text-neutral-400 block mb-1">
+                          Acoplado
+                        </span>
                         <div className="font-mono text-blue-400 font-medium">
                           {formatPatente(patAcoplado)}
                         </div>
@@ -1908,7 +1302,9 @@ export default function ChoferModal({
                       }
                     >
                       <option value="" disabled>
-                        {loadingCatalogos ? "Cargando..." : "Seleccionar vendedor"}
+                        {loadingCatalogos
+                          ? "Cargando..."
+                          : "Seleccionar vendedor"}
                       </option>
                       {vendedores.map((v) => (
                         <option key={v.id} value={v.id}>
@@ -1938,7 +1334,9 @@ export default function ChoferModal({
                       onChange={(e) => setSendEmail(e.target.checked)}
                       className="w-5 h-5 rounded border-neutral-600 bg-neutral-800 text-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
                     />
-                    <span className="text-sm text-neutral-300">Enviar notificación por email</span>
+                    <span className="text-sm text-neutral-300">
+                      Enviar notificación por email
+                    </span>
                   </label>
                 </div>
 
@@ -1961,18 +1359,973 @@ export default function ChoferModal({
               </div>
             </div>
           )}
-        </form>
-      </div>
 
-      <Notification
-        type={notification.type}
-        title={notification.title}
-        message={notification.message}
-        isVisible={notification.isVisible}
-        onClose={() =>
-          setNotification((prev) => ({ ...prev, isVisible: false }))
-        }
-      />
+          {/* Separador */}
+          <div className="md:hidden border-t border-neutral-700 my-2"></div>
+
+          {/* Lista de choferes postulados - Mobile (CON SCROLL) */}
+          <div className="md:hidden">
+            <h3 className="text-xs font-bold text-purple-400 mb-1.5">
+              📋 Choferes Postulados ({postulaciones.length})
+            </h3>
+            <div className="max-h-[40vh] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+              {postulaciones.length === 0 && !loadingPostulaciones && (
+                <div className="text-center py-8 text-neutral-400 text-sm">
+                  No hay choferes postulados para este viaje.
+                </div>
+              )}
+              {loadingPostulaciones && (
+                <div className="py-4 text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-xs text-blue-400">
+                      Actualizando...
+                    </span>
+                  </div>
+                </div>
+              )}
+              {postulaciones.map((row, index) => (
+                <div
+                  key={`mobile-postulacion-${row.id}`}
+                  className="bg-neutral-900/60 border border-neutral-700 rounded-md p-3"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 flex-1">
+                      <span className="text-neutral-400 text-xs">
+                        #{index + 1}
+                      </span>
+                      <div className="flex-1">
+                        <div className="text-white font-medium text-sm">
+                          {row.choferNombre ?? "Sin datos"}
+                        </div>
+                        <div className="text-neutral-400 text-xs">
+                          ID: {row.choferId}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(row)}
+                      disabled={removingId === row.id}
+                      className="w-11 h-11 flex items-center justify-center text-sm rounded-md bg-red-600 hover:bg-red-500 active:bg-red-700 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200 shrink-0"
+                      aria-label="Eliminar"
+                    >
+                      {removingId === row.id ? "..." : "✖"}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                    <div>
+                      <span className="text-neutral-400">Transportista:</span>
+                      <div className="text-white font-medium">
+                        {row.transportistaNombre ?? "Sin datos"}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-neutral-400">ID Trans:</span>
+                      <div className="text-neutral-300">
+                        {row.transporteId ?? "N/A"}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                    <div>
+                      <span className="text-neutral-400">Chasis:</span>
+                      <div className="font-mono text-green-400">
+                        {formatPatente(row.patChasis)}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-neutral-400">Acoplado:</span>
+                      <div className="font-mono text-blue-400">
+                        {formatPatente(row.patAcoplado)}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-neutral-400">Vendedor:</span>
+                      <div className="text-white">
+                        {row.vendedorNombre ?? "-"}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-neutral-400">Email:</span>
+                      <input
+                        type="checkbox"
+                        checked={row.sendEmail}
+                        readOnly
+                        disabled
+                        className="scale-75"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Botón Autorizaciones Mobile */}
+                  <button
+                    type="button"
+                    onClick={() => toggleAutorizacionPanel(row.id)}
+                    className="w-full px-3 py-2 text-sm rounded-md bg-blue-600 hover:bg-blue-500 active:bg-blue-700 transition-colors duration-200"
+                  >
+                    {expandedAutorizacionId === row.id
+                      ? "▼ Ocultar"
+                      : "▶ Autorizaciones"}
+                  </button>
+
+                  {/* Panel de autorizaciones mobile */}
+                  {expandedAutorizacionId === row.id && (
+                    <div className="mt-3 p-3 bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-600/30 rounded-md space-y-3">
+                      <h3 className="text-sm font-bold text-blue-400">
+                        Gestión de Autorizaciones
+                      </h3>
+
+                      {/* Lista de autorizaciones guardadas */}
+                      {(autorizacionesGuardadas[row.id] ||
+                        autorizacionesGuardadas["_all"]) &&
+                        (autorizacionesGuardadas[row.id]?.length > 0 ||
+                          autorizacionesGuardadas["_all"]?.length > 0) && (
+                          <div className="bg-neutral-900/30 rounded-md p-3 border border-neutral-600/50">
+                            <div className="text-xs font-bold text-neutral-300 mb-2">
+                              📋 Autorizaciones guardadas (
+                              {
+                                (
+                                  autorizacionesGuardadas[row.id] ||
+                                  autorizacionesGuardadas["_all"]
+                                ).length
+                              }
+                              )
+                            </div>
+                            <div className="space-y-2">
+                              {(
+                                autorizacionesGuardadas[row.id] ||
+                                autorizacionesGuardadas["_all"]
+                              ).map((aut, idx) => (
+                                <div
+                                  key={idx}
+                                  className={`rounded-md p-2 border ${
+                                    aut.tipo === "adelanto"
+                                      ? "bg-green-900/20 border-green-600/30"
+                                      : "bg-blue-900/20 border-blue-600/30"
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-lg">
+                                          {aut.tipo === "adelanto"
+                                            ? "💸"
+                                            : "⛽"}
+                                        </span>
+                                        <span
+                                          className={`text-sm font-bold ${
+                                            aut.tipo === "adelanto"
+                                              ? "text-green-400"
+                                              : "text-blue-400"
+                                          }`}
+                                        >
+                                          {aut.tipo === "adelanto"
+                                            ? "Adelanto"
+                                            : "Combustible"}
+                                        </span>
+                                      </div>
+                                      <div className="text-xs text-neutral-300 space-y-0.5">
+                                        <div>
+                                          <span className="text-neutral-400">
+                                            Estación:
+                                          </span>{" "}
+                                          {aut.estacion}
+                                        </div>
+                                        <div>
+                                          <span className="text-neutral-400">
+                                            {aut.tipo === "adelanto"
+                                              ? "Importe:"
+                                              : "Litros:"}
+                                          </span>
+                                          <span
+                                            className={`font-mono ml-1 font-bold ${
+                                              aut.tipo === "adelanto"
+                                                ? "text-green-400"
+                                                : "text-blue-400"
+                                            }`}
+                                          >
+                                            {aut.tipo === "adelanto"
+                                              ? `$${aut.valor.toFixed(2)}`
+                                              : `${aut.valor.toFixed(2)} L`}
+                                          </span>
+                                        </div>
+                                        {aut.renglonId && (
+                                          <div className="text-neutral-500">
+                                            Renglón: {aut.renglonId}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (
+                                          confirm(
+                                            "¿Eliminar esta autorización?"
+                                          )
+                                        ) {
+                                          // TODO: Implementar eliminación
+                                          alert(
+                                            "Función de eliminar en desarrollo"
+                                          );
+                                        }
+                                      }}
+                                      className="text-red-400 hover:text-red-300 text-sm ml-2 px-2 py-1"
+                                    >
+                                      ✖
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                      {/* Formulario para agregar nueva línea */}
+                      <div className="bg-neutral-900/50 rounded-md p-3 border border-neutral-700/50 space-y-3">
+                        <div className="text-sm font-medium text-neutral-200">
+                          + Agregar Autorización
+                        </div>
+
+                        {/* Selector de estación */}
+                        <div>
+                          <label className="text-xs text-neutral-400 mb-1 block">
+                            Estación
+                          </label>
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              <SearchableSelect
+                                options={estaciones.map((e) => ({
+                                  id: e.id,
+                                  nombre: `${e.razonSocial}`,
+                                }))}
+                                valueId={tempEstacionId}
+                                onChangeId={(id) =>
+                                  setTempEstacionId(Number(id))
+                                }
+                                placeholder={
+                                  loadingEstaciones
+                                    ? "Cargando..."
+                                    : "Seleccionar estación"
+                                }
+                                name="estacion-mobile"
+                                loading={loadingEstaciones}
+                              />
+                            </div>
+                            {tempEstacionId && (
+                              <button
+                                type="button"
+                                onClick={() => setTempEstacionId(null)}
+                                className="w-11 h-11 flex items-center justify-center text-sm rounded bg-red-600 hover:bg-red-500 active:bg-red-700 transition-colors duration-200 shrink-0"
+                                title="Limpiar selección"
+                                aria-label="Limpiar estación"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Tipo de evento */}
+                        <div>
+                          <label className="text-xs text-neutral-400 mb-1 block">
+                            Tipo
+                          </label>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setTempTipo("combustible")}
+                              className={`flex-1 px-3 py-2 text-xs rounded-md transition-colors duration-200 ${
+                                tempTipo === "combustible"
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-neutral-700 text-neutral-300 hover:bg-neutral-600"
+                              }`}
+                            >
+                              ⛽ Combustible
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setTempTipo("adelanto")}
+                              className={`flex-1 px-3 py-2 text-xs rounded-md transition-colors duration-200 ${
+                                tempTipo === "adelanto"
+                                  ? "bg-green-600 text-white"
+                                  : "bg-neutral-700 text-neutral-300 hover:bg-neutral-600"
+                              }`}
+                            >
+                              💸 Adelanto
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Cantidad */}
+                        <div>
+                          <label className="text-xs text-neutral-400 mb-1 block">
+                            {tempTipo === "adelanto" ? "Importe ($)" : "Litros"}
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={tempCantidad}
+                              onChange={(e) => setTempCantidad(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (
+                                  e.key === "Enter" &&
+                                  tempEstacionId &&
+                                  Number(tempCantidad) > 0 &&
+                                  !savingAutorizaciones
+                                ) {
+                                  agregarLinea(row);
+                                }
+                              }}
+                              className="flex-1 rounded bg-neutral-900 px-3 py-2 text-sm border border-neutral-700 min-h-[44px]"
+                              placeholder={
+                                tempTipo === "adelanto"
+                                  ? "Importe en $"
+                                  : "Litros"
+                              }
+                              disabled={savingAutorizaciones}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => agregarLinea(row)}
+                              disabled={
+                                !tempEstacionId ||
+                                !tempCantidad ||
+                                Number(tempCantidad) <= 0 ||
+                                savingAutorizaciones
+                              }
+                              className="px-4 py-2 text-sm font-bold rounded-md bg-purple-600 hover:bg-purple-500 active:bg-purple-700 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200 min-h-[44px]"
+                            >
+                              {savingAutorizaciones ? "..." : "+"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Botón Cerrar */}
+                      <button
+                        type="button"
+                        onClick={() => toggleAutorizacionPanel(row.id)}
+                        className="w-full px-4 py-3 text-sm rounded-md bg-neutral-700 hover:bg-neutral-600 active:bg-neutral-800 transition-colors duration-200 min-h-[44px]"
+                      >
+                        Cerrar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Formulario para agregar nuevo chofer - Desktop (ARRIBA) */}
+          {!viajeSinCupos && (
+            <div className="hidden md:block bg-gradient-to-r from-blue-900/10 to-purple-900/10 border-2 border-blue-600/30 rounded p-2 mb-2">
+              <h3 className="text-xs font-bold text-blue-400 mb-1.5">
+                ➕ Agregar Chofer
+              </h3>
+              <div className="grid grid-cols-5 gap-1.5 items-end">
+                {/* Transportista */}
+                <div>
+                  <label className="text-xs text-neutral-400 mb-1 block font-medium">
+                    Transportista{" "}
+                    {selectedChofer && (
+                      <span className="text-blue-400">(Auto)</span>
+                    )}
+                  </label>
+                  <div className="flex items-start gap-1">
+                    <div className="flex-1">
+                      <SearchableSelect
+                        options={transportistas}
+                        valueId={selectedTransportistaId}
+                        onChangeId={(id) => {
+                          setSelectedTransportistaId(Number(id));
+                        }}
+                        placeholder={
+                          loadingTransportistas
+                            ? "Cargando..."
+                            : "Seleccionar transportista"
+                        }
+                        name="transportista-desktop"
+                        loading={loadingTransportistas}
+                        disabled={!!selectedChofer}
+                      />
+                    </div>
+                    {selectedTransportistaId && !selectedChofer && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedTransportistaId(null);
+                          setChoferOptions(choferOptionsAll);
+                          setChoferPatentesById({});
+                        }}
+                        className="w-7 h-7 flex items-center justify-center text-xs rounded bg-red-600 hover:bg-red-500 transition-colors duration-200 shrink-0"
+                        title="Limpiar selección"
+                        aria-label="Limpiar transportista"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Chofer */}
+                <div>
+                  <label className="text-xs text-neutral-400 mb-1 block font-medium">
+                    Chofer
+                  </label>
+                  <div className="flex items-start gap-1">
+                    <div className="flex-1">
+                      <SearchableSelect
+                        options={choferOptions}
+                        valueId={selectedChofer}
+                        onChangeId={(id) => {
+                          const choferId = Number(id);
+                          setSelectedChofer(choferId);
+                          const pat = choferPatentesById[choferId];
+                          if (pat) {
+                            setPatChasis(pat.patChasis || "");
+                            setPatAcoplado(pat.patAcoplado ?? null);
+                          }
+                        }}
+                        placeholder={
+                          loadingCatalogos || loadingChoferesPorTransportista
+                            ? "Cargando..."
+                            : selectedTransportistaId
+                            ? "Chofer del transportista"
+                            : "Seleccionar chofer"
+                        }
+                        name="chofer-desktop"
+                        required
+                        loading={
+                          loadingCatalogos || loadingChoferesPorTransportista
+                        }
+                      />
+                      {selectedChofer && loadingRelacion && (
+                        <div className="mt-1 text-xs text-blue-400">
+                          Verificando...
+                        </div>
+                      )}
+                    </div>
+                    {selectedChofer && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedChofer(null);
+                          setTransportista(null);
+                          setPatChasis("");
+                          setPatAcoplado(null);
+                        }}
+                        className="w-7 h-7 flex items-center justify-center text-xs rounded bg-red-600 hover:bg-red-500 transition-colors duration-200 shrink-0"
+                        title="Limpiar selección"
+                        aria-label="Limpiar chofer"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Patentes */}
+                <div>
+                  <label className="text-xs text-neutral-400 mb-1 block font-medium">
+                    Patentes
+                  </label>
+                  <div className="text-xs space-y-1 p-2 bg-neutral-900/50 rounded border border-neutral-700">
+                    <div className="font-mono text-green-400">
+                      {patChasis || "Auto"}
+                    </div>
+                    <div className="font-mono text-blue-400">
+                      {formatPatente(patAcoplado)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vendedor */}
+                <div>
+                  <label className="text-xs text-neutral-400 mb-1 block font-medium">
+                    Vendedor
+                  </label>
+                  <div className="flex items-start gap-1">
+                    <select
+                      className="flex-1 rounded bg-neutral-900 border border-neutral-700 px-2 py-1.5 text-xs"
+                      value={selectedVendedor ?? ""}
+                      onChange={(e) =>
+                        setSelectedVendedor(
+                          e.target.value ? Number(e.target.value) : null
+                        )
+                      }
+                    >
+                      <option value="" disabled>
+                        {loadingCatalogos ? "Cargando..." : "Vendedor"}
+                      </option>
+                      {vendedores.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.nombre}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedVendedor && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedVendedor(null)}
+                        className="w-7 h-7 flex items-center justify-center text-xs rounded bg-red-600 hover:bg-red-500 transition-colors duration-200 shrink-0"
+                        title="Limpiar selección"
+                        aria-label="Limpiar vendedor"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer mt-1">
+                    <input
+                      type="checkbox"
+                      checked={sendEmail}
+                      onChange={(e) => setSendEmail(e.target.checked)}
+                      className="w-3 h-3 rounded"
+                    />
+                    <span className="text-xs text-neutral-300">Email</span>
+                  </label>
+                </div>
+
+                {/* Botón Agregar */}
+                <div>
+                  <button
+                    type="submit"
+                    disabled={
+                      submitting ||
+                      loadingRelacion ||
+                      loadingCatalogos ||
+                      viajeSinCupos ||
+                      !selectedChofer ||
+                      !transportista ||
+                      !patChasis ||
+                      !selectedVendedor
+                    }
+                    className="w-full px-4 py-2 text-xs font-medium rounded-md bg-green-600 hover:bg-green-500 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200"
+                  >
+                    {submitting ? "..." : "✓ Agregar"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Separador Desktop */}
+          <div className="hidden md:block border-t-2 border-neutral-700 mb-3"></div>
+
+          {/* Lista de choferes postulados - Desktop (CON SCROLL) */}
+          <div className="hidden md:block">
+            <h3 className="text-sm font-bold text-purple-400 mb-2">
+              📋 Choferes Postulados ({postulaciones.length})
+            </h3>
+            <div className="border border-neutral-700 rounded-md shadow-lg">
+              <div className="max-h-[45vh] overflow-y-auto custom-scrollbar">
+                <table className="min-w-full text-xs">
+                  <thead className="bg-gradient-to-r from-neutral-800 to-neutral-700 text-neutral-200 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-1.5 py-1.5 text-left w-8 font-medium">
+                        #
+                      </th>
+                      <th className="px-1.5 py-1.5 text-left font-medium">
+                        Chofer
+                      </th>
+                      <th className="px-1.5 py-1.5 text-left font-medium">
+                        Transportista
+                      </th>
+                      <th className="px-1.5 py-1.5 text-left font-medium">
+                        Patentes
+                      </th>
+                      <th className="px-1.5 py-1.5 text-center font-medium">
+                        Email
+                      </th>
+                      <th className="px-1.5 py-1.5 text-left font-medium">
+                        Vendedor
+                      </th>
+                      <th
+                        className="px-1.5 py-1.5 text-center font-medium"
+                        colSpan={2}
+                      >
+                        Acciones
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {postulaciones.length === 0 && !loadingPostulaciones && (
+                      <tr>
+                        <td
+                          colSpan={8}
+                          className="px-4 py-4 text-center text-neutral-400 text-sm"
+                        >
+                          No hay choferes postulados para este viaje.
+                        </td>
+                      </tr>
+                    )}
+                    {postulaciones.map((row, index) => (
+                      <React.Fragment key={`postulacion-fragment-${row.id}`}>
+                        <tr className="border-t border-neutral-700 bg-neutral-900/60 hover:bg-neutral-800/80 transition-colors duration-200">
+                          <td className="px-1.5 py-1.5 align-middle text-neutral-300">
+                            {index + 1}
+                          </td>
+                          <td className="px-1.5 py-1.5 align-middle">
+                            <div className="text-neutral-200 font-medium">
+                              {row.choferNombre ?? "Sin datos"}
+                            </div>
+                            <div className="text-neutral-400 text-xs">
+                              ID: {row.choferId}
+                            </div>
+                          </td>
+                          <td className="px-1.5 py-1.5 align-middle">
+                            <div className="text-neutral-200 font-medium text-xs">
+                              {row.transportistaNombre ?? "Sin datos"}
+                            </div>
+                            <div className="text-neutral-400 text-xs">
+                              ID: {row.transporteId ?? "N/A"}
+                            </div>
+                          </td>
+                          <td className="px-1.5 py-1.5 align-middle">
+                            <div className="font-mono text-xs text-green-400">
+                              {formatPatente(row.patChasis)}
+                            </div>
+                            <div className="font-mono text-xs text-blue-400">
+                              {formatPatente(row.patAcoplado)}
+                            </div>
+                          </td>
+                          <td className="px-1.5 py-1.5 align-middle text-center">
+                            <input
+                              type="checkbox"
+                              checked={row.sendEmail}
+                              readOnly
+                              disabled
+                              className="scale-75"
+                            />
+                          </td>
+                          <td className="px-1.5 py-1.5 align-middle text-neutral-200 text-xs">
+                            {row.vendedorNombre ?? "-"}
+                          </td>
+                          <td className="px-2 py-1.5 align-middle text-center">
+                            <button
+                              type="button"
+                              onClick={() => toggleAutorizacionPanel(row.id)}
+                              className="px-2 py-1 text-xs rounded-md bg-blue-600 hover:bg-blue-500 transition-colors duration-200"
+                            >
+                              {expandedAutorizacionId === row.id ? "▼" : "▶"}{" "}
+                              Autorizaciones
+                            </button>
+                          </td>
+                          <td className="px-2 py-1.5 align-middle text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleRemove(row)}
+                              disabled={removingId === row.id}
+                              className="px-2 py-1 text-xs rounded-md bg-red-600 hover:bg-red-500 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200"
+                            >
+                              {removingId === row.id ? "..." : "✖"}
+                            </button>
+                          </td>
+                        </tr>
+                        {expandedAutorizacionId === row.id && (
+                          <tr key={`autorizacion-panel-${row.id}`}>
+                            <td
+                              colSpan={8}
+                              className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border-t border-blue-600/30"
+                            >
+                              <div className="p-3 space-y-3">
+                                <h3 className="text-sm font-bold text-blue-400 mb-2">
+                                  Gestión de Autorizaciones
+                                </h3>
+
+                                {/* Lista de autorizaciones guardadas */}
+                                {(autorizacionesGuardadas[row.id] ||
+                                  autorizacionesGuardadas["_all"]) &&
+                                  (autorizacionesGuardadas[row.id]?.length >
+                                    0 ||
+                                    autorizacionesGuardadas["_all"]?.length >
+                                      0) && (
+                                    <div className="bg-neutral-900/30 rounded-md p-2 border border-neutral-600/50">
+                                      <div className="text-xs font-bold text-neutral-300 mb-2">
+                                        📋 Autorizaciones guardadas (
+                                        {
+                                          (
+                                            autorizacionesGuardadas[row.id] ||
+                                            autorizacionesGuardadas["_all"]
+                                          ).length
+                                        }
+                                        )
+                                      </div>
+                                      <div className="grid grid-cols-1 gap-2">
+                                        {(
+                                          autorizacionesGuardadas[row.id] ||
+                                          autorizacionesGuardadas["_all"]
+                                        ).map((aut, idx) => (
+                                          <div
+                                            key={idx}
+                                            className={`rounded-md p-2 border flex items-center gap-3 ${
+                                              aut.tipo === "adelanto"
+                                                ? "bg-green-900/20 border-green-600/30"
+                                                : "bg-blue-900/20 border-blue-600/30"
+                                            }`}
+                                          >
+                                            <span className="text-xl">
+                                              {aut.tipo === "adelanto"
+                                                ? "💸"
+                                                : "⛽"}
+                                            </span>
+                                            <div className="flex-1 grid grid-cols-4 gap-2 text-xs">
+                                              <div>
+                                                <span className="text-neutral-400 block">
+                                                  Tipo
+                                                </span>
+                                                <span
+                                                  className={`font-medium ${
+                                                    aut.tipo === "adelanto"
+                                                      ? "text-green-400"
+                                                      : "text-blue-400"
+                                                  }`}
+                                                >
+                                                  {aut.tipo === "adelanto"
+                                                    ? "Adelanto"
+                                                    : "Combustible"}
+                                                </span>
+                                              </div>
+                                              <div className="col-span-2">
+                                                <span className="text-neutral-400 block">
+                                                  Estación
+                                                </span>
+                                                <span className="text-neutral-200">
+                                                  {aut.estacion}
+                                                </span>
+                                              </div>
+                                              <div>
+                                                <span className="text-neutral-400 block">
+                                                  {aut.tipo === "adelanto"
+                                                    ? "Importe"
+                                                    : "Litros"}
+                                                </span>
+                                                <span
+                                                  className={`font-mono font-bold ${
+                                                    aut.tipo === "adelanto"
+                                                      ? "text-green-400"
+                                                      : "text-blue-400"
+                                                  }`}
+                                                >
+                                                  {aut.tipo === "adelanto"
+                                                    ? `$${aut.valor.toFixed(2)}`
+                                                    : `${aut.valor.toFixed(
+                                                        2
+                                                      )} L`}
+                                                </span>
+                                              </div>
+                                            </div>
+                                            {aut.renglonId && (
+                                              <div className="text-neutral-500 text-xs">
+                                                Renglón: {aut.renglonId}
+                                              </div>
+                                            )}
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                if (
+                                                  confirm(
+                                                    "¿Eliminar esta autorización?"
+                                                  )
+                                                ) {
+                                                  // TODO: Implementar eliminación
+                                                  alert(
+                                                    "Función de eliminar en desarrollo"
+                                                  );
+                                                }
+                                              }}
+                                              className="text-red-400 hover:text-red-300 text-xs px-2 py-1"
+                                            >
+                                              ✖
+                                            </button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                {/* Formulario para agregar nueva línea */}
+                                <div className="bg-neutral-900/50 rounded-md p-3 border border-neutral-700/50 space-y-3">
+                                  <div className="text-sm font-medium text-neutral-200">
+                                    + Agregar Autorización
+                                  </div>
+
+                                  <div className="grid grid-cols-3 gap-3">
+                                    {/* Selector de estación */}
+                                    <div>
+                                      <label className="text-xs text-neutral-400 mb-1 block">
+                                        Estación
+                                      </label>
+                                      <div className="flex gap-2">
+                                        <div className="flex-1">
+                                          <SearchableSelect
+                                            options={estaciones.map((e) => ({
+                                              id: e.id,
+                                              nombre: `${e.razonSocial}`,
+                                            }))}
+                                            valueId={tempEstacionId}
+                                            onChangeId={(id) =>
+                                              setTempEstacionId(Number(id))
+                                            }
+                                            placeholder={
+                                              loadingEstaciones
+                                                ? "Cargando..."
+                                                : "Seleccionar estación"
+                                            }
+                                            name="estacion"
+                                            loading={loadingEstaciones}
+                                          />
+                                        </div>
+                                        {tempEstacionId && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setTempEstacionId(null)
+                                            }
+                                            className="w-7 h-7 flex items-center justify-center text-xs rounded bg-red-600 hover:bg-red-500 transition-colors duration-200 shrink-0"
+                                            title="Limpiar selección"
+                                            aria-label="Limpiar estación"
+                                          >
+                                            ✕
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Tipo de evento */}
+                                    <div>
+                                      <label className="text-xs text-neutral-400 mb-1 block">
+                                        Tipo
+                                      </label>
+                                      <div className="flex gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setTempTipo("combustible")
+                                          }
+                                          className={`flex-1 px-2 py-1.5 text-xs rounded-md transition-colors duration-200 ${
+                                            tempTipo === "combustible"
+                                              ? "bg-blue-600 text-white"
+                                              : "bg-neutral-700 text-neutral-300 hover:bg-neutral-600"
+                                          }`}
+                                        >
+                                          ⛽
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setTempTipo("adelanto")
+                                          }
+                                          className={`flex-1 px-2 py-1.5 text-xs rounded-md transition-colors duration-200 ${
+                                            tempTipo === "adelanto"
+                                              ? "bg-green-600 text-white"
+                                              : "bg-neutral-700 text-neutral-300 hover:bg-neutral-600"
+                                          }`}
+                                        >
+                                          💸
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* Cantidad */}
+                                    <div>
+                                      <label className="text-xs text-neutral-400 mb-1 block">
+                                        {tempTipo === "adelanto"
+                                          ? "$ Importe"
+                                          : "Litros"}
+                                      </label>
+                                      <div className="flex gap-2">
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          value={tempCantidad}
+                                          onChange={(e) =>
+                                            setTempCantidad(e.target.value)
+                                          }
+                                          onKeyDown={(e) => {
+                                            if (
+                                              e.key === "Enter" &&
+                                              tempEstacionId &&
+                                              Number(tempCantidad) > 0 &&
+                                              !savingAutorizaciones
+                                            ) {
+                                              agregarLinea(row);
+                                            }
+                                          }}
+                                          className="flex-1 rounded bg-neutral-900 px-2 py-1.5 text-xs border border-neutral-700"
+                                          placeholder={
+                                            tempTipo === "adelanto" ? "$" : "L"
+                                          }
+                                          disabled={savingAutorizaciones}
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => agregarLinea(row)}
+                                          disabled={
+                                            !tempEstacionId ||
+                                            !tempCantidad ||
+                                            Number(tempCantidad) <= 0 ||
+                                            savingAutorizaciones
+                                          }
+                                          className="px-2 py-1.5 text-xs font-bold rounded-md bg-purple-600 hover:bg-purple-500 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200"
+                                        >
+                                          {savingAutorizaciones ? "..." : "+"}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Botón Cerrar */}
+                                <div className="flex gap-2 justify-end">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      toggleAutorizacionPanel(row.id)
+                                    }
+                                    className="px-4 py-2 text-xs rounded-md bg-neutral-700 hover:bg-neutral-600 transition-colors duration-200"
+                                  >
+                                    Cerrar
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {loadingPostulaciones && (
+                <div className="py-3 text-center border-t border-neutral-700">
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-xs text-blue-400">
+                      Actualizando...
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </form>
+
+        <Notification
+          type={notification.type}
+          title={notification.title}
+          message={notification.message}
+          isVisible={notification.isVisible}
+          onClose={() =>
+            setNotification((prev) => ({ ...prev, isVisible: false }))
+          }
+        />
+      </div>
     </div>
   );
 }

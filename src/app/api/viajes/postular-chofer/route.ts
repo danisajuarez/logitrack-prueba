@@ -199,31 +199,38 @@ export async function POST(request: NextRequest) {
           const newEcpId = Number(rowsEcpNum?.[0]?.numero);
           if (Number.isFinite(newEcpId)) {
             const newNumero = String(newEcpId).padStart(6, "0");
+
+            // Copiar TODOS los datos desde la ECP original (la primera del viaje)
+            // Esto garantiza que tenga los mismos datos de localidad/provincia
+            const ecpOriginal = ecpIds[0]; // La primera ECP tiene todos los datos completos
+
             await connection.execute(
               `INSERT INTO sige_ecp_enccarpor (
                  ECP_IdEcp, ECP_Numero, ECP_Fecha, ECP_FechaVencimiento,
                  TCP_IDTipoComp, EPC_IdEpd,
                  TER_IDTerceroEst, TER_RazonSocialTerEst,
-                 LOC_NomLocalidadEst, LOC_NomLocalidadGran,
+                 LOC_NomLocalidadEst, LOC_IDLocalidadEst, PRO_IDProvinciaEst, PRO_NomProvinciaEst,
+                 LOC_NomLocalidadGran, LOC_IDLocalidadGran, PRO_IDProvinciaGran, PRO_NomProvinciaGran,
                  ECP_Tarifa, TVP_Caracteristicas, DEP_IDDeposito,
                  ENT_IdEnt, VEN_IdVendPostula, USU_IdUsuario, EQU_IDEquipo,
                  ECP_PreCartaPorte, ECP_CancCompra, ECP_CancVenta
                )
                SELECT ?, ?, NOW(), NOW(),
-                      38, 0,
-                      COALESCE(ENT.TER_IDTercero, 15), ENT.TER_RazonSocialTer,
-                      ENT.LOC_NomLocalidadOrig, ENT.LOC_NomLocalidadDest,
-                      COALESCE(ENT.ENT_Tarifa, 0), '', 1,
-                      ENT.ENT_IdEnt, ?, 1, COALESCE(ENT.EQU_IDEquipo, 1),
-                      'S', 'N', 'N'
-               FROM sige_ent_encnegtra ENT
-               WHERE ENT.ENT_IdEnt = ?
+                      ECP.TCP_IDTipoComp, ECP.EPC_IdEpd,
+                      ECP.TER_IDTerceroEst, ECP.TER_RazonSocialTerEst,
+                      ECP.LOC_NomLocalidadEst, ECP.LOC_IDLocalidadEst, ECP.PRO_IDProvinciaEst, ECP.PRO_NomProvinciaEst,
+                      ECP.LOC_NomLocalidadGran, ECP.LOC_IDLocalidadGran, ECP.PRO_IDProvinciaGran, ECP.PRO_NomProvinciaGran,
+                      ECP.ECP_Tarifa, ECP.TVP_Caracteristicas, ECP.DEP_IDDeposito,
+                      ECP.ENT_IdEnt, ?, ECP.USU_IdUsuario, ECP.EQU_IDEquipo,
+                      ECP.ECP_PreCartaPorte, ECP.ECP_CancCompra, ECP.ECP_CancVenta
+               FROM sige_ecp_enccarpor ECP
+               WHERE ECP.ECP_IdEcp = ?
                LIMIT 1`,
-              [newEcpId, newNumero, vendedorId, viajeId]
+              [newEcpId, newNumero, vendedorId, ecpOriginal]
             );
             ecpIdForInsert = newEcpId;
             ecpIds.push(newEcpId);
-            console.log(`[DEBUG] Nueva ECP creada: ${newEcpId} para viaje ${viajeId}`);
+            console.log(`[DEBUG] Nueva ECP creada: ${newEcpId} copiando datos completos desde ECP original ${ecpOriginal}`);
           }
         } catch (error) {
           console.error('[DEBUG] Error al crear nueva ECP:', error);
