@@ -25,7 +25,9 @@
       "Bash(powershell -Command \"Remove-Item ''c:\\Users\\danis\\proyecto-gustavo\\src\\auth.ts'' -Force\")",
       "Bash(powershell -Command:*)",
       "Bash(npm run build:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git rm:*)",
+      "Bash(git commit:*)"
     ],
     "deny": []
   }
