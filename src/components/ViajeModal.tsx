@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import SearchableSelect from "./SearchableSelect";
 import Notification from "./Notification";
 
@@ -73,6 +74,7 @@ export default function ViajeModal({
   viaje,
   onDelete,
 }: ViajeModalProps) {
+  const { data: session } = useSession();
   const [form, setForm] = useState({
     razonSocial: "",
     origen: "",
@@ -146,21 +148,14 @@ export default function ViajeModal({
     }
   }, [isOpen, viaje]);
 
-  // Proponer vendedor por defecto desde la sesión del usuario
+  // Proponer vendedor por defecto desde la sesión NextAuth
   useEffect(() => {
     if (!isOpen || viaje) return;
-    (async () => {
-      try {
-        const res = await fetch('/api/auth/session');
-        if (!res.ok) return;
-        const data = await res.json();
-        const vendedorId = data?.user?.vendedorId;
-        if (vendedorId && !form.vendedor) {
-          setForm((prev) => ({ ...prev, vendedor: String(vendedorId) }));
-        }
-      } catch {}
-    })();
-  }, [isOpen, viaje]);
+    const vendedorId = (session?.user as any)?.vendedorId;
+    if (vendedorId && !form.vendedor) {
+      setForm((prev) => ({ ...prev, vendedor: String(vendedorId) }));
+    }
+  }, [isOpen, viaje, session, form.vendedor]);
 
   const fetchTerceros = async () => {
     setLoadingTerceros(true);

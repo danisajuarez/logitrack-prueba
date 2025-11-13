@@ -1,28 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import UserNav from "./UserNav";
 
 export default function ClientUserNav() {
-  const [session, setSession] = useState<{
-    username: string;
-    displayName: string;
-  } | null>(null);
+  const { data: session } = useSession();
 
-  useEffect(() => {
-    fetch("/api/auth/session")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.user) {
-          setSession(data.user);
-        }
-      })
-      .catch(() => {
-        // No session, ignore
-      });
-  }, []);
+  const username = (session?.user as any)?.username as string | undefined;
+  const displayName = (session?.user as any)?.name as string | undefined;
 
-  if (!session) return null;
+  if (!session || !username || !displayName) return null;
 
-  return <UserNav username={session.username} displayName={session.displayName} />;
+  return <UserNav username={username} displayName={displayName} />;
 }

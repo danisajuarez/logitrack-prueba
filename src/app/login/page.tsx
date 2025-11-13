@@ -27,7 +27,7 @@ export default function LoginPage() {
         setError("Usuario o contraseña incorrectos");
         setLoading(false);
       } else {
-        router.push("/");
+        router.push("/viajes");
         router.refresh();
       }
     } catch (error) {

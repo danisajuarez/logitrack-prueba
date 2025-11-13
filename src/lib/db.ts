@@ -33,12 +33,13 @@ async function getPool(): Promise<mysql.Pool> {
     password,
     port,
     database,
-    connectTimeout: 120000,
+    connectTimeout: 30000, // Connection timeout in ms
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
+    enableKeepAlive: true, // Mantener conexiones vivas
+    keepAliveInitialDelay: 10000, // 10 segundos
   });
-
   return pool;
 }
 
@@ -46,15 +47,60 @@ export const db = {
   // Use loose typings to support mysql2 overloads (1 or 2 args)
   query: async (...args: any[]) => {
     const pool = await getPool();
-    return (pool.query as any)(...args);
+    const startTime = Date.now();
+    try {
+      const result = await (pool.query as any)(...args);
+      const duration = Date.now() - startTime;
+      if (duration > 5000) {
+        console.warn(`[DB] Slow query detected: ${duration}ms`);
+      }
+      return result;
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      console.error(
+        `[DB] Query failed after ${duration}ms:`,
+        error.code || error.message
+      );
+      throw error;
+    }
   },
   execute: async (...args: any[]) => {
     const pool = await getPool();
-    return (pool.execute as any)(...args);
+    const startTime = Date.now();
+    try {
+      const result = await (pool.execute as any)(...args);
+      const duration = Date.now() - startTime;
+      if (duration > 5000) {
+        console.warn(`[DB] Slow execute detected: ${duration}ms`);
+      }
+      return result;
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      console.error(
+        `[DB] Execute failed after ${duration}ms:`,
+        error.code || error.message
+      );
+      throw error;
+    }
   },
   getConnection: async () => {
     const pool = await getPool();
-    return pool.getConnection();
+    const startTime = Date.now();
+    try {
+      const connection = await pool.getConnection();
+      const duration = Date.now() - startTime;
+      if (duration > 5000) {
+        console.warn(`[DB] Slow connection acquisition: ${duration}ms`);
+      }
+      return connection;
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      console.error(
+        `[DB] Connection acquisition failed after ${duration}ms:`,
+        error.code || error.message
+      );
+      throw error;
+    }
   },
 };
 

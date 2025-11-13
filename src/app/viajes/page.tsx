@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import ViajeModal from "../../components/ViajeModal"; // Asegurate de tenerlo creado
 import ChoferModal from "../../components/ChoferModal";
 import Notification from "../../components/Notification";
-import ClientUserNav from "../../components/ClientUserNav";
+import Header from "../../components/Header";
 
 interface Viaje {
   id: number;
@@ -94,12 +94,12 @@ export default function ViajesPage() {
 
   return (
     <main className="min-h-screen p-6 bg-gray-50 dark:bg-neutral-900">
+      <Header />
       <div className="max-w-7xl mx-auto bg-white dark:bg-neutral-800 shadow-md rounded-xl p-6">
         <div className="flex justify-between items-start mb-6 flex-wrap gap-4">
           <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">
             Listado de Viajes
           </h1>
-          <ClientUserNav />
         </div>
         <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
           <a
@@ -380,7 +380,9 @@ export default function ViajesPage() {
                 {/* Cupos Info */}
                 <div className="flex items-center gap-2 mb-3 text-xs text-neutral-600 dark:text-neutral-400">
                   <span className="font-mono">
-                    {`${v.cupos ?? 0}/${v.cuposReservados ?? 0}/${v.postulados ?? 0}`}
+                    {`${v.cupos ?? 0}/${v.cuposReservados ?? 0}/${
+                      v.postulados ?? 0
+                    }`}
                   </span>
                   <span className="text-neutral-400 dark:text-neutral-500">
                     (Cupos/Reservados/Postulados)

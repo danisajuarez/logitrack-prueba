@@ -1,0 +1,31 @@
+                const choferNombre =
+                  Array.isArray(choferRows) && choferRows.length > 0
+                    ? choferRows[0].TER_RazonSocialTer || "Chofer"
+                    : "Chofer";
+
+                // Enviar email en segundo plano (no bloqueante)
+                enviarEmailVendedorPostulacion({
+                  to: vendedorEmail,
+                  vendedorNombre,
+                  choferNombre,
+                  viajeNumero:
+                    metrics.numero || viaje.numero || String(viajeId),
+                  fecha: viaje.fecha || new Date().toISOString(),
+                  origen: viaje.origen || "N/A",
+                  destino: viaje.destino || "N/A",
+                  razonSocial: viaje.razonSocial || "Cliente",
+                  patChasis: patenteChasis,
+                  patAcoplado: relacion.patAcoplado
+                    ? relacion.patAcoplado.toUpperCase()
+                    : null,
+                }).catch((error) => {
+                  // No fallar la respuesta si el email falla
+                  console.error(
+                    "[EMAIL] Error al enviar email al vendedor:",
+                    error
+                  );
+                });
+
+                console.log(
+                  "[EMAIL] Email de postulación programado para vendedor:",
+                  vendedorEmail

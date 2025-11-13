@@ -18,7 +18,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
       const isOnLoginPage = nextUrl.pathname.startsWith("/login");
 
       if (isOnLoginPage) {
-        if (isLoggedIn) return Response.redirect(new URL("/", nextUrl));
+        if (isLoggedIn) return Response.redirect(new URL("/viajes", nextUrl));
         return true;
       }
 
@@ -30,15 +30,21 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
     },
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
-        token.name = user.name;
+        token.id = (user as any).id;
+        token.name = (user as any).name;
+        token.username = (user as any).username;
+        token.vendedorId = (user as any).vendedorId ?? null;
+        token.vendedorNombre = (user as any).vendedorNombre ?? null;
       }
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
-        session.user.id = token.id as string;
-        session.user.name = token.name as string;
+        session.user.id = (token as any).id as string;
+        session.user.name = (token as any).name as string;
+        (session.user as any).username = (token as any).username as string | undefined;
+        (session.user as any).vendedorId = (token as any).vendedorId as number | null | undefined;
+        (session.user as any).vendedorNombre = (token as any).vendedorNombre as string | null | undefined;
       }
       return session;
     },
@@ -62,10 +68,12 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
               u.USU_LogUsu as username,
               u.USU_PassWord as password,
               u.USU_DatosUsu as nombre,
-              v.VEN_EMailVen as email
+              u.ven_idvendedor as vendedorId,
+              v.VEN_EMailVen as email,
+              v.VEN_NomVen as vendedorNombre
             FROM sige_usu_usuario u
             LEFT JOIN sige_ven_vendedor v ON u.ven_idvendedor = v.VEN_IDVendedor
-            WHERE u.USU_LogUsu = ?
+            WHERE UPPER(u.USU_LogUsu) = UPPER(?)
             LIMIT 1
           `;
 
@@ -91,7 +99,9 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
             name: user.nombre || user.username,
             username: user.username,
             email: user.email,
-          };
+            vendedorId: user.vendedorId ?? null,
+            vendedorNombre: user.vendedorNombre ?? null,
+          } as any;
         } catch (error) {
           console.error("Error during authentication:", error);
           return null;

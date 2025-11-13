@@ -11,16 +11,18 @@ export default function Header() {
 
   if (!session) return null;
 
+  const vendedorNombre = (session.user as any)?.vendedorNombre as string | undefined;
+
   return (
     <header className="bg-neutral-800/50 border-b border-neutral-700 mb-8">
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
-            {session.user?.name?.charAt(0).toUpperCase() || "U"}
+            {(vendedorNombre || session.user?.name || "U").charAt(0).toUpperCase()}
           </div>
           <div>
             <div className="text-sm font-medium text-white">
-              {session.user?.name || "Usuario"}
+              {vendedorNombre || session.user?.name || "Usuario"}
             </div>
             <div className="text-xs text-neutral-400">Conectado</div>
           </div>

@@ -4,9 +4,12 @@ import "server-only";
 // Normaliza variables de entorno para aceptar EMAIL_* o MAIL_*
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const EMAIL_FROM = process.env.EMAIL_FROM || process.env.MAIL_FROM;
-const EMAIL_LOGISTICA = process.env.EMAIL_LOGISTICA || process.env.MAIL_LOGISTICA;
+const EMAIL_LOGISTICA =
+  process.env.EMAIL_LOGISTICA || process.env.MAIL_LOGISTICA;
 const EMAIL_ADMINISTRACION =
-  process.env.EMAIL_ADMINISTRACION || process.env.MAIL_ADMIN || process.env.MAIL_ADMINISTRACION;
+  process.env.EMAIL_ADMINISTRACION ||
+  process.env.MAIL_ADMIN ||
+  process.env.MAIL_ADMINISTRACION;
 const EMAIL_TEST = process.env.MAIL_TEST || process.env.EMAIL_TEST; // opcional para fallback local
 
 export interface NegocioEmailData {
@@ -417,4 +420,443 @@ export function addTransportistaEmail(
     return [...to, transportistaEmail];
   }
   return to;
+}
+
+// ===== CONFIGURACIÓN SMTP CON NODEMAILER =====
+
+import nodemailer from "nodemailer";
+
+// Configuración del transporter SMTP
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT),
+  secure: false, // true para 465, false para otros puertos
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+  tls: {
+    rejectUnauthorized: false, // Aceptar certificados autofirmados
+  },
+  debug: true, // Activar debug para ver más detalles
+  logger: true, // Mostrar logs de SMTP
+});
+
+// Verificar la conexión al iniciar
+transporter.verify(function (error, success) {
+  if (error) {
+    console.error("[EMAIL] Error en la configuración SMTP:", error);
+  } else {
+    console.log("[EMAIL] Servidor SMTP listo para enviar emails");
+  }
+});
+
+interface EmailChoferPostulado {
+  to: string; // Email del chofer
+  choferNombre: string;
+  viajeNumero: string;
+  fecha: string;
+  origen: string;
+  destino: string;
+  razonSocial: string;
+  patChasis: string;
+  patAcoplado: string | null;
+}
+
+/**
+ * Envía email de notificación cuando un chofer es postulado a un viaje
+ */
+export async function enviarEmailChoferPostulado(data: EmailChoferPostulado) {
+  const {
+    to,
+    choferNombre,
+    viajeNumero,
+    fecha,
+    origen,
+    destino,
+    razonSocial,
+    patChasis,
+    patAcoplado,
+  } = data;
+
+  const fechaFormateada = new Date(fecha).toLocaleDateString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Postulación a Viaje</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td style="padding: 20px 0; text-align: center; background-color: #2563eb;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 24px;">LogiTrack</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <tr>
+            <td style="padding: 40px 30px;">
+              <h2 style="color: #1f2937; margin-top: 0; font-size: 20px;">¡Hola ${choferNombre}!</h2>
+
+              <p style="color: #4b5563; line-height: 1.6; margin: 20px 0;">
+                Te confirmamos que has sido <strong style="color: #2563eb;">postulado exitosamente</strong> para el siguiente viaje:
+              </p>
+
+              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 30px 0; background-color: #f9fafb; border-radius: 6px; overflow: hidden;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 140px;">
+                          <strong>Viaje #</strong>
+                        </td>
+                        <td style="padding: 8px 0; color: #1f2937; font-size: 14px;">
+                          ${viajeNumero}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">
+                          <strong>Fecha</strong>
+                        </td>
+                        <td style="padding: 8px 0; color: #1f2937; font-size: 14px;">
+                          ${fechaFormateada}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">
+                          <strong>Cliente</strong>
+                        </td>
+                        <td style="padding: 8px 0; color: #1f2937; font-size: 14px;">
+                          ${razonSocial}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">
+                          <strong>Origen</strong>
+                        </td>
+                        <td style="padding: 8px 0; color: #1f2937; font-size: 14px;">
+                          ${origen}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">
+                          <strong>Destino</strong>
+                        </td>
+                        <td style="padding: 8px 0; color: #1f2937; font-size: 14px;">
+                          ${destino}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">
+                          <strong>Chasis</strong>
+                        </td>
+                        <td style="padding: 8px 0; color: #10b981; font-size: 14px; font-family: monospace;">
+                          ${patChasis}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">
+                          <strong>Acoplado</strong>
+                        </td>
+                        <td style="padding: 8px 0; color: #3b82f6; font-size: 14px; font-family: monospace;">
+                          ${patAcoplado || "Sin acoplado"}
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="color: #4b5563; line-height: 1.6; margin: 20px 0;">
+                Por favor, coordina con la oficina para confirmar los detalles del viaje.
+              </p>
+
+              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="color: #6b7280; font-size: 12px; margin: 0;">
+                  Este es un correo automático, por favor no respondas a este mensaje.
+                </p>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 20px; text-align: center;">
+        <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+          © ${new Date().getFullYear()} LogiTrack. Todos los derechos reservados.
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+
+  const textContent = `
+Hola ${choferNombre},
+
+Te confirmamos que has sido postulado exitosamente para el siguiente viaje:
+
+Viaje #: ${viajeNumero}
+Fecha: ${fechaFormateada}
+Cliente: ${razonSocial}
+Origen: ${origen}
+Destino: ${destino}
+Chasis: ${patChasis}
+Acoplado: ${patAcoplado || "Sin acoplado"}
+
+Por favor, coordina con la oficina para confirmar los detalles del viaje.
+
+---
+Este es un correo automático, por favor no respondas a este mensaje.
+
+© ${new Date().getFullYear()} LogiTrack. Todos los derechos reservados.
+  `.trim();
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"LogiTrack" <${process.env.EMAIL_FROM}>`,
+      to,
+      subject: `Postulación confirmada - Viaje #${viajeNumero}`,
+      text: textContent,
+      html: htmlContent,
+    });
+
+    console.log("[EMAIL] Email enviado exitosamente:", {
+      messageId: info.messageId,
+      to,
+      viaje: viajeNumero,
+    });
+
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error("[EMAIL] Error al enviar email:", error);
+    throw error;
+  }
+}
+
+/**
+ * Envía un email de prueba para verificar la configuración
+ */
+export async function enviarEmailPrueba(to: string) {
+  try {
+    const info = await transporter.sendMail({
+      from: `"LogiTrack" <${process.env.EMAIL_FROM}>`,
+      to,
+      subject: "Prueba de configuración - LogiTrack",
+      text: "Este es un email de prueba para verificar que la configuración SMTP está funcionando correctamente.",
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+          <h2 style="color: #2563eb;">✅ Configuración exitosa</h2>
+          <p>Este es un email de prueba para verificar que la configuración SMTP está funcionando correctamente.</p>
+          <p>Si recibiste este mensaje, significa que el sistema de emails está operativo.</p>
+        </div>
+      `,
+    });
+
+    console.log("[EMAIL] Email de prueba enviado:", info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error("[EMAIL] Error al enviar email de prueba:", error);
+    throw error;
+  }
+}
+interface EmailVendedorPostulacion {
+  to: string; // Email del vendedor
+  vendedorNombre: string;
+  choferNombre: string;
+  viajeNumero: string;
+  fecha: string;
+  origen: string;
+  destino: string;
+  razonSocial: string;
+  patChasis: string;
+  patAcoplado: string | null;
+}
+
+/**
+ * Envía email de notificación al vendedor cuando postula un chofer a un viaje
+ */
+export async function enviarEmailVendedorPostulacion(
+  data: EmailVendedorPostulacion
+) {
+  const {
+    to,
+    vendedorNombre,
+    choferNombre,
+    viajeNumero,
+    fecha,
+    origen,
+    destino,
+    razonSocial,
+    patChasis,
+    patAcoplado,
+  } = data;
+
+  const fechaFormateada = new Date(fecha).toLocaleDateString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chofer Postulado</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td style="padding: 20px 0; text-align: center; background-color: #2563eb;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 24px;">LogiTrack</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <tr>
+            <td style="padding: 40px 30px;">
+              <h2 style="color: #1f2937; margin-top: 0; font-size: 20px;">¡Hola ${vendedorNombre}!</h2>
+              <p style="color: #4b5563; line-height: 1.6; margin: 20px 0;">
+                Has postulado exitosamente al chofer <strong style="color: #2563eb;">${choferNombre}</strong> para el siguiente viaje:
+              </p>
+              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 30px 0; background-color: #f9fafb; border-radius: 6px; overflow: hidden;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 140px;"><strong>Viaje #</strong></td>
+                        <td style="padding: 8px 0; color: #1f2937; font-size: 14px;">${viajeNumero}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;"><strong>Fecha</strong></td>
+                        <td style="padding: 8px 0; color: #1f2937; font-size: 14px;">${fechaFormateada}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;"><strong>Cliente</strong></td>
+                        <td style="padding: 8px 0; color: #1f2937; font-size: 14px;">${razonSocial}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;"><strong>Origen</strong></td>
+                        <td style="padding: 8px 0; color: #1f2937; font-size: 14px;">${origen}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;"><strong>Destino</strong></td>
+                        <td style="padding: 8px 0; color: #1f2937; font-size: 14px;">${destino}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;"><strong>Chofer</strong></td>
+                        <td style="padding: 8px 0; color: #2563eb; font-size: 14px; font-weight: 600;">${choferNombre}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;"><strong>Chasis</strong></td>
+                        <td style="padding: 8px 0; color: #10b981; font-size: 14px; font-family: monospace;">${patChasis}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;"><strong>Acoplado</strong></td>
+                        <td style="padding: 8px 0; color: #3b82f6; font-size: 14px; font-family: monospace;">${
+                          patAcoplado || "Sin acoplado"
+                        }</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              <p style="color: #4b5563; line-height: 1.6; margin: 20px 0;">
+                Recordá coordinar con el chofer para confirmar los detalles del viaje.
+              </p>
+              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="color: #6b7280; font-size: 12px; margin: 0;">
+                  Este es un correo automático, por favor no respondas a este mensaje.
+                </p>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 20px; text-align: center;">
+        <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+          © ${new Date().getFullYear()} LogiTrack. Todos los derechos reservados.
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"LogiTrack" <${process.env.EMAIL_FROM}>`,
+      to,
+      subject: `Chofer postulado - Viaje #${viajeNumero}`,
+      html: htmlContent,
+    });
+
+    console.log("[EMAIL] Email enviado al vendedor:", {
+      messageId: info.messageId,
+      to,
+    });
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error("[EMAIL] Error al enviar email al vendedor:", error);
+    throw error;
+  }
+}
+
+interface EmailConPDFAdjunto {
+  to: string; // Email del destinatario
+  subject: string; // Asunto del email
+  htmlContent: string; // Contenido HTML del email
+  pdfBuffer: Buffer; // Buffer del PDF
+  pdfNombre: string; // Nombre del archivo PDF
+}
+
+/**
+ * Envía un email con un PDF adjunto
+ */
+export async function enviarEmailConPDFAdjunto(data: EmailConPDFAdjunto) {
+  const { to, subject, htmlContent, pdfBuffer, pdfNombre } = data;
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"LogiTrack" <${process.env.EMAIL_FROM}>`,
+      to,
+      subject,
+      html: htmlContent,
+      attachments: [
+        {
+          filename: pdfNombre,
+          content: pdfBuffer,
+          contentType: "application/pdf",
+        },
+      ],
+    });
+
+    console.log("[EMAIL] Email con PDF enviado exitosamente:", {
+      messageId: info.messageId,
+      to,
+      archivo: pdfNombre,
+    });
+
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error("[EMAIL] Error al enviar email con PDF:", error);
+    throw error;
+  }
 }

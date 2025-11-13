@@ -82,7 +82,10 @@ export async function POST(request: NextRequest) {
       if (ecpIdFromRequest) {
         // Usar el ECP específico que vino del frontend
         ecpIdEcpValid = ecpIdFromRequest;
-        console.log('[DEBUG] Usando ECP específico del frontend:', ecpIdEcpValid);
+        console.log(
+          "[DEBUG] Usando ECP específico del frontend:",
+          ecpIdEcpValid
+        );
       } else {
         // Fallback: buscar la ECP del chofer (para backward compatibility)
         const [ecpDelChoferRows]: any = await connection.query(
@@ -99,19 +102,22 @@ export async function POST(request: NextRequest) {
         if (!Array.isArray(ecpDelChoferRows) || ecpDelChoferRows.length === 0) {
           await connection.rollback();
           return NextResponse.json(
-            { error: "No se encontró la carta porte para este chofer en este viaje" },
+            {
+              error:
+                "No se encontró la carta porte para este chofer en este viaje",
+            },
             { status: 404 }
           );
         }
 
         ecpIdEcpValid = ecpDelChoferRows[0].ECP_IdEcp;
-        console.log('[DEBUG] ECP encontrada mediante búsqueda:', ecpIdEcpValid);
+        console.log("[DEBUG] ECP encontrada mediante búsqueda:", ecpIdEcpValid);
       }
 
-      console.log('[DEBUG] ECP final a usar:', {
+      console.log("[DEBUG] ECP final a usar:", {
         viajeId,
         choferId,
-        ecpIdEcp: ecpIdEcpValid
+        ecpIdEcp: ecpIdEcpValid,
       });
 
       // Traer estación válida (tipo=2, categoría=9)
@@ -144,24 +150,30 @@ export async function POST(request: NextRequest) {
           const params: any[] = [];
 
           if (patChasis) {
-            updates.push('ECP_PatCamion = ?');
+            updates.push("ECP_PatCamion = ?");
             params.push(patChasis.toUpperCase());
           }
           if (patAcoplado) {
-            updates.push('ECP_PatAcoplado = ?');
+            updates.push("ECP_PatAcoplado = ?");
             params.push(patAcoplado.toUpperCase());
           }
 
           if (updates.length > 0) {
             params.push(ecpIdEcp);
             await connection.execute(
-              `UPDATE sige_ecp_enccarpor SET ${updates.join(', ')} WHERE ECP_IdEcp = ?`,
+              `UPDATE sige_ecp_enccarpor SET ${updates.join(
+                ", "
+              )} WHERE ECP_IdEcp = ?`,
               params
             );
-            console.log('[DEBUG] Patentes actualizadas en carta porte:', { patChasis, patAcoplado, ecpIdEcp });
+            console.log("[DEBUG] Patentes actualizadas en carta porte:", {
+              patChasis,
+              patAcoplado,
+              ecpIdEcp,
+            });
           }
         } catch (patError) {
-          console.error('[DEBUG] Error al actualizar patentes:', patError);
+          console.error("[DEBUG] Error al actualizar patentes:", patError);
           // No fallar la transacción por esto, solo loguear
         }
       }
@@ -197,7 +209,12 @@ export async function POST(request: NextRequest) {
           }
 
           const renglon = await getNextRenglon(ecpIdEcp);
-          console.log("[DEBUG API] Insertando adelanto en renglón:", renglon, "para chofer:", choferId);
+          console.log(
+            "[DEBUG API] Insertando adelanto en renglón:",
+            renglon,
+            "para chofer:",
+            choferId
+          );
 
           // Intentar insertar con CHO_IdChofer si la columna existe
           try {
@@ -220,12 +237,16 @@ export async function POST(request: NextRequest) {
                 choferId, // Guardar el ID del chofer
               ]
             );
-            console.log("[DEBUG API] Adelanto insertado correctamente con choferId");
+            console.log(
+              "[DEBUG API] Adelanto insertado correctamente con choferId"
+            );
             adelantosIds.push(renglon);
           } catch (e: any) {
             // Si la columna CHO_IdChofer no existe, insertar sin ella
-            if (e?.code === 'ER_BAD_FIELD_ERROR') {
-              console.log("[DEBUG API] Columna CHO_IdChofer no existe, insertando sin ella");
+            if (e?.code === "ER_BAD_FIELD_ERROR") {
+              console.log(
+                "[DEBUG API] Columna CHO_IdChofer no existe, insertando sin ella"
+              );
               const [result] = await connection.query(
                 `INSERT INTO SIGE_OCP_OrdCarPor
                  (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
@@ -244,7 +265,9 @@ export async function POST(request: NextRequest) {
                   importe, // OCP_CantPend = importe para adelantos
                 ]
               );
-              console.log("[DEBUG API] Adelanto insertado sin choferId (columna no existe)");
+              console.log(
+                "[DEBUG API] Adelanto insertado sin choferId (columna no existe)"
+              );
               adelantosIds.push(renglon);
             } else {
               throw e;
@@ -302,12 +325,16 @@ export async function POST(request: NextRequest) {
                 choferId, // Guardar el ID del chofer
               ]
             );
-            console.log("[DEBUG API] Combustible insertado correctamente con choferId");
+            console.log(
+              "[DEBUG API] Combustible insertado correctamente con choferId"
+            );
             combustiblesIds.push(renglon);
           } catch (e: any) {
             // Si la columna CHO_IdChofer no existe, insertar sin ella
-            if (e?.code === 'ER_BAD_FIELD_ERROR') {
-              console.log("[DEBUG API] Columna CHO_IdChofer no existe, insertando sin ella");
+            if (e?.code === "ER_BAD_FIELD_ERROR") {
+              console.log(
+                "[DEBUG API] Columna CHO_IdChofer no existe, insertando sin ella"
+              );
               await connection.query(
                 `INSERT INTO SIGE_OCP_OrdCarPor
                  (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
@@ -327,7 +354,9 @@ export async function POST(request: NextRequest) {
                   litros,
                 ]
               );
-              console.log("[DEBUG API] Combustible insertado sin choferId (columna no existe)");
+              console.log(
+                "[DEBUG API] Combustible insertado sin choferId (columna no existe)"
+              );
               combustiblesIds.push(renglon);
             } else {
               throw e;
@@ -341,70 +370,230 @@ export async function POST(request: NextRequest) {
       console.log("[DEBUG API] Commit exitoso");
 
       // Enviar email con resumen del negocio y PDF adjunto (no bloquea el guardado principal)
+
+      // Generar y enviar PDF de Orden de Entrega por cada autorización guardada
       try {
         console.log(
-          "[EMAIL] Iniciando generaci��n de PDF y env��o de email..."
+          "[PDF-EMAIL] Iniciando generación de PDFs y envío de emails..."
         );
-        // Traer datos del negocio para el email
-        const [negRows] = await connection.query<RowDataPacket[]>(
-          `SELECT
-             e.ENT_Numero              AS numeroNegocio,
-             e.ENT_Fecha               AS fecha,
-             COALESCE(e.ENT_FechaVencimiento, e.ENT_Fecha) AS fechaVencimiento,
-             e.TER_RazonSocialTer      AS proveedor,
-             e.LOC_NomLocalidadOrig    AS procedencia,
-             e.LOC_NomLocalidadDest    AS destino,
-             e.TVP_Caracteristicas     AS articulo,
-             e.ENT_Tarifa              AS tarifa,
-             e.ENT_CantCupos           AS cupos
+
+        // Obtener datos necesarios para el PDF
+        const [datosRows] = await connection.query<RowDataPacket[]>(
+          `SELECT 
+             e.ENT_Numero AS viajeNumero,
+             e.ENT_Fecha AS fecha,
+             e.TER_RazonSocialTer AS proveedor,
+             t.TER_RazonSocialTer AS transportista,
+             t.TER_CUITTer AS transportistaCuit,
+             c.TER_RazonSocialTer AS chofer,
+             c.TER_CUITTer AS choferCuit,
+             ecp.ECP_PatCamion AS patChasis,
+             ecp.ECP_PatAcoplado AS patAcoplado,
+             v.VEN_NomVen AS vendedor,
+             v.VEN_EMailVen AS vendedorEmail
            FROM sige_ent_encnegtra e
-           WHERE e.ENT_IdEnt = ?
+           INNER JOIN sige_ecp_enccarpor ecp ON e.ENT_IdEnt = ecp.ENT_IdEnt
+           LEFT JOIN sige_ter_tercero c ON c.TER_IDTercero = ?
+           LEFT JOIN sige_icp_intcarpor icp ON icp.ECP_IdEcp = ecp.ECP_IdEcp AND icp.TIC_IdTic = 8
+           LEFT JOIN sige_ter_tercero t ON t.TER_IDTercero = icp.TER_IDTerceroTic
+           -- Enviar al vendedor que postuló (tomado desde la ECP creada al postular)
+           LEFT JOIN sige_ven_vendedor v ON v.VEN_IDVendedor = ecp.VEN_IdVendPostula
+           WHERE e.ENT_IdEnt = ? AND ecp.ECP_IdEcp = ?
            LIMIT 1`,
-          [viajeId]
+          [choferId, viajeId, ecpIdEcp]
         );
 
-        if (Array.isArray(negRows) && negRows.length > 0) {
-          const row: any = negRows[0];
-          const emailData = {
-            numeroNegocio: String(row.numeroNegocio ?? viajeId),
-            fecha: new Date(row.fecha ?? new Date()).toISOString(),
-            fechaVencimiento: new Date(
-              row.fechaVencimiento ?? row.fecha ?? new Date()
-            ).toISOString(),
-            proveedor: String(row.proveedor ?? ""),
-            procedencia: String(row.procedencia ?? ""),
-            destino: String(row.destino ?? ""),
-            articulo: String(row.articulo ?? ""),
-            tarifa: Number(row.tarifa ?? 0),
-            cupos: row.cupos != null ? Number(row.cupos) : undefined,
-          } as const;
-
-          const [{ generateNegocioPDF }, { sendNegocioEmail }] = await Promise.all([
-            import("@/lib/pdf"),
-            import("@/lib/email"),
-          ]);
-
-          const pdf = await generateNegocioPDF(emailData);
-          const result = await sendNegocioEmail(emailData, pdf);
-
-          if (!result.success) {
-            console.error("[EMAIL] Error al enviar email:", result.error);
-          } else {
-            console.log(
-              "[EMAIL] Email enviado exitosamente:",
-              result.messageId
-            );
-          }
+        if (!Array.isArray(datosRows) || datosRows.length === 0) {
+          console.warn("[PDF-EMAIL] No se encontraron datos para generar PDF");
         } else {
-          console.warn(
-            "[EMAIL] No se encontraron datos del negocio para viajeId",
-            viajeId
-          );
+          const datos = datosRows[0];
+          const vendedorEmail = datos.vendedorEmail;
+
+          if (!vendedorEmail || !vendedorEmail.includes("@")) {
+            console.warn(
+              "[PDF-EMAIL] Vendedor no tiene email válido, saltando envío"
+            );
+          } else {
+            // Importar funciones de PDF y email
+            const { generarPDFOrdenEntrega, generarNombrePDF } = await import(
+              "@/lib/pdf-autorizacion"
+            );
+            const { enviarEmailConPDFAdjunto } = await import("@/lib/email");
+
+            const patentes = `${datos.patChasis || ""}${
+              datos.patAcoplado ? " " + datos.patAcoplado : ""
+            }`.trim();
+
+            // Generar PDF por cada adelanto guardado
+            for (const renglonId of adelantosIds) {
+              try {
+                // Obtener datos específicos del adelanto
+                const [adelantoData] = await connection.query<RowDataPacket[]>(
+                  `SELECT OCP_Importe AS importe FROM SIGE_OCP_OrdCarPor 
+                   WHERE ECP_IdEcp = ? AND OCP_Renglon = ? LIMIT 1`,
+                  [ecpIdEcp, renglonId]
+                );
+
+                if (Array.isArray(adelantoData) && adelantoData.length > 0) {
+                  const numeroOrden = `0001-${String(ecpIdEcp).padStart(
+                    8,
+                    "0"
+                  )}`;
+
+                  const pdfBuffer = await generarPDFOrdenEntrega({
+                    numero: numeroOrden,
+                    fecha: datos.fecha || new Date().toISOString(),
+                    proveedor: datos.proveedor || "N/A",
+                    transportista: datos.transportista || "N/A",
+                    transportistaCuit: datos.transportistaCuit || "",
+                    chofer: datos.chofer || "N/A",
+                    choferCuit: datos.choferCuit || "",
+                    patente: patentes || "N/A",
+                    tipo: "adelanto",
+                    cantidad: Number(adelantoData[0].importe || 0),
+                    importe: 0,
+                  });
+
+                  const nombrePDF = generarNombrePDF({
+                    numero: numeroOrden,
+                    fecha: datos.fecha,
+                    proveedor: datos.proveedor,
+                    transportista: datos.transportista,
+                    transportistaCuit: datos.transportistaCuit,
+                    chofer: datos.chofer,
+                    choferCuit: datos.choferCuit,
+                    patente: patentes,
+                    tipo: "adelanto",
+                    cantidad: Number(adelantoData[0].importe || 0),
+                    importe: 0,
+                  });
+
+                  const htmlEmail = `
+                    <h2>Orden de Entrega - Adelanto</h2>
+                    <p>Hola ${datos.vendedor || "Vendedor"},</p>
+                    <p>Se ha generado una nueva orden de entrega para el chofer <strong>${
+                      datos.chofer
+                    }</strong>.</p>
+                    <p><strong>Viaje:</strong> ${datos.viajeNumero}</p>
+                    <p><strong>Tipo:</strong> Adelanto</p>
+                    <p><strong>Monto:</strong> $${Number(
+                      adelantoData[0].importe || 0
+                    ).toFixed(2)}</p>
+                    <p>El PDF adjunto contiene todos los detalles.</p>
+                  `;
+
+                  await enviarEmailConPDFAdjunto({
+                    to: vendedorEmail,
+                    subject: `Orden de Entrega - Adelanto - ${datos.chofer}`,
+                    htmlContent: htmlEmail,
+                    pdfBuffer,
+                    pdfNombre: nombrePDF,
+                  });
+
+                  console.log(
+                    "[PDF-EMAIL] PDF de adelanto enviado:",
+                    nombrePDF
+                  );
+                }
+              } catch (pdfErr) {
+                console.error(
+                  "[PDF-EMAIL] Error al generar/enviar PDF de adelanto:",
+                  pdfErr
+                );
+              }
+            }
+
+            // Generar PDF por cada combustible guardado
+            for (const renglonId of combustiblesIds) {
+              try {
+                // Obtener datos específicos del combustible
+                const [combustibleData] = await connection.query<
+                  RowDataPacket[]
+                >(
+                  `SELECT OCP_Cantidad AS litros FROM SIGE_OCP_OrdCarPor 
+                   WHERE ECP_IdEcp = ? AND OCP_Renglon = ? LIMIT 1`,
+                  [ecpIdEcp, renglonId]
+                );
+
+                if (
+                  Array.isArray(combustibleData) &&
+                  combustibleData.length > 0
+                ) {
+                  const numeroOrden = `0001-${String(ecpIdEcp).padStart(
+                    8,
+                    "0"
+                  )}`;
+
+                  const pdfBuffer = await generarPDFOrdenEntrega({
+                    numero: numeroOrden,
+                    fecha: datos.fecha || new Date().toISOString(),
+                    proveedor: datos.proveedor || "N/A",
+                    transportista: datos.transportista || "N/A",
+                    transportistaCuit: datos.transportistaCuit || "",
+                    chofer: datos.chofer || "N/A",
+                    choferCuit: datos.choferCuit || "",
+                    patente: patentes || "N/A",
+                    tipo: "combustible",
+                    cantidad: Number(combustibleData[0].litros || 0),
+                    importe: 0,
+                  });
+
+                  const nombrePDF = generarNombrePDF({
+                    numero: numeroOrden,
+                    fecha: datos.fecha,
+                    proveedor: datos.proveedor,
+                    transportista: datos.transportista,
+                    transportistaCuit: datos.transportistaCuit,
+                    chofer: datos.chofer,
+                    choferCuit: datos.choferCuit,
+                    patente: patentes,
+                    tipo: "combustible",
+                    cantidad: Number(combustibleData[0].litros || 0),
+                    importe: 0,
+                  });
+
+                  const htmlEmail = `
+                    <h2>Orden de Entrega - Combustible</h2>
+                    <p>Hola ${datos.vendedor || "Vendedor"},</p>
+                    <p>Se ha generado una nueva orden de entrega para el chofer <strong>${
+                      datos.chofer
+                    }</strong>.</p>
+                    <p><strong>Viaje:</strong> ${datos.viajeNumero}</p>
+                    <p><strong>Tipo:</strong> Combustible</p>
+                    <p><strong>Cantidad:</strong> ${Number(
+                      combustibleData[0].litros || 0
+                    ).toFixed(2)} litros</p>
+                    <p>El PDF adjunto contiene todos los detalles.</p>
+                  `;
+
+                  await enviarEmailConPDFAdjunto({
+                    to: vendedorEmail,
+                    subject: `Orden de Entrega - Combustible - ${datos.chofer}`,
+                    htmlContent: htmlEmail,
+                    pdfBuffer,
+                    pdfNombre: nombrePDF,
+                  });
+
+                  console.log(
+                    "[PDF-EMAIL] PDF de combustible enviado:",
+                    nombrePDF
+                  );
+                }
+              } catch (pdfErr) {
+                console.error(
+                  "[PDF-EMAIL] Error al generar/enviar PDF de combustible:",
+                  pdfErr
+                );
+              }
+            }
+          }
         }
       } catch (emailErr) {
-        console.error("[EMAIL] Error general en flujo de email:", emailErr);
+        console.error(
+          "[PDF-EMAIL] Error general en generación/envío de PDFs:",
+          emailErr
+        );
       }
-
       const response = {
         success: true,
         message: "Autorizaciones guardadas exitosamente",
@@ -467,10 +656,15 @@ export async function GET(request: NextRequest) {
     }
 
     const ecpIds = ecpRows.map((r: any) => r.ECP_IdEcp);
-    console.log('[DEBUG GET] Buscando autorizaciones para ENT_IdEnt:', viajeId, 'ECPs:', ecpIds);
+    console.log(
+      "[DEBUG GET] Buscando autorizaciones para ENT_IdEnt:",
+      viajeId,
+      "ECPs:",
+      ecpIds
+    );
 
     // Trae renglones de ADELANTO y/o COMBUSTIBLE para TODAS las ECPs del viaje
-    const placeholders = ecpIds.map(() => '?').join(', ');
+    const placeholders = ecpIds.map(() => "?").join(", ");
     const query = `
       SELECT
         ocp.ECP_IdEcp           AS ecpIdEcp,
@@ -496,13 +690,19 @@ export async function GET(request: NextRequest) {
     `;
 
     try {
-      const [rows] = await db.query(query, [...ecpIds, ARTICULO_COMBUSTIBLE_ID, ARTICULO_ADELANTO_ID]);
-      console.log('[DEBUG GET] Autorizaciones encontradas:', rows);
+      const [rows] = await db.query(query, [
+        ...ecpIds,
+        ARTICULO_COMBUSTIBLE_ID,
+        ARTICULO_ADELANTO_ID,
+      ]);
+      console.log("[DEBUG GET] Autorizaciones encontradas:", rows);
       return NextResponse.json(rows);
     } catch (e: any) {
       // Si la columna CHO_IdChofer no existe, consultar sin ella
-      if (e?.code === 'ER_BAD_FIELD_ERROR') {
-        console.log('[DEBUG GET] Columna CHO_IdChofer no existe, usando query fallback');
+      if (e?.code === "ER_BAD_FIELD_ERROR") {
+        console.log(
+          "[DEBUG GET] Columna CHO_IdChofer no existe, usando query fallback"
+        );
         const queryFallback = `
           SELECT
             ocp.ECP_IdEcp           AS ecpIdEcp,
@@ -525,8 +725,12 @@ export async function GET(request: NextRequest) {
             )
           ORDER BY ocp.ECP_IdEcp, ocp.OCP_Renglon DESC
         `;
-        const [rows] = await db.query(queryFallback, [...ecpIds, ARTICULO_COMBUSTIBLE_ID, ARTICULO_ADELANTO_ID]);
-        console.log('[DEBUG GET] Autorizaciones encontradas (fallback):', rows);
+        const [rows] = await db.query(queryFallback, [
+          ...ecpIds,
+          ARTICULO_COMBUSTIBLE_ID,
+          ARTICULO_ADELANTO_ID,
+        ]);
+        console.log("[DEBUG GET] Autorizaciones encontradas (fallback):", rows);
         return NextResponse.json(rows);
       }
       throw e;

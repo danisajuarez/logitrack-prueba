@@ -1,35 +1,18 @@
 {
   "permissions": {
     "allow": [
-      "Bash(rm:*)",
-      "Bash(yarn build)",
-      "Bash(mysql:*)",
-      "Bash(node:*)",
-      "Bash(yarn dev)",
-      "Bash(npm run dev:*)",
-      "Bash(npm run lint)",
-      "Bash(curl:*)",
-      "Bash(npx next:*)",
-      "Bash(taskkill:*)",
+      "Bash(powershell:*)",
+      "Bash(cmd /c \"type C:\\Users\\danis\\proyecto-gustavo\\package.json\")",
+      "Bash(cmd /c \"type C:\\Users\\danis\\proyecto-gustavo\\src\\app\\page.tsx\")",
+      "Bash(cmd /c \"echo import { redirect } from ''next/navigation''; > c:\\Users\\danis\\proyecto-gustavo\\src\\app\\page.tsx && echo. >> c:\\Users\\danis\\proyecto-gustavo\\src\\app\\page.tsx && echo export default function Home^(^) { >> c:\\Users\\danis\\proyecto-gustavo\\src\\app\\page.tsx && echo   redirect(''/viajes''); >> c:\\Users\\danis\\proyecto-gustavo\\src\\app\\page.tsx && echo } >> c:\\Users\\danis\\proyecto-gustavo\\src\\app\\page.tsx\")",
+      "Bash(dir:*)",
+      "Bash(cmd /c \"type src\\lib\\auth.ts\")",
       "Bash(cmd /c:*)",
-      "Bash(yarn lint)",
-      "Bash(npm install:*)",
-      "Bash(powershell -Command \"git status\")",
-      "Bash(tasklist:*)",
-      "Bash(yarn add:*)",
-      "Bash(yarn install:*)",
-      "Bash(git log:*)",
-      "Bash(git add:*)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nMerge: Resolver conflictos entre branches divergentes\n\nConflictos resueltos:\n- Usar NextAuth en lugar de autenticación custom\n- Mantener componente Header en página principal\n- Actualizar middleware para usar NextAuth\n- Unificar UI del login\n- Regenerar lockfile\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(powershell -Command \"yarn dev\")",
-      "Bash(powershell -Command \"Remove-Item ''c:\\Users\\danis\\proyecto-gustavo\\src\\auth.ts'' -Force\")",
-      "Bash(powershell -Command:*)",
-      "Bash(npm run build:*)",
-      "Bash(git push:*)",
-      "Bash(git rm:*)",
-      "Bash(git commit:*)",
-      "Bash(git mv:*)"
+      "Bash(node -e:*)",
+      "Bash(echo:*)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -Command \"$content = Get-Content ''C:\\Users\\danis\\proyecto-gustavo\\src\\lib\\pdf-autorizacion.ts'' -Raw; Write-Output ''File read successfully''\")"
     ],
-    "deny": []
+    "deny": [],
+    "ask": []
   }
 }

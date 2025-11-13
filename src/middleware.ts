@@ -7,9 +7,14 @@ export default auth((req) => {
   // Allow access to login page
   if (isOnLoginPage) {
     if (isLoggedIn) {
-      return Response.redirect(new URL("/", req.url));
+      return Response.redirect(new URL("/viajes", req.url));
     }
     return;
+  }
+
+  // If logged in and at root, send to viajes list by default
+  if (isLoggedIn && req.nextUrl.pathname === "/") {
+    return Response.redirect(new URL("/viajes", req.url));
   }
 
   // Redirect to login if not authenticated

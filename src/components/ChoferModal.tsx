@@ -1,5 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import SearchableSelect from "./SearchableSelect";
 import Notification from "./Notification";
 
@@ -106,6 +107,7 @@ export default function ChoferModal({
   viaje,
   onPostulado,
 }: ChoferModalProps) {
+  const { data: session } = useSession();
   const viajeId = viaje?.id ?? null;
   const [choferOptions, setChoferOptions] = useState<ChoferOption[]>([]);
   const [choferOptionsAll, setChoferOptionsAll] = useState<ChoferOption[]>([]);
@@ -370,23 +372,14 @@ export default function ChoferModal({
     loadAutorizaciones();
   }, [isOpen, viajeId, loadPostulaciones, loadAutorizaciones]);
 
-  // Proponer vendedor por defecto desde la sesión del usuario
+  // Proponer vendedor por defecto desde la sesión NextAuth
   useEffect(() => {
     if (!isOpen || !viajeId) return;
-    (async () => {
-      try {
-        const res = await fetch("/api/auth/session");
-        if (!res.ok) return;
-        const data = await res.json();
-        const vendedorId = data?.user?.vendedorId;
-        if (vendedorId && !selectedVendedor) {
-          setSelectedVendedor(Number(vendedorId));
-        }
-      } catch (err) {
-        console.log("[DEBUG] No se pudo obtener vendedor de sesión:", err);
-      }
-    })();
-  }, [isOpen, viajeId, selectedVendedor]);
+    const vendedorId = (session?.user as any)?.vendedorId;
+    if (vendedorId && !selectedVendedor) {
+      setSelectedVendedor(Number(vendedorId));
+    }
+  }, [isOpen, viajeId, selectedVendedor, session]);
 
   // Cargar choferes filtrados por transportista (con patentes)
   useEffect(() => {

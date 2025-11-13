@@ -1,26 +1,15 @@
 import type { NegocioEmailData } from "./email";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 /**
  * Genera un HTML completo para el PDF (puede ser el mismo que el email o personalizado)
  */
 function generatePDFHTML(data: NegocioEmailData): string {
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("es-AR", {
-      style: "currency",
-      currency: "ARS",
-    }).format(value);
-  };
-
-  const formatDate = (dateStr: string) => {
+  const format = (d: string) => {
     try {
-      const date = new Date(dateStr);
-      return new Intl.DateTimeFormat("es-AR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }).format(date);
+      return new Intl.DateTimeFormat("es-AR").format(new Date(d));
     } catch {
-      return dateStr;
+      return d;
     }
   };
 
@@ -28,391 +17,279 @@ function generatePDFHTML(data: NegocioEmailData): string {
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <style>
     @page {
       size: A4;
-      margin: 2cm;
+      margin: 20mm;
     }
+
     body {
       font-family: Arial, sans-serif;
-      line-height: 1.6;
-      color: #333;
-      margin: 0;
-      padding: 0;
+      font-size: 13px;
+      color: #000;
     }
-    .container {
-      max-width: 100%;
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      width: 100%;
     }
-    .header {
-      border-bottom: 3px solid #2563eb;
-      padding-bottom: 15px;
-      margin-bottom: 25px;
+
+    .logo {
+      width: 260px;
     }
-    h1 {
-      color: #1e40af;
-      margin: 0 0 10px 0;
-      font-size: 24px;
+
+    .firma-box {
+      width: 120px;
+      height: 80px;
+      border: 2px solid #008000;
+      margin-top: 10px;
+      text-align: center;
+      font-size: 22px;
+      font-weight: bold;
     }
-    .numero {
-      color: #64748b;
+
+    .fecha {
+      font-size: 15px;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    .datos-empresa {
+      text-align: left;
+      font-size: 12px;
+      margin-top: 10px;
+      line-height: 1.4;
+    }
+
+    .linea-verde {
+      height: 3px;
+      background-color: #008000;
+      width: 100%;
+      margin: 12px 0;
+    }
+
+    .section-label {
+      font-weight: bold;
+      margin-right: 4px;
       font-size: 14px;
-      margin: 0;
     }
-    .section {
-      margin-bottom: 20px;
-      page-break-inside: avoid;
+
+    .section-row {
+      display: flex;
+      margin-bottom: 4px;
+      font-size: 14px;
     }
-    .section-title {
-      font-weight: 600;
-      color: #1e40af;
-      font-size: 16px;
-      margin-bottom: 10px;
-      padding-bottom: 5px;
-      border-bottom: 2px solid #e2e8f0;
-    }
-    table {
+
+    .tabla {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 10px;
+      margin-top: 18px;
+      font-size: 13px;
     }
-    td {
-      padding: 8px 5px;
-      border-bottom: 1px solid #f1f5f9;
+
+    .tabla th {
+      text-align: left;
+      font-weight: bold;
+      padding-bottom: 6px;
     }
-    td.label {
-      font-weight: 600;
-      color: #475569;
-      width: 140px;
-    }
-    td.value {
-      color: #1e293b;
-    }
-    .tarifa {
-      background-color: #dbeafe;
-      padding: 15px;
-      margin-top: 20px;
-      page-break-inside: avoid;
-    }
-    .tarifa-label {
-      font-weight: 600;
-      color: #475569;
-      margin-bottom: 5px;
-    }
-    .tarifa-value {
-      font-size: 24px;
-      font-weight: 700;
-      color: #1e40af;
-    }
-    .footer {
-      margin-top: 30px;
-      padding-top: 20px;
-      border-top: 1px solid #e2e8f0;
-      font-size: 11px;
-      color: #64748b;
-      text-align: center;
-      page-break-inside: avoid;
-    }
-    .timestamp {
-      text-align: right;
-      font-size: 10px;
-      color: #94a3b8;
-      margin-top: 10px;
+
+    .tabla td {
+      padding: 4px 0;
     }
   </style>
 </head>
+
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>Resumen de Negocio</h1>
-      <p class="numero">Negocio N° ${data.numeroNegocio}</p>
-    </div>
 
-    <div class="section">
-      <div class="section-title">Fechas</div>
-      <table>
-        <tr>
-          <td class="label">Fecha:</td>
-          <td class="value">${formatDate(data.fecha)}</td>
-        </tr>
-        <tr>
-          <td class="label">Vencimiento:</td>
-          <td class="value">${formatDate(data.fechaVencimiento)}</td>
-        </tr>
-      </table>
-    </div>
+  <!-- ENCABEZADO -->
+  <div class="row">
+    <img src="https://i.imgur.com/AuVYhFt.png" class="logo" />
 
-    <div class="section">
-      <div class="section-title">Proveedor</div>
-      <table>
-        <tr>
-          <td class="label">Razón Social:</td>
-          <td class="value">${data.proveedor}</td>
-        </tr>
-        ${
-          data.proveedorCuit
-            ? `
-        <tr>
-          <td class="label">CUIT:</td>
-          <td class="value">${data.proveedorCuit}</td>
-        </tr>
-        `
-            : ""
-        }
-      </table>
-    </div>
+    <div>
+      <div class="firma-box">X</div>
+      <div class="fecha">FECHA: ${format(data.fecha)}</div>
 
-    <div class="section">
-      <div class="section-title">Ubicaciones</div>
-      <table>
-        <tr>
-          <td class="label">Procedencia:</td>
-          <td class="value">${data.procedencia}</td>
-        </tr>
-        <tr>
-          <td class="label">Destino:</td>
-          <td class="value">${data.destino}</td>
-        </tr>
-      </table>
-    </div>
-
-    ${
-      data.intermediario || data.transportista || data.chofer
-        ? `
-    <div class="section">
-      <div class="section-title">Transporte</div>
-      <table>
-        ${
-          data.intermediario
-            ? `
-        <tr>
-          <td class="label">Intermediario:</td>
-          <td class="value">${data.intermediario}</td>
-        </tr>
-        `
-            : ""
-        }
-        ${
-          data.transportista
-            ? `
-        <tr>
-          <td class="label">Transportista:</td>
-          <td class="value">${data.transportista}</td>
-        </tr>
-        `
-            : ""
-        }
-        ${
-          data.transportistaCuit
-            ? `
-        <tr>
-          <td class="label">CUIT Transportista:</td>
-          <td class="value">${data.transportistaCuit}</td>
-        </tr>
-        `
-            : ""
-        }
-        ${
-          data.chofer
-            ? `
-        <tr>
-          <td class="label">Chofer:</td>
-          <td class="value">${data.chofer}</td>
-        </tr>
-        `
-            : ""
-        }
-        ${
-          data.choferCuit
-            ? `
-        <tr>
-          <td class="label">CUIT Chofer:</td>
-          <td class="value">${data.choferCuit}</td>
-        </tr>
-        `
-            : ""
-        }
-      </table>
-    </div>
-    `
-        : ""
-    }
-
-    ${
-      data.patenteChasis || data.patenteAcoplado
-        ? `
-    <div class="section">
-      <div class="section-title">Vehículos</div>
-      <table>
-        ${
-          data.patenteChasis
-            ? `
-        <tr>
-          <td class="label">Patente Camión:</td>
-          <td class="value">${data.patenteChasis}</td>
-        </tr>
-        `
-            : ""
-        }
-        ${
-          data.patenteAcoplado
-            ? `
-        <tr>
-          <td class="label">Patente Acoplado:</td>
-          <td class="value">${data.patenteAcoplado}</td>
-        </tr>
-        `
-            : ""
-        }
-      </table>
-    </div>
-    `
-        : ""
-    }
-
-    <div class="section">
-      <div class="section-title">Artículo</div>
-      <table>
-        <tr>
-          <td class="label">Descripción:</td>
-          <td class="value">${data.articulo}</td>
-        </tr>
-        ${
-          data.cupos
-            ? `
-        <tr>
-          <td class="label">Cupos:</td>
-          <td class="value">${data.cupos}</td>
-        </tr>
-        `
-            : ""
-        }
-      </table>
-    </div>
-
-    <div class="tarifa">
-      <div class="tarifa-label">Tarifa</div>
-      <div class="tarifa-value">${formatCurrency(data.tarifa)}</div>
-    </div>
-
-    ${
-      data.vendedor
-        ? `
-    <div class="section">
-      <table>
-        <tr>
-          <td class="label">Vendedor:</td>
-          <td class="value">${data.vendedor}</td>
-        </tr>
-      </table>
-    </div>
-    `
-        : ""
-    }
-
-    <div class="footer">
-      <p>Documento generado automáticamente por el sistema de gestión de negocios.</p>
-      <div class="timestamp">
-        Generado el: ${new Date().toLocaleString("es-AR", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-        })}
+      <div class="datos-empresa">
+        <strong>LOGITRACK S.A.S.</strong><br>
+        I.V.A.: Responsable Inscripto<br>
+        C.U.I.T.: 30-71895249-9<br>
+        Ing.Brutos: 30-71895249-9<br>
+        Inicio Actividades: 01/05/2025
       </div>
     </div>
   </div>
+
+  <div class="linea-verde"></div>
+
+  <!-- PROVEEDOR -->
+  <div class="section-row">
+    <span class="section-label">PROVEEDOR:</span> ${data.proveedor || ""}
+  </div>
+  <div class="section-row">
+    <span class="section-label">DOMICILIO:</span> ${data.procedencia || ""}
+  </div>
+  <div class="section-row">
+    <span class="section-label">CUIT:</span> ${data.proveedorCuit || ""}
+  </div>
+
+  <div class="linea-verde"></div>
+
+  <h3 style="margin-top: 25px;">Detalle de Transportes, Choferes y Camiones</h3>
+
+  <table class="tabla">
+    <thead>
+      <tr>
+        <th>Intermediario</th>
+        <th>CUIT Inter.</th>
+        <th>Transporte</th>
+        <th>CUIT Trans.</th>
+        <th>Chofer</th>
+        <th>CUIT Chofer</th>
+        <th>Pat.Camión</th>
+        <th>Pat.Acop.</th>
+        <th>Procedencia</th>
+        <th>Destino</th>
+        <th>Tarifa</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>${data.intermediario || "LOGITRACK"}</td>
+        <td>${data.transportistaCuit || ""}</td>
+        <td>${data.transportista || ""}</td>
+        <td>${data.transportistaCuit || ""}</td>
+        <td>${data.chofer || ""}</td>
+        <td>${data.choferCuit || ""}</td>
+        <td>${data.patenteChasis || ""}</td>
+        <td>${data.patenteAcoplado || ""}</td>
+        <td>${data.procedencia || ""}</td>
+        <td>${data.destino || ""}</td>
+        <td>${data.tarifa || ""}</td>
+      </tr>
+    </tbody>
+  </table>
+
 </body>
 </html>
-  `.trim();
+  `;
 }
 
 /**
- * Genera un PDF desde los datos del negocio usando Puppeteer
- *
- * @param data - Datos del negocio
- * @returns Buffer del PDF generado
+ * Genera un PDF simple con los datos del negocio usando pdf-lib.
+ * Devuelve un Buffer con el contenido del PDF.
  */
 export async function generateNegocioPDF(
   data: NegocioEmailData
 ): Promise<Buffer> {
-  let browser = null;
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([595, 842]); // A4 portrait
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-  try {
-    console.log(
-      "[PDF] Iniciando generación de PDF para negocio:",
-      data.numeroNegocio
-    );
+  const { width, height } = page.getSize();
+  const margin = 50;
+  let y = height - margin;
 
-    // Generar HTML
-    const html = generatePDFHTML(data);
+  const negro = rgb(0, 0, 0);
+  const azul = rgb(0.15, 0.38, 0.92); // #2563eb aprox
+  const gris = rgb(0.4, 0.45, 0.5);
 
-    // Importar puppeteer de forma diferida para evitar problemas en build/edge
-    // @ts-ignore - puppeteer es opcional y se instala bajo demanda
-    const { default: puppeteer } = await import("puppeteer");
+  // Encabezado
+  const title = "Nuevo Negocio Registrado";
+  page.drawText(title, { x: margin, y, size: 20, font: fontBold, color: azul });
+  y -= 18;
+  const numero = `Negocio Nº ${data.numeroNegocio}`;
+  page.drawText(numero, { x: margin, y, size: 12, font: fontRegular, color: gris });
 
-    // Lanzar navegador headless
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-      ],
-    });
+  // Línea divisoria
+  y -= 14;
+  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 2, color: azul });
 
-    console.log("[PDF] Navegador lanzado exitosamente");
-
-    const page = await browser.newPage();
-
-    // Configurar contenido HTML
-    await page.setContent(html, {
-      waitUntil: "networkidle0",
-    });
-
-    console.log("[PDF] Contenido HTML cargado");
-
-    // Generar PDF
-    const rawPdf = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      margin: {
-        top: "2cm",
-        right: "2cm",
-        bottom: "2cm",
-        left: "2cm",
-      },
-    });
-
-    // Asegurar que devolvemos un Buffer de Node (page.pdf puede devolver Uint8Array)
-    const pdfBuffer = Buffer.from(rawPdf);
-
-    console.log(
-      "[PDF] PDF generado exitosamente, tamaño:",
-      pdfBuffer.length,
-      "bytes"
-    );
-
-    return pdfBuffer;
-  } catch (error) {
-    console.error("[PDF] Error al generar PDF:", error);
-    throw error;
-  } finally {
-    if (browser) {
-      await browser.close();
-      console.log("[PDF] Navegador cerrado");
+  // Utilidades
+  const drawLabelValue = (label: string, value: string, gap = 90) => {
+    y -= 16;
+    page.drawText(label, { x: margin, y, size: 12, font: fontBold, color: negro });
+    page.drawText(value || "", { x: margin + gap, y, size: 12, font: fontRegular, color: negro });
+  };
+  const formatDate = (d?: string) => {
+    try {
+      return d ? new Intl.DateTimeFormat("es-AR").format(new Date(d)) : "";
+    } catch {
+      return d || "";
     }
+  };
+  const formatCurrency = (v?: number) => {
+    try {
+      return typeof v === "number"
+        ? new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(v)
+        : "";
+    } catch {
+      return typeof v === "number" ? `$${v.toFixed(2)}` : "";
+    }
+  };
+
+  // Fechas
+  y -= 22;
+  page.drawText("Fechas", { x: margin, y, size: 14, font: fontBold, color: azul });
+  y -= 8;
+  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.88, 0.92, 1) });
+  drawLabelValue("Fecha:", formatDate(data.fecha));
+  drawLabelValue("Vencimiento:", formatDate(data.fechaVencimiento));
+
+  // Proveedor
+  y -= 22;
+  page.drawText("Proveedor", { x: margin, y, size: 14, font: fontBold, color: azul });
+  y -= 8;
+  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.88, 0.92, 1) });
+  drawLabelValue("Razón Social:", data.proveedor || "");
+  if (data.proveedorCuit) drawLabelValue("CUIT:", data.proveedorCuit);
+
+  // Ubicaciones
+  y -= 22;
+  page.drawText("Ubicaciones", { x: margin, y, size: 14, font: fontBold, color: azul });
+  y -= 8;
+  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.88, 0.92, 1) });
+  drawLabelValue("Procedencia:", data.procedencia || "");
+  drawLabelValue("Destino:", data.destino || "");
+
+  // Transporte
+  if (data.intermediario || data.transportista || data.chofer) {
+    y -= 22;
+    page.drawText("Transporte", { x: margin, y, size: 14, font: fontBold, color: azul });
+    y -= 8;
+    page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.88, 0.92, 1) });
+    if (data.intermediario) drawLabelValue("Intermediario:", data.intermediario);
+    if (data.transportista) drawLabelValue("Transportista:", data.transportista);
+    if (data.transportistaCuit) drawLabelValue("CUIT Transp.:", data.transportistaCuit);
+    if (data.chofer) drawLabelValue("Chofer:", data.chofer);
+    if (data.choferCuit) drawLabelValue("CUIT Chofer:", data.choferCuit);
   }
+
+  // Vehículos
+  if (data.patenteChasis || data.patenteAcoplado) {
+    y -= 22;
+    page.drawText("Vehículos", { x: margin, y, size: 14, font: fontBold, color: azul });
+    y -= 8;
+    page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.88, 0.92, 1) });
+    if (data.patenteChasis) drawLabelValue("Chasis:", (data.patenteChasis || "").toUpperCase());
+    if (data.patenteAcoplado) drawLabelValue("Acoplado:", (data.patenteAcoplado || "").toUpperCase());
+  }
+
+  // Artículo y tarifa
+  y -= 22;
+  page.drawText("Negocio", { x: margin, y, size: 14, font: fontBold, color: azul });
+  y -= 8;
+  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.88, 0.92, 1) });
+  drawLabelValue("Artículo:", data.articulo || "");
+  drawLabelValue("Tarifa:", formatCurrency(data.tarifa));
+  if (typeof data.cupos !== "undefined") drawLabelValue("Cupos:", String(data.cupos));
+  if (data.vendedor) drawLabelValue("Vendedor:", data.vendedor);
+
+  const bytes = await pdfDoc.save();
+  return Buffer.from(bytes);
 }
 
-/**
- * Genera un PDF y lo devuelve como base64 (útil para APIs que requieren base64)
- */
-export async function generateNegocioPDFBase64(
-  data: NegocioEmailData
-): Promise<string> {
-  const buffer = await generateNegocioPDF(data);
-  return buffer.toString("base64");
-}
+export { generatePDFHTML };
