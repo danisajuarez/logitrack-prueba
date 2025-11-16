@@ -93,7 +93,7 @@ export default function ViajesPage() {
   const filtrados = Array.isArray(viajes) ? viajes : [];
 
   return (
-    <main className="min-h-screen p-6 bg-gray-50 dark:bg-neutral-900">
+    <main className="min-h-screen  bg-gray-50 dark:bg-neutral-900">
       <Header />
       <div className="max-w-7xl mx-auto bg-white dark:bg-neutral-800 shadow-md rounded-xl p-6">
         <div className="flex justify-between items-start mb-6 flex-wrap gap-4">
