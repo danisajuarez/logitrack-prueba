@@ -13,14 +13,22 @@ export async function DELETE(
     const idNum = Number(identifier);
     const isNumeric = !Number.isNaN(idNum);
 
-    // 1) Intentar borrar en tabla nueva por id
+    // 1) Intentar borrar en tabla nueva por id (si existe)
     if (isNumeric) {
-      const [delNew] = await db.execute(
-        "DELETE FROM viajes_nuevos WHERE id = ? AND COALESCE(cuposReservados,0) = 0",
-        [idNum]
-      );
-      if ((delNew as any).affectedRows > 0) {
-        return NextResponse.json({ message: "Viaje eliminado correctamente" });
+      try {
+        const [delNew] = await db.execute(
+          "DELETE FROM viajes_nuevos WHERE id = ? AND COALESCE(cuposReservados,0) = 0",
+          [idNum]
+        );
+        if ((delNew as any).affectedRows > 0) {
+          return NextResponse.json({ message: "Viaje eliminado correctamente" });
+        }
+      } catch (err: any) {
+        // Si la tabla no existe, continuar con la siguiente opción
+        if (err?.code !== "ER_NO_SUCH_TABLE") {
+          throw err;
+        }
+        console.log("Tabla viajes_nuevos no existe, intentando tabla principal");
       }
     }
 
@@ -49,10 +57,14 @@ export async function DELETE(
       { error: "No se puede eliminar: tiene reservas o no existe" },
       { status: 400 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al eliminar viaje:", error);
     return NextResponse.json(
-      { error: "Error al eliminar el viaje" },
+      {
+        error: "Error al eliminar el viaje",
+        details: error?.message || String(error),
+        code: error?.code || "UNKNOWN"
+      },
       { status: 500 }
     );
   }
