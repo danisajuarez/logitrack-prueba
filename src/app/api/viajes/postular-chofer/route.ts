@@ -886,26 +886,6 @@ export async function DELETE(request: NextRequest) {
     try {
       await connection.beginTransaction();
 
-      // Validar que el viaje no tenga órdenes de carga asociadas
-      // Si existen renglones en SIGE_OCP_OrdCarPor para el ECP relacionado, bloquear eliminación
-      const [ocpRows] = await connection.query<RowDataPacket[]>(
-        `SELECT 1
-         FROM SIGE_OCP_OrdCarPor ocp
-         WHERE ocp.ECP_IdEcp = ?
-         LIMIT 1`,
-        [viajeId]
-      );
-      if (Array.isArray(ocpRows) && ocpRows.length > 0) {
-        await connection.rollback();
-        return NextResponse.json(
-          {
-            error:
-              "No se puede eliminar la postulación: existen órdenes de carga",
-          },
-          { status: 409 }
-        );
-      }
-
       const metrics = await fetchViajeMetrics(connection, viajeId);
 
       // Obtener ECPs del viaje
@@ -943,6 +923,26 @@ export async function DELETE(request: NextRequest) {
       }
 
       const ecpDelChofer = rows[0].ECP_IdEcp;
+
+      // Validar que esta postulación específica no tenga órdenes de carga asociadas
+      // Si existen renglones en SIGE_OCP_OrdCarPor para el ECP del chofer, bloquear eliminación
+      const [ocpRows] = await connection.query<RowDataPacket[]>(
+        `SELECT 1
+         FROM SIGE_OCP_OrdCarPor ocp
+         WHERE ocp.ECP_IdEcp = ?
+         LIMIT 1`,
+        [ecpDelChofer]
+      );
+      if (Array.isArray(ocpRows) && ocpRows.length > 0) {
+        await connection.rollback();
+        return NextResponse.json(
+          {
+            error:
+              "No se puede eliminar la postulación: existen órdenes de carga",
+          },
+          { status: 409 }
+        );
+      }
 
       console.log("[DEBUG] Eliminando postulación", {
         viajeId,

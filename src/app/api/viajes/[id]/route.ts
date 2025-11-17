@@ -94,9 +94,34 @@ export async function PUT(
       vendedor,
     } = body;
 
+    // Validaciones de negocio
+    const cuposNum = cupos != null ? Number(cupos) : 0;
+    const reservadosNum = reservados != null ? Number(reservados) : 0;
+    const tarifaNum = tarifa != null ? Number(tarifa) : 0;
+
+    if (tarifaNum < 0) {
+      return NextResponse.json(
+        { error: "La tarifa no puede ser negativa" },
+        { status: 400 }
+      );
+    }
+
+    if (cuposNum <= 0) {
+      return NextResponse.json(
+        { error: "Los cupos deben ser mayor a 0" },
+        { status: 400 }
+      );
+    }
+
+    if (reservadosNum > cuposNum) {
+      return NextResponse.json(
+        { error: "Los cupos reservados no pueden ser mayores que los cupos totales" },
+        { status: 400 }
+      );
+    }
+
     // Calcular pendientes si no viene informado
-    const pendientesCalc =
-      (cupos != null ? Number(cupos) : 0) - (reservados != null ? Number(reservados) : 0);
+    const pendientesCalc = cuposNum - reservadosNum;
 
     // 1) Intentar actualizar en tabla nueva por id
     if (isNumeric) {

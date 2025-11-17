@@ -45,6 +45,28 @@ export async function POST(req: NextRequest) {
     const pendientesNum = cuposNum - reservadosNum;
     const tarifaNum = toNumber(tarifa) ?? 0;
 
+    // Validaciones de negocio
+    if (tarifaNum < 0) {
+      return NextResponse.json(
+        { error: "La tarifa no puede ser negativa" },
+        { status: 400 }
+      );
+    }
+
+    if (cuposNum <= 0) {
+      return NextResponse.json(
+        { error: "Los cupos deben ser mayor a 0" },
+        { status: 400 }
+      );
+    }
+
+    if (reservadosNum > cuposNum) {
+      return NextResponse.json(
+        { error: "Los cupos reservados no pueden ser mayores que los cupos totales" },
+        { status: 400 }
+      );
+    }
+
     // Vendedor: puede provenir del selector o de la sesión; si no viene, continuar
 
     const fechaActual = new Date();

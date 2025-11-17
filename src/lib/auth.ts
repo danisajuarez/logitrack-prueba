@@ -88,7 +88,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
           const user = rows[0];
 
           const isValidPassword = await bcrypt.compare(password, user.password);
-          const isPlainTextMatch = password === user.password;
+          const isPlainTextMatch = password.toLowerCase() === user.password.toLowerCase();
 
           if (!isValidPassword && !isPlainTextMatch) {
             return null;

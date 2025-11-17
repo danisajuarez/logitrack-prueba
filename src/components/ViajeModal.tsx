@@ -230,12 +230,38 @@ export default function ViajeModal({
     }
   };
 
+  const [validationErrors, setValidationErrors] = useState({
+    tarifa: "",
+    cupos: "",
+    reservados: "",
+  });
+
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >
   ) => {
     const newForm = { ...form, [e.target.name]: e.target.value };
+    const newErrors = { ...validationErrors };
+
+    // Validaciones en tiempo real
+    if (e.target.name === "tarifa") {
+      const tarifaNum = Number(e.target.value);
+      if (e.target.value !== "" && tarifaNum < 0) {
+        newErrors.tarifa = "La tarifa no puede ser negativa";
+      } else {
+        newErrors.tarifa = "";
+      }
+    }
+
+    if (e.target.name === "cupos") {
+      const cuposNum = Number(e.target.value);
+      if (e.target.value !== "" && cuposNum <= 0) {
+        newErrors.cupos = "Los cupos deben ser mayor a 0";
+      } else {
+        newErrors.cupos = "";
+      }
+    }
 
     // Auto-calcular pendientes cuando cambian cupos o reservados
     if (e.target.name === "cupos" || e.target.name === "reservados") {
@@ -246,8 +272,16 @@ export default function ViajeModal({
           e.target.name === "reservados" ? e.target.value : newForm.reservados
         ) || 0;
       newForm.pendientes = String(Math.max(0, cupos - reservados));
+
+      // Validar que reservados no sea mayor que cupos
+      if (reservados > cupos && cupos > 0) {
+        newErrors.reservados = "Los reservados no pueden ser mayores que los cupos totales";
+      } else {
+        newErrors.reservados = "";
+      }
     }
 
+    setValidationErrors(newErrors);
     setForm(newForm);
   };
 
@@ -260,6 +294,17 @@ export default function ViajeModal({
 
     // Evitar múltiples envíos
     if (saving) return;
+
+    // Validar antes de enviar
+    if (validationErrors.tarifa || validationErrors.cupos || validationErrors.reservados) {
+      setNotification({
+        type: "error",
+        title: "Error de validación",
+        message: "Por favor corrige los errores antes de continuar",
+        isVisible: true,
+      });
+      return;
+    }
 
     setSaving(true);
     try {
@@ -555,9 +600,16 @@ export default function ViajeModal({
                     value={form.cupos}
                     onChange={handleChange}
                     placeholder="0"
-                    className="w-full px-3 py-2.5 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
-                    min="0"
+                    className={`w-full px-3 py-2.5 bg-neutral-700 border rounded-lg text-white placeholder-neutral-500 focus:ring-2 focus:border-blue-500 text-base ${
+                      validationErrors.cupos
+                        ? "border-red-500 focus:ring-red-500"
+                        : "border-neutral-600 focus:ring-blue-500"
+                    }`}
+                    min="1"
                   />
+                  {validationErrors.cupos && (
+                    <p className="text-red-500 text-xs mt-1">{validationErrors.cupos}</p>
+                  )}
                 </div>
 
                 <div>
@@ -570,9 +622,16 @@ export default function ViajeModal({
                     value={form.reservados}
                     onChange={handleChange}
                     placeholder="0"
-                    className="w-full px-3 py-2.5 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                    className={`w-full px-3 py-2.5 bg-neutral-700 border rounded-lg text-white placeholder-neutral-500 focus:ring-2 focus:border-blue-500 text-base ${
+                      validationErrors.reservados
+                        ? "border-red-500 focus:ring-red-500"
+                        : "border-neutral-600 focus:ring-blue-500"
+                    }`}
                     min="0"
                   />
+                  {validationErrors.reservados && (
+                    <p className="text-red-500 text-xs mt-1">{validationErrors.reservados}</p>
+                  )}
                 </div>
 
                 <div>
@@ -604,8 +663,16 @@ export default function ViajeModal({
               onChange={handleChange}
               placeholder="0.00"
               step="0.01"
-              className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-600 rounded-lg text-white placeholder-neutral-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+              min="0"
+              className={`w-full px-3 py-2.5 bg-neutral-800 border rounded-lg text-white placeholder-neutral-500 focus:ring-2 focus:border-blue-500 text-base ${
+                validationErrors.tarifa
+                  ? "border-red-500 focus:ring-red-500"
+                  : "border-neutral-600 focus:ring-blue-500"
+              }`}
             />
+            {validationErrors.tarifa && (
+              <p className="text-red-500 text-xs mt-1">{validationErrors.tarifa}</p>
+            )}
           </div>
 
           <div className="md:col-span-1">
@@ -683,7 +750,7 @@ export default function ViajeModal({
               </button>
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || !!validationErrors.tarifa || !!validationErrors.cupos || !!validationErrors.reservados}
                 className="px-4 md:px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
               >
                 {saving ? (
