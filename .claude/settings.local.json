@@ -10,7 +10,8 @@
       "Bash(cmd /c:*)",
       "Bash(node -e:*)",
       "Bash(echo:*)",
-      "Bash(powershell.exe -ExecutionPolicy Bypass -Command \"$content = Get-Content ''C:\\Users\\danis\\proyecto-gustavo\\src\\lib\\pdf-autorizacion.ts'' -Raw; Write-Output ''File read successfully''\")"
+      "Bash(powershell.exe -ExecutionPolicy Bypass -Command \"$content = Get-Content ''C:\\Users\\danis\\proyecto-gustavo\\src\\lib\\pdf-autorizacion.ts'' -Raw; Write-Output ''File read successfully''\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -Command \"(Get-Content ''src\\app\\api\\viajes\\autorizaciones\\route.ts'' -Raw) -replace ''const \\[existingRows\\] = await db\\.query<RowDataPacket\\[\\]>\\('', ''const [existingRows]: any = await db.query('' | Set-Content ''src\\app\\api\\viajes\\autorizaciones\\route.ts'' -NoNewline\")"
     ],
     "deny": [],
     "ask": []

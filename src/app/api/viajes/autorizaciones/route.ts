@@ -647,7 +647,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Verificar que el registro existe antes de eliminar
-    const [existingRows] = await db.query<RowDataPacket[]>(
+    const [existingRows]: any = await db.query(
       `SELECT OCP_Renglon, ART_IdArticulo, ART_DesArticulo
        FROM SIGE_OCP_OrdCarPor
        WHERE ECP_IdEcp = ? AND OCP_Renglon = ?
