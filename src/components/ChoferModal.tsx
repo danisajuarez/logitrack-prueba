@@ -177,6 +177,7 @@ export default function ChoferModal({
         valor: number;
         estacion: string;
         renglonId?: number;
+        ecpIdEcp?: number;
       }>
     >
   >({});
@@ -261,6 +262,7 @@ export default function ChoferModal({
             valor: number;
             estacion: string;
             renglonId?: number;
+            ecpIdEcp?: number;
           }>
         > = {};
 
@@ -279,6 +281,7 @@ export default function ChoferModal({
               : Number(row.cantidad || 0),
             estacion: String(row.estacionNombre || "Estación"),
             renglonId: Number(row.renglon),
+            ecpIdEcp: Number(ecpId),
           };
 
           // Agrupar por ecpId para que cada postulación tenga sus propias autorizaciones
@@ -304,6 +307,72 @@ export default function ChoferModal({
       console.error("Error al cargar autorizaciones:", error);
     }
   }, [viajeId]);
+
+  const handleEliminarAutorizacion = useCallback(
+    async (ecpIdEcp: number, renglonId: number) => {
+      if (!ecpIdEcp || !renglonId) {
+        setNotification({
+          type: "error",
+          title: "Error",
+          message: "Datos incompletos para eliminar la autorización",
+          isVisible: true,
+        });
+        return;
+      }
+
+      try {
+        console.log("[DEBUG] Eliminando autorización:", { ecpIdEcp, renglonId });
+
+        const res = await fetch("/api/viajes/autorizaciones", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ecpIdEcp, renglon: renglonId }),
+        });
+
+        const data = await res.json().catch(() => ({} as any));
+
+        if (!res.ok) {
+          throw new Error(data?.error || "Error al eliminar autorización");
+        }
+
+        // Actualizar el estado local eliminando la autorización
+        setAutorizacionesGuardadas((prev) => {
+          const newState = { ...prev };
+          const key = ecpIdEcp;
+
+          if (newState[key]) {
+            newState[key] = newState[key].filter(
+              (aut) => aut.renglonId !== renglonId
+            );
+            // Si no quedan autorizaciones para esta ECP, eliminar la entrada
+            if (newState[key].length === 0) {
+              delete newState[key];
+            }
+          }
+
+          return newState;
+        });
+
+        setNotification({
+          type: "success",
+          title: "Autorización eliminada",
+          message: "La autorización fue eliminada correctamente",
+          isVisible: true,
+        });
+
+        console.log("[DEBUG] Autorización eliminada exitosamente");
+      } catch (error: any) {
+        console.error("Error al eliminar autorización:", error);
+        setNotification({
+          type: "error",
+          title: "Error al eliminar",
+          message: error?.message || "No se pudo eliminar la autorización",
+          isVisible: true,
+        });
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     if (!isOpen || !viajeId) return;
@@ -867,6 +936,7 @@ export default function ChoferModal({
         valor: Number(tempCantidad),
         estacion: estacion.razonSocial,
         renglonId,
+        ecpIdEcp: row.ecpId,
       };
 
       console.log(
@@ -950,6 +1020,7 @@ export default function ChoferModal({
         valor: number;
         estacion: string;
         renglonId?: number;
+        ecpIdEcp?: number;
       }> = [];
 
       // Procesar cada estación
@@ -958,6 +1029,7 @@ export default function ChoferModal({
 
         const payload: any = {
           viajeId: viaje.id,
+          ecpId: row.ecpId, // ID específico de la ECP de esta postulación
           choferId: row.choferId,
           estacionId,
           patChasis: row.patChasis || null,
@@ -999,6 +1071,7 @@ export default function ChoferModal({
               valor: adelanto.importe,
               estacion: datos.estacionNombre,
               renglonId: data.renglones.adelantos[idx],
+              ecpIdEcp: row.ecpId,
             });
           });
         }
@@ -1011,6 +1084,7 @@ export default function ChoferModal({
               valor: combustible.litros,
               estacion: datos.estacionNombre,
               renglonId: data.renglones.combustibles[idx],
+              ecpIdEcp: row.ecpId,
             });
           });
         }
@@ -1565,10 +1639,20 @@ export default function ChoferModal({
                                             "¿Eliminar esta autorización?"
                                           )
                                         ) {
-                                          // TODO: Implementar eliminación
-                                          alert(
-                                            "Función de eliminar en desarrollo"
-                                          );
+                                          if (aut.ecpIdEcp && aut.renglonId) {
+                                            handleEliminarAutorizacion(
+                                              aut.ecpIdEcp,
+                                              aut.renglonId
+                                            );
+                                          } else {
+                                            setNotification({
+                                              type: "error",
+                                              title: "Error",
+                                              message:
+                                                "No se puede eliminar: datos incompletos",
+                                              isVisible: true,
+                                            });
+                                          }
                                         }
                                       }}
                                       className="text-red-400 hover:text-red-300 text-sm ml-2 px-2 py-1"
@@ -2132,10 +2216,20 @@ export default function ChoferModal({
                                                     "¿Eliminar esta autorización?"
                                                   )
                                                 ) {
-                                                  // TODO: Implementar eliminación
-                                                  alert(
-                                                    "Función de eliminar en desarrollo"
-                                                  );
+                                                  if (aut.ecpIdEcp && aut.renglonId) {
+                                                    handleEliminarAutorizacion(
+                                                      aut.ecpIdEcp,
+                                                      aut.renglonId
+                                                    );
+                                                  } else {
+                                                    setNotification({
+                                                      type: "error",
+                                                      title: "Error",
+                                                      message:
+                                                        "No se puede eliminar: datos incompletos",
+                                                      isVisible: true,
+                                                    });
+                                                  }
                                                 }
                                               }}
                                               className="text-red-400 hover:text-red-300 text-xs px-2 py-1"

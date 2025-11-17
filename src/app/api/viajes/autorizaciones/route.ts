@@ -631,6 +631,83 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const ecpIdEcp = toInt(body?.ecpIdEcp);
+    const renglon = toInt(body?.renglon);
+
+    console.log("[DEBUG DELETE] Request body:", { ecpIdEcp, renglon });
+
+    if (!ecpIdEcp || !renglon) {
+      return NextResponse.json(
+        { error: "ecpIdEcp y renglon son obligatorios" },
+        { status: 400 }
+      );
+    }
+
+    // Verificar que el registro existe antes de eliminar
+    const [existingRows] = await db.query<RowDataPacket[]>(
+      `SELECT OCP_Renglon, ART_IdArticulo, ART_DesArticulo
+       FROM SIGE_OCP_OrdCarPor
+       WHERE ECP_IdEcp = ? AND OCP_Renglon = ?
+       LIMIT 1`,
+      [ecpIdEcp, renglon]
+    );
+
+    if (!Array.isArray(existingRows) || existingRows.length === 0) {
+      return NextResponse.json(
+        { error: "No se encontró la autorización a eliminar" },
+        { status: 404 }
+      );
+    }
+
+    const registro = existingRows[0];
+
+    // Verificar que sea un adelanto o combustible
+    const esAdelanto = registro.ART_IdArticulo === ARTICULO_ADELANTO_ID ||
+                       registro.ART_DesArticulo === ARTICULO_ADELANTO_DESC;
+    const esCombustible = registro.ART_IdArticulo === ARTICULO_COMBUSTIBLE_ID ||
+                          registro.ART_DesArticulo === ARTICULO_COMBUSTIBLE_DESC;
+
+    if (!esAdelanto && !esCombustible) {
+      return NextResponse.json(
+        { error: "El registro no corresponde a una autorización de adelanto o combustible" },
+        { status: 400 }
+      );
+    }
+
+    // Eliminar el registro
+    const [result]: any = await db.query(
+      `DELETE FROM SIGE_OCP_OrdCarPor
+       WHERE ECP_IdEcp = ? AND OCP_Renglon = ?`,
+      [ecpIdEcp, renglon]
+    );
+
+    console.log("[DEBUG DELETE] Resultado de eliminación:", result);
+
+    if (result.affectedRows === 0) {
+      return NextResponse.json(
+        { error: "No se pudo eliminar la autorización" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Autorización eliminada exitosamente",
+      data: { ecpIdEcp, renglon, tipo: esAdelanto ? "adelanto" : "combustible" }
+    });
+
+  } catch (error: any) {
+    console.error("Error al eliminar autorización:", error);
+    return NextResponse.json(
+      { error: error?.message || "Error al eliminar autorización" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
