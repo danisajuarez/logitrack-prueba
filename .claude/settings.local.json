@@ -1,17 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(powershell:*)",
-      "Bash(cmd /c \"type C:\\Users\\danis\\proyecto-gustavo\\package.json\")",
-      "Bash(cmd /c \"type C:\\Users\\danis\\proyecto-gustavo\\src\\app\\page.tsx\")",
-      "Bash(cmd /c \"echo import { redirect } from ''next/navigation''; > c:\\Users\\danis\\proyecto-gustavo\\src\\app\\page.tsx && echo. >> c:\\Users\\danis\\proyecto-gustavo\\src\\app\\page.tsx && echo export default function Home^(^) { >> c:\\Users\\danis\\proyecto-gustavo\\src\\app\\page.tsx && echo   redirect(''/viajes''); >> c:\\Users\\danis\\proyecto-gustavo\\src\\app\\page.tsx && echo } >> c:\\Users\\danis\\proyecto-gustavo\\src\\app\\page.tsx\")",
-      "Bash(dir:*)",
-      "Bash(cmd /c \"type src\\lib\\auth.ts\")",
-      "Bash(cmd /c:*)",
-      "Bash(node -e:*)",
-      "Bash(echo:*)",
-      "Bash(powershell.exe -ExecutionPolicy Bypass -Command \"$content = Get-Content ''C:\\Users\\danis\\proyecto-gustavo\\src\\lib\\pdf-autorizacion.ts'' -Raw; Write-Output ''File read successfully''\")",
-      "Bash(powershell.exe -ExecutionPolicy Bypass -Command \"(Get-Content ''src\\app\\api\\viajes\\autorizaciones\\route.ts'' -Raw) -replace ''const \\[existingRows\\] = await db\\.query<RowDataPacket\\[\\]>\\('', ''const [existingRows]: any = await db.query('' | Set-Content ''src\\app\\api\\viajes\\autorizaciones\\route.ts'' -NoNewline\")"
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(curl:*)",
+      "Bash(cat:*)",
+      "Bash(node test-db.js:*)",
+      "Bash(ping:*)",
+      "Bash(nslookup:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(node check-viaje.js:*)",
+      "Bash(node investigar-autorizaciones.js:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

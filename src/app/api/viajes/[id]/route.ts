@@ -34,12 +34,66 @@ export async function DELETE(
 
     // 2) Intentar borrar en tabla vieja por ENT_IdEnt si es numérico
     if (isNumeric) {
-      const [delOldById] = await db.execute(
-        "DELETE FROM sige_ent_encnegtra WHERE ENT_IdEnt = ? AND IFNULL(ENT_CantCuposReser,0) = 0",
+      // Primero verificar que el viaje no tenga reservas
+      const [viajeCheck] = await db.execute(
+        "SELECT ENT_CantCuposReser FROM sige_ent_encnegtra WHERE ENT_IdEnt = ?",
         [idNum]
       );
-      if ((delOldById as any).affectedRows > 0) {
-        return NextResponse.json({ message: "Viaje eliminado correctamente" });
+
+      if ((viajeCheck as any[]).length === 0) {
+        // El viaje no existe, continuar para intentar por número
+      } else {
+        const reservas = (viajeCheck as any[])[0].ENT_CantCuposReser || 0;
+        if (reservas > 0) {
+          return NextResponse.json(
+            { error: "No se puede eliminar: el viaje tiene reservas activas" },
+            { status: 400 }
+          );
+        }
+
+        // Verificar si hay postulaciones/autorizaciones activas con detalles
+        const [autorizacionesConDetalles] = await db.execute(
+          `SELECT COUNT(*) as total
+           FROM sige_ecp_enccarpor ecp
+           INNER JOIN sige_icp_intcarpor icp ON ecp.ECP_IdEcp = icp.ECP_IdEcp
+           WHERE ecp.ENT_IdEnt = ?`,
+          [idNum]
+        );
+
+        const tienePostulaciones = (autorizacionesConDetalles as any[])[0].total > 0;
+        if (tienePostulaciones) {
+          return NextResponse.json(
+            { error: "No se puede eliminar: el viaje tiene choferes postulados. Elimine las postulaciones primero." },
+            { status: 400 }
+          );
+        }
+
+        // Si llegamos aquí, solo hay autorizaciones huérfanas (sin detalles), las podemos eliminar
+        try {
+          // Buscar autorizaciones huérfanas del viaje (solo cabeceras, sin detalles)
+          const [autorizaciones] = await db.execute(
+            "SELECT ECP_IdEcp FROM sige_ecp_enccarpor WHERE ENT_IdEnt = ?",
+            [idNum]
+          );
+
+          // Eliminar cabeceras de autorizaciones huérfanas
+          await db.execute(
+            "DELETE FROM sige_ecp_enccarpor WHERE ENT_IdEnt = ?",
+            [idNum]
+          );
+        } catch (err: any) {
+          console.error("Error al eliminar autorizaciones huérfanas:", err);
+          // Continuar con la eliminación del viaje aunque falle la limpieza de autorizaciones
+        }
+
+        // Ahora eliminar el viaje
+        const [delOldById] = await db.execute(
+          "DELETE FROM sige_ent_encnegtra WHERE ENT_IdEnt = ?",
+          [idNum]
+        );
+        if ((delOldById as any).affectedRows > 0) {
+          return NextResponse.json({ message: "Viaje eliminado correctamente" });
+        }
       }
     }
 
@@ -54,7 +108,7 @@ export async function DELETE(
     }
 
     return NextResponse.json(
-      { error: "No se puede eliminar: tiene reservas o no existe" },
+      { error: "No se puede eliminar: el viaje tiene reservas, postulaciones activas, o no existe" },
       { status: 400 }
     );
   } catch (error: any) {
@@ -186,6 +240,17 @@ export async function PUT(
     );
 
     if ((updOld as any).affectedRows > 0) {
+      // También actualizar la tarifa en las autorizaciones relacionadas
+      try {
+        await db.execute(
+          `UPDATE sige_ecp_enccarpor SET ECP_Tarifa = ? WHERE ENT_IdEnt = ?`,
+          [tarifa, whereValue]
+        );
+      } catch (authErr: any) {
+        console.error("Error al actualizar tarifa en autorizaciones:", authErr);
+        // No fallar la actualización del viaje si falla la actualización de autorizaciones
+      }
+
       return NextResponse.json({ message: "Viaje actualizado correctamente" });
     }
 
