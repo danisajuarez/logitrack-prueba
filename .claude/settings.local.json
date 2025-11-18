@@ -11,7 +11,8 @@
       "Bash(powershell -Command:*)",
       "Bash(node check-viaje.js:*)",
       "Bash(node investigar-autorizaciones.js:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": []

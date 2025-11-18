@@ -212,13 +212,12 @@ export async function PUT(
     const whereColumn = isNumeric ? "ENT_IdEnt" : "ENT_Numero";
     const whereValue: any = isNumeric ? idNum : identifier;
 
-    // Intentar actualizar todos los campos disponibles
+    // Intentar actualizar todos los campos disponibles en la tabla principal
     const [updOld] = await db.execute(
       `UPDATE sige_ent_encnegtra SET
         TER_RazonSocialTer = ?,
         LOC_NomLocalidadOrig = ?,
         LOC_NomLocalidadDest = ?,
-        TVP_Caracteristicas = ?,
         ENT_CantCupos = ?,
         ENT_CantCuposReser = ?,
         ENT_CantCuposPend = ?,
@@ -229,7 +228,6 @@ export async function PUT(
         razonSocial,
         origen,
         destino,
-        articulo,
         cupos,
         reservados,
         pendientes != null ? pendientes : pendientesCalc,
@@ -240,6 +238,21 @@ export async function PUT(
     );
 
     if ((updOld as any).affectedRows > 0) {
+      // Actualizar el artículo en la tabla de detalles si existe
+      if (articulo) {
+        try {
+          await db.execute(
+            `UPDATE sige_dnt_detnegtra
+             SET art_desarticulo = ?
+             WHERE ent_ident = ? AND dnt_renglondcp = 1`,
+            [articulo, whereValue]
+          );
+        } catch (artErr: any) {
+          console.error("Error al actualizar artículo en detalles:", artErr);
+          // No fallar si no existe el detalle
+        }
+      }
+
       // También actualizar la tarifa en las autorizaciones relacionadas
       try {
         await db.execute(
