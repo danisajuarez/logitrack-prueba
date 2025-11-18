@@ -202,7 +202,6 @@ export async function POST(req: NextRequest) {
 
     const [resultEnt] = await connection.execute(
       `INSERT INTO sige_ent_encnegtra (
-        ENT_Numero,
         ENT_Fecha,
         TER_RazonSocialTer,
         LOC_NomLocalidadOrig,
@@ -215,9 +214,8 @@ export async function POST(req: NextRequest) {
         ENT_Tarifa,
         VEN_IdVendPostula,
         USU_IdUsuario
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        "", // ENT_Numero - debe ir en BLANCO según cliente
         fechaSQL,
         razonSocial,
         orig?.nombre ?? origen,
@@ -234,6 +232,13 @@ export async function POST(req: NextRequest) {
     );
 
     const entIdEnt = resultEnt.insertId;
+    const entNumero = String(entIdEnt).padStart(6, "0");
+
+    // Actualizar ENT_Numero con el ID generado
+    await connection.execute(
+      `UPDATE sige_ent_encnegtra SET ENT_Numero = ? WHERE ENT_IdEnt = ?`,
+      [entNumero, entIdEnt]
+    );
     // Asegurar campos derivados según requerimientos
     try {
       // ENT_FechaVencimiento = ENT_Fecha
@@ -595,11 +600,11 @@ export async function POST(req: NextRequest) {
       message: "Viaje creado exitosamente en todas las tablas",
       data: {
         entIdEnt,
-        entNumero: "", // ENT_Numero va vacío según requerimiento del cliente
+        entNumero: entNumero,
         ecpIdEcp,
         ecpNumero: ecpNumeroStr,
       },
-      numero: String(entIdEnt).padStart(6, "0"), // Para compatibilidad con el frontend, usar el ID
+      numero: entNumero,
     });
   } catch (error: any) {
     // Rollback en caso de error
