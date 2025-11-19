@@ -12,7 +12,14 @@
       "Bash(node check-viaje.js:*)",
       "Bash(node investigar-autorizaciones.js:*)",
       "Bash(node:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(yarn dev)",
+      "Bash(npm run dev:*)",
+      "Bash(dir:*)",
+      "Bash(if [ -f .env ])",
+      "Bash(then cat .env)",
+      "Bash(else echo \"No .env file found\")",
+      "Bash(fi)"
     ],
     "deny": [],
     "ask": []

@@ -253,14 +253,19 @@ export async function PUT(
         }
       }
 
-      // También actualizar la tarifa en las autorizaciones relacionadas
+      // También actualizar campos relacionados en las autorizaciones (sige_ecp_enccarpor)
       try {
         await db.execute(
-          `UPDATE sige_ecp_enccarpor SET ECP_Tarifa = ? WHERE ENT_IdEnt = ?`,
-          [tarifa, whereValue]
+          `UPDATE sige_ecp_enccarpor SET
+            TER_RazonSocialTerEst = ?,
+            LOC_NomLocalidadEst = ?,
+            LOC_NomLocalidadGran = ?,
+            ECP_Tarifa = ?
+          WHERE ENT_IdEnt = ?`,
+          [razonSocial, origen, destino, tarifa, whereValue]
         );
       } catch (authErr: any) {
-        console.error("Error al actualizar tarifa en autorizaciones:", authErr);
+        console.error("Error al actualizar autorizaciones relacionadas:", authErr);
         // No fallar la actualización del viaje si falla la actualización de autorizaciones
       }
 
