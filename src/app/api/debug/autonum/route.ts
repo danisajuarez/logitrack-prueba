@@ -42,6 +42,15 @@ export async function GET() {
       value: entMax[0].maxId
     });
 
+    // 0d. Buscar autonumerador para ENT
+    const [entAutonum]: any = await connection.query(
+      "SELECT * FROM sige_aut_autonum WHERE LOWER(AUT_Tabla) LIKE '%ent%'"
+    );
+    results.checks.push({
+      name: "Autonumeradores con 'ent'",
+      data: entAutonum.map((r: any) => ({ tabla: r.AUT_Tabla, numero: r.AUT_Numero }))
+    });
+
     // 1. Buscar autonumerador
     const [autonum]: any = await connection.query(
       "SELECT * FROM sige_aut_autonum WHERE AUT_Tabla LIKE '%ecp%' OR AUT_Tabla LIKE '%ECP%'"

@@ -201,10 +201,50 @@ export async function POST(req: NextRequest) {
     // PASO 1: Insertar en sige_ent_encnegtra
     // ============================================
 
-    console.log("[DEBUG] Insertando en sige_ent_encnegtra...");
+    console.log("[DEBUG] Obteniendo siguiente ID para sige_ent_encnegtra...");
 
-    const [resultEnt] = await connection.execute(
+    // ENT_IdEnt NO es AUTO_INCREMENT, debemos usar el autonumerador
+    const [rowsAutonumEnt]: any = await connection.query(
+      "SELECT AUT_Numero, AUT_Tabla FROM sige_aut_autonum WHERE LOWER(AUT_Tabla) = LOWER(?) FOR UPDATE",
+      ["sige_ent_encnegtra"]
+    );
+
+    console.log("[DEBUG] Autonumerador ENT:", JSON.stringify(rowsAutonumEnt));
+
+    if (!rowsAutonumEnt || rowsAutonumEnt.length === 0) {
+      throw new Error(
+        'No existe numerador configurado para sige_ent_encnegtra en la tabla sige_aut_autonum.'
+      );
+    }
+
+    const tablaOriginalEnt = rowsAutonumEnt[0].AUT_Tabla;
+    const autNumeroActualEnt = rowsAutonumEnt[0].AUT_Numero;
+
+    if (autNumeroActualEnt == null || autNumeroActualEnt === '') {
+      throw new Error(`El autonumerador ENT tiene valor inválido: ${autNumeroActualEnt}`);
+    }
+
+    const entIdEnt = Number(autNumeroActualEnt) + 1;
+
+    console.log("[DEBUG] Nuevo ENT_IdEnt:", entIdEnt);
+
+    if (!Number.isFinite(entIdEnt) || entIdEnt <= 0) {
+      throw new Error(`ENT_IdEnt calculado es inválido: ${entIdEnt}`);
+    }
+
+    // Actualizar el autonumerador
+    await connection.execute(
+      "UPDATE sige_aut_autonum SET AUT_Numero = ? WHERE AUT_Tabla = ?",
+      [entIdEnt, tablaOriginalEnt]
+    );
+
+    const entNumero = String(entIdEnt).padStart(6, "0");
+
+    console.log("[DEBUG] Insertando en sige_ent_encnegtra con ENT_IdEnt:", entIdEnt);
+
+    await connection.execute(
       `INSERT INTO sige_ent_encnegtra (
+        ENT_IdEnt,
         ENT_Fecha,
         TER_RazonSocialTer,
         LOC_NomLocalidadOrig,
@@ -217,8 +257,9 @@ export async function POST(req: NextRequest) {
         ENT_Tarifa,
         VEN_IdVendPostula,
         USU_IdUsuario
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
+        entIdEnt, // Especificar el ID manualmente
         fechaSQL,
         razonSocial,
         orig?.nombre ?? origen,
@@ -234,8 +275,7 @@ export async function POST(req: NextRequest) {
       ]
     );
 
-    const entIdEnt = resultEnt.insertId;
-    const entNumero = String(entIdEnt).padStart(6, "0");
+    console.log("[DEBUG] INSERT a sige_ent_encnegtra exitoso");
 
     // Actualizar ENT_Numero con el ID generado
     await connection.execute(
