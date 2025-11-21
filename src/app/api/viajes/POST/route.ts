@@ -238,7 +238,7 @@ export async function POST(req: NextRequest) {
       [entIdEnt, tablaOriginalEnt]
     );
 
-    const entNumero = String(entIdEnt).padStart(6, "0");
+    const entNumero = String(entIdEnt); // Sin ceros a la izquierda
 
     console.log("[DEBUG] Insertando en sige_ent_encnegtra con ENT_IdEnt:", entIdEnt);
 
@@ -424,7 +424,7 @@ export async function POST(req: NextRequest) {
     console.log("[DEBUG] Autonumerador actualizado a:", ecpNumero);
 
     // Por si acaso el ECP_Numero ya está en uso, intentamos con el formato correcto
-    const ecpNumeroStr = String(ecpNumero).padStart(6, "0");
+    const ecpNumeroStr = String(ecpNumero); // Sin ceros a la izquierda
     console.log("[DEBUG] ECP Numero formateado:", ecpNumeroStr);
 
     // ECP_IdEcp NO es AUTO_INCREMENT, usamos el mismo número que obtuvimos

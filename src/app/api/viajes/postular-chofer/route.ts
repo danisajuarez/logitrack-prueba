@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
           console.log(`[DEBUG] Nuevo ECP ID obtenido: ${newEcpId} (tabla original: ${tablaOriginalEcp})`);
 
           if (Number.isFinite(newEcpId) && newEcpId > 0) {
-            const newNumero = String(newEcpId).padStart(6, "0");
+            const newNumero = String(newEcpId); // Sin ceros a la izquierda
 
             // Copiar TODOS los datos desde la ECP original (la primera del viaje)
             // Esto garantiza que tenga los mismos datos de localidad/provincia
