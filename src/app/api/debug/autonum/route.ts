@@ -14,6 +14,34 @@ export async function GET() {
       checks: []
     };
 
+    // 0. Verificar estructura de sige_ent_encnegtra (LA TABLA CON EL PROBLEMA REAL)
+    const [entStructure]: any = await connection.query(
+      "SHOW COLUMNS FROM sige_ent_encnegtra WHERE Field = 'ENT_IdEnt'"
+    );
+    results.checks.push({
+      name: "Estructura ENT_IdEnt",
+      data: entStructure[0]
+    });
+
+    // 0b. Verificar si hay ID 0 en sige_ent_encnegtra
+    const [entZero]: any = await connection.query(
+      "SELECT COUNT(*) as cnt FROM sige_ent_encnegtra WHERE ENT_IdEnt = 0"
+    );
+    results.checks.push({
+      name: "Registros con ENT_IdEnt = 0",
+      count: entZero[0].cnt,
+      critical: entZero[0].cnt > 0
+    });
+
+    // 0c. MAX ID en sige_ent_encnegtra
+    const [entMax]: any = await connection.query(
+      "SELECT MAX(ENT_IdEnt) as maxId FROM sige_ent_encnegtra"
+    );
+    results.checks.push({
+      name: "MAX(ENT_IdEnt)",
+      value: entMax[0].maxId
+    });
+
     // 1. Buscar autonumerador
     const [autonum]: any = await connection.query(
       "SELECT * FROM sige_aut_autonum WHERE AUT_Tabla LIKE '%ecp%' OR AUT_Tabla LIKE '%ECP%'"
