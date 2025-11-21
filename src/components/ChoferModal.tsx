@@ -321,7 +321,10 @@ export default function ChoferModal({
       }
 
       try {
-        console.log("[DEBUG] Eliminando autorización:", { ecpIdEcp, renglonId });
+        console.log("[DEBUG] Eliminando autorización:", {
+          ecpIdEcp,
+          renglonId,
+        });
 
         const res = await fetch("/api/viajes/autorizaciones", {
           method: "DELETE",
@@ -1477,15 +1480,7 @@ export default function ChoferModal({
                         </div>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(row)}
-                      disabled={removingId === row.id}
-                      className="w-11 h-11 flex items-center justify-center text-sm rounded-md bg-red-600 hover:bg-red-500 active:bg-red-700 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200 shrink-0"
-                      aria-label="Eliminar"
-                    >
-                      {removingId === row.id ? "..." : "✖"}
-                    </button>
+                    {/* Botón de eliminar deshabilitado temporalmente */}
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs mb-2">
                     <div>
@@ -1633,29 +1628,9 @@ export default function ChoferModal({
                                     </div>
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        if (
-                                          confirm(
-                                            "¿Eliminar esta autorización?"
-                                          )
-                                        ) {
-                                          if (aut.ecpIdEcp && aut.renglonId) {
-                                            handleEliminarAutorizacion(
-                                              aut.ecpIdEcp,
-                                              aut.renglonId
-                                            );
-                                          } else {
-                                            setNotification({
-                                              type: "error",
-                                              title: "Error",
-                                              message:
-                                                "No se puede eliminar: datos incompletos",
-                                              isVisible: true,
-                                            });
-                                          }
-                                        }
-                                      }}
-                                      className="text-red-400 hover:text-red-300 text-sm ml-2 px-2 py-1"
+                                      disabled={true}
+                                      title="Función deshabilitada temporalmente"
+                                      className="text-neutral-600 cursor-not-allowed text-sm ml-2 px-2 py-1 opacity-50"
                                     >
                                       ✖
                                     </button>
@@ -2028,11 +2003,8 @@ export default function ChoferModal({
                       <th className="px-1.5 py-1.5 text-left font-medium">
                         Vendedor
                       </th>
-                      <th
-                        className="px-1.5 py-1.5 text-center font-medium"
-                        colSpan={2}
-                      >
-                        Acciones
+                      <th className="px-1.5 py-1.5 text-center font-medium">
+                        Acción
                       </th>
                     </tr>
                   </thead>
@@ -2099,16 +2071,6 @@ export default function ChoferModal({
                               Autorizaciones
                             </button>
                           </td>
-                          <td className="px-2 py-1.5 align-middle text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleRemove(row)}
-                              disabled={removingId === row.id}
-                              className="px-2 py-1 text-xs rounded-md bg-red-600 hover:bg-red-500 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200"
-                            >
-                              {removingId === row.id ? "..." : "✖"}
-                            </button>
-                          </td>
                         </tr>
                         {expandedAutorizacionId === row.id && (
                           <tr key={`autorizacion-panel-${row.id}`}>
@@ -2133,8 +2095,9 @@ export default function ChoferModal({
                                         📋 Autorizaciones guardadas (
                                         {
                                           (
-                                            autorizacionesGuardadas[row.ecpId] ||
-                                            autorizacionesGuardadas["_all"]
+                                            autorizacionesGuardadas[
+                                              row.ecpId
+                                            ] || autorizacionesGuardadas["_all"]
                                           ).length
                                         }
                                         )
@@ -2210,29 +2173,9 @@ export default function ChoferModal({
                                             )}
                                             <button
                                               type="button"
-                                              onClick={() => {
-                                                if (
-                                                  confirm(
-                                                    "¿Eliminar esta autorización?"
-                                                  )
-                                                ) {
-                                                  if (aut.ecpIdEcp && aut.renglonId) {
-                                                    handleEliminarAutorizacion(
-                                                      aut.ecpIdEcp,
-                                                      aut.renglonId
-                                                    );
-                                                  } else {
-                                                    setNotification({
-                                                      type: "error",
-                                                      title: "Error",
-                                                      message:
-                                                        "No se puede eliminar: datos incompletos",
-                                                      isVisible: true,
-                                                    });
-                                                  }
-                                                }
-                                              }}
-                                              className="text-red-400 hover:text-red-300 text-xs px-2 py-1"
+                                              disabled={true}
+                                              title="Función deshabilitada temporalmente"
+                                              className="text-neutral-600 cursor-not-allowed text-xs px-2 py-1 opacity-50"
                                             >
                                               ✖
                                             </button>
