@@ -6,6 +6,9 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   let connection: any = null;
 
+  // VERSION MARKER - Si ves este log, el código nuevo está activo
+  console.log("[POST VIAJES] ========== VERSION 2025-11-21-v3 ==========");
+
   try {
     const data = await req.json();
 
@@ -395,6 +398,11 @@ export async function POST(req: NextRequest) {
         `ERROR CRÍTICO: ecpIdEcp es inválido (${ecpIdEcp}). No se puede insertar.`
       );
     }
+
+    console.log("[DEBUG] *** ANTES DE INSERT sige_ecp_enccarpor ***");
+    console.log("[DEBUG] ecpIdEcp que se va a insertar:", ecpIdEcp);
+    console.log("[DEBUG] ecpNumeroStr:", ecpNumeroStr);
+    console.log("[DEBUG] entIdEnt:", entIdEnt);
 
     const [resultEcp] = await connection.execute(
       `INSERT INTO sige_ecp_enccarpor (
