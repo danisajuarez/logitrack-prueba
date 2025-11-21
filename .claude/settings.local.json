@@ -23,7 +23,10 @@
       "Bash(cmd.exe /c \"type C:\\Users\\danis\\proyecto-gustavo\\src\\lib\\email.ts\")",
       "Bash(yarn remove:*)",
       "Bash(cmd.exe /c \"type src\\lib\\db.ts\")",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nFix autonumerador para Vercel - usar SELECT FOR UPDATE en lugar de LAST_INSERT_ID\n\n- Cambiar método de obtención de número de carta porte\n- Usar SELECT FOR UPDATE para bloquear la fila y evitar conflictos\n- Incrementar y actualizar el autonumerador de forma atómica\n- Soluciona error \"Duplicate entry '0' for key 'PRIMARY'\"\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

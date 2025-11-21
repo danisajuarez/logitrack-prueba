@@ -335,23 +335,25 @@ export async function POST(req: NextRequest) {
     console.log("[DEBUG] Intentando obtener número de carta porte...");
 
     // Primero obtenemos el número actual y lo incrementamos en una sola operación atómica
+    // Nota: AUT_Tabla puede tener diferentes cases, usamos LOWER() para comparar
     const [rowsAutonum]: any = await connection.query(
-      "SELECT AUT_Numero FROM sige_aut_autonum WHERE AUT_Tabla = ? FOR UPDATE",
+      "SELECT AUT_Numero, AUT_Tabla FROM sige_aut_autonum WHERE LOWER(AUT_Tabla) = LOWER(?) FOR UPDATE",
       ["sige_ecp_enccarpor"]
     );
 
     if (!rowsAutonum || rowsAutonum.length === 0) {
       throw new Error(
-        'No existe numerador configurado para sige_ecp_enccarpor en la tabla sige_aut_autonum. Ejecutá: INSERT INTO sige_aut_autonum (AUT_Tabla, AUT_Numero) VALUES ("sige_ecp_enccarpor", 1792);'
+        'No existe numerador configurado para sige_ecp_enccarpor en la tabla sige_aut_autonum.'
       );
     }
 
+    const tablaOriginal = rowsAutonum[0].AUT_Tabla; // Guardar el nombre exacto
     const ecpNumero = Number(rowsAutonum[0].AUT_Numero) + 1;
 
-    // Actualizar el autonumerador
+    // Actualizar el autonumerador usando el nombre exacto de la tabla
     await connection.execute(
       "UPDATE sige_aut_autonum SET AUT_Numero = ? WHERE AUT_Tabla = ?",
-      [ecpNumero, "sige_ecp_enccarpor"]
+      [ecpNumero, tablaOriginal]
     );
 
     console.log("[DEBUG] ECP Numero obtenido:", ecpNumero);
