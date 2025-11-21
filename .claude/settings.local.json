@@ -22,7 +22,8 @@
       "Bash(fi)",
       "Bash(cmd.exe /c \"type C:\\Users\\danis\\proyecto-gustavo\\src\\lib\\email.ts\")",
       "Bash(yarn remove:*)",
-      "Bash(cmd.exe /c \"type src\\lib\\db.ts\")"
+      "Bash(cmd.exe /c \"type src\\lib\\db.ts\")",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

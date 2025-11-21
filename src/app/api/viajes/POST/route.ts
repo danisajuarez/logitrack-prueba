@@ -334,31 +334,31 @@ export async function POST(req: NextRequest) {
     // Obtener el siguiente número de carta porte usando autonumerador
     console.log("[DEBUG] Intentando obtener número de carta porte...");
 
-    const [updAutonum]: any = await connection.execute(
-      "UPDATE sige_aut_autonum SET AUT_Numero = LAST_INSERT_ID(AUT_Numero + 1) WHERE AUT_Tabla = ?",
+    // Primero obtenemos el número actual y lo incrementamos en una sola operación atómica
+    const [rowsAutonum]: any = await connection.query(
+      "SELECT AUT_Numero FROM sige_aut_autonum WHERE AUT_Tabla = ? FOR UPDATE",
       ["sige_ecp_enccarpor"]
     );
 
-    console.log("[DEBUG] Update autonum result:", {
-      affectedRows: updAutonum?.affectedRows,
-    });
-
-    if (!updAutonum || updAutonum.affectedRows === 0) {
+    if (!rowsAutonum || rowsAutonum.length === 0) {
       throw new Error(
         'No existe numerador configurado para sige_ecp_enccarpor en la tabla sige_aut_autonum. Ejecutá: INSERT INTO sige_aut_autonum (AUT_Tabla, AUT_Numero) VALUES ("sige_ecp_enccarpor", 1792);'
       );
     }
 
-    const [rowsEcpNum]: any = await connection.query(
-      "SELECT LAST_INSERT_ID() AS numero"
+    const ecpNumero = Number(rowsAutonum[0].AUT_Numero) + 1;
+
+    // Actualizar el autonumerador
+    await connection.execute(
+      "UPDATE sige_aut_autonum SET AUT_Numero = ? WHERE AUT_Tabla = ?",
+      [ecpNumero, "sige_ecp_enccarpor"]
     );
-    const ecpNumero = rowsEcpNum?.[0]?.numero;
 
     console.log("[DEBUG] ECP Numero obtenido:", ecpNumero);
 
-    if (!ecpNumero && ecpNumero !== 0) {
+    if (!ecpNumero || ecpNumero <= 0) {
       throw new Error(
-        `No se pudo obtener el número de carta porte del autonumerador. LAST_INSERT_ID retornó: ${ecpNumero}`
+        `No se pudo obtener el número de carta porte del autonumerador. Valor obtenido: ${ecpNumero}`
       );
     }
 
