@@ -327,85 +327,52 @@ export async function sendNegocioEmail(
   pdfBuffer?: Buffer
 ): Promise<{ success: boolean; error?: string; messageId?: string }> {
   try {
-    // Validar que exista la API key
     if (!RESEND_API_KEY) {
-      throw new Error(
-        "RESEND_API_KEY no está configurada en las variables de entorno"
-      );
+      throw new Error("Falta RESEND_API_KEY en las variables de entorno");
     }
 
     if (!EMAIL_FROM) {
-      throw new Error(
-        "EMAIL_FROM no está configurada en las variables de entorno"
-      );
+      throw new Error("Falta EMAIL_FROM en las variables de entorno");
     }
 
-    // Preparar lista de destinatarios
-    const to: string[] = [];
+    // Destinatarios automáticos
+    const destinatarios = [EMAIL_LOGISTICA, EMAIL_ADMINISTRACION].filter(
+      Boolean
+    ) as string[];
 
-    // Agregar emails fijos
-    if (EMAIL_LOGISTICA) {
-      to.push(EMAIL_LOGISTICA);
-    }
-    if (EMAIL_ADMINISTRACION) {
-      to.push(EMAIL_ADMINISTRACION);
+    if (destinatarios.length === 0) {
+      throw new Error("No hay destinatarios configurados (LOGISTICA / ADMIN)");
     }
 
-    // Fallback de prueba local si no hay destinatarios configurados
-    if (to.length === 0 && EMAIL_TEST) {
-      to.push(EMAIL_TEST);
-    }
+    const resend = new Resend(RESEND_API_KEY);
 
-    // TODO: Agregar email del transportista si tiene (desde TER_EMailTer)
-    // Esto se debe pasar como parámetro adicional cuando se llame a esta función
+    const html = generateNegocioHTML(data);
 
-    if (to.length === 0) {
-      throw new Error("No hay destinatarios configurados para el email");
-    }
-
-    // Generar HTML del email
-    const htmlContent = generateNegocioHTML(data);
-
-    // Preparar attachments
+    // Adjuntos: Resend exige base64
     const attachments = pdfBuffer
       ? [
           {
-            filename: `negocio-${data.numeroNegocio}.pdf`,
+            filename: `Negocio-${data.numeroNegocio}.pdf`,
             content: pdfBuffer.toString("base64"),
           },
         ]
-      : undefined;
+      : [];
 
-    // Enviar email (instancia diferida)
-    const resend = new Resend(RESEND_API_KEY);
-    const response = await resend.emails.send({
-      from: EMAIL_FROM!,
-      to,
+    const result = await resend.emails.send({
+      from: EMAIL_FROM,
+      to: destinatarios,
       subject: `Nuevo Negocio Registrado - N° ${data.numeroNegocio}`,
-      html: htmlContent,
+      html,
       attachments,
     });
 
-    if (response.error) {
-      console.error("Error al enviar email:", response.error);
-      return {
-        success: false,
-        error: response.error.message || "Error desconocido al enviar email",
-      };
-    }
-
-    console.log("Email enviado exitosamente:", response.data?.id);
-
     return {
       success: true,
-      messageId: response.data?.id,
+      messageId: result.data?.id,
     };
   } catch (error: any) {
-    console.error("Error al enviar email de negocio:", error);
-    return {
-      success: false,
-      error: error?.message || "Error desconocido al enviar email",
-    };
+    console.error("Error al enviar email:", error);
+    return { success: false, error: error.message };
   }
 }
 
