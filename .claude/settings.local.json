@@ -19,7 +19,9 @@
       "Bash(if [ -f .env ])",
       "Bash(then cat .env)",
       "Bash(else echo \"No .env file found\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(cmd.exe /c \"type C:\\Users\\danis\\proyecto-gustavo\\src\\lib\\email.ts\")",
+      "Bash(yarn remove:*)"
     ],
     "deny": [],
     "ask": []

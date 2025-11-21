@@ -422,34 +422,7 @@ export function addTransportistaEmail(
   return to;
 }
 
-// ===== CONFIGURACIÓN SMTP CON NODEMAILER =====
-
-import nodemailer from "nodemailer";
-
-// Configuración del transporter SMTP
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT),
-  secure: false, // true para 465, false para otros puertos
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false, // Aceptar certificados autofirmados
-  },
-  debug: true, // Activar debug para ver más detalles
-  logger: true, // Mostrar logs de SMTP
-});
-
-// Verificar la conexión al iniciar
-transporter.verify(function (error, success) {
-  if (error) {
-    console.error("[EMAIL] Error en la configuración SMTP:", error);
-  } else {
-    console.log("[EMAIL] Servidor SMTP listo para enviar emails");
-  }
-});
+// ===== TODAS LAS FUNCIONES DE EMAIL AHORA USAN RESEND =====
 
 interface EmailChoferPostulado {
   to: string; // Email del chofer
@@ -624,21 +597,31 @@ Este es un correo automático, por favor no respondas a este mensaje.
   `.trim();
 
   try {
-    const info = await transporter.sendMail({
-      from: `"LogiTrack" <${process.env.EMAIL_FROM}>`,
+    if (!RESEND_API_KEY || !EMAIL_FROM) {
+      console.error("[EMAIL] Faltan credenciales de Resend");
+      throw new Error("Configuración de email incompleta");
+    }
+
+    const resend = new Resend(RESEND_API_KEY);
+    const response = await resend.emails.send({
+      from: `LogiTrack <${EMAIL_FROM}>`,
       to,
       subject: `Postulación confirmada - Viaje #${viajeNumero}`,
-      text: textContent,
       html: htmlContent,
     });
 
+    if (response.error) {
+      console.error("[EMAIL] Error al enviar:", response.error);
+      throw new Error(response.error.message);
+    }
+
     console.log("[EMAIL] Email enviado exitosamente:", {
-      messageId: info.messageId,
+      messageId: response.data?.id,
       to,
       viaje: viajeNumero,
     });
 
-    return { success: true, messageId: info.messageId };
+    return { success: true, messageId: response.data?.id };
   } catch (error) {
     console.error("[EMAIL] Error al enviar email:", error);
     throw error;
@@ -650,22 +633,30 @@ Este es un correo automático, por favor no respondas a este mensaje.
  */
 export async function enviarEmailPrueba(to: string) {
   try {
-    const info = await transporter.sendMail({
-      from: `"LogiTrack" <${process.env.EMAIL_FROM}>`,
+    if (!RESEND_API_KEY || !EMAIL_FROM) {
+      throw new Error("Configuración de email incompleta");
+    }
+
+    const resend = new Resend(RESEND_API_KEY);
+    const response = await resend.emails.send({
+      from: `LogiTrack <${EMAIL_FROM}>`,
       to,
       subject: "Prueba de configuración - LogiTrack",
-      text: "Este es un email de prueba para verificar que la configuración SMTP está funcionando correctamente.",
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
           <h2 style="color: #2563eb;">✅ Configuración exitosa</h2>
-          <p>Este es un email de prueba para verificar que la configuración SMTP está funcionando correctamente.</p>
+          <p>Este es un email de prueba para verificar que la configuración de Resend está funcionando correctamente.</p>
           <p>Si recibiste este mensaje, significa que el sistema de emails está operativo.</p>
         </div>
       `,
     });
 
-    console.log("[EMAIL] Email de prueba enviado:", info.messageId);
-    return { success: true, messageId: info.messageId };
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
+
+    console.log("[EMAIL] Email de prueba enviado:", response.data?.id);
+    return { success: true, messageId: response.data?.id };
   } catch (error) {
     console.error("[EMAIL] Error al enviar email de prueba:", error);
     throw error;
@@ -801,18 +792,27 @@ export async function enviarEmailVendedorPostulacion(
   `.trim();
 
   try {
-    const info = await transporter.sendMail({
-      from: `"LogiTrack" <${process.env.EMAIL_FROM}>`,
+    if (!RESEND_API_KEY || !EMAIL_FROM) {
+      throw new Error("Configuración de email incompleta");
+    }
+
+    const resend = new Resend(RESEND_API_KEY);
+    const response = await resend.emails.send({
+      from: `LogiTrack <${EMAIL_FROM}>`,
       to,
       subject: `Chofer postulado - Viaje #${viajeNumero}`,
       html: htmlContent,
     });
 
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
+
     console.log("[EMAIL] Email enviado al vendedor:", {
-      messageId: info.messageId,
+      messageId: response.data?.id,
       to,
     });
-    return { success: true, messageId: info.messageId };
+    return { success: true, messageId: response.data?.id };
   } catch (error) {
     console.error("[EMAIL] Error al enviar email al vendedor:", error);
     throw error;
@@ -834,8 +834,13 @@ export async function enviarEmailConPDFAdjunto(data: EmailConPDFAdjunto) {
   const { to, subject, htmlContent, pdfBuffer, pdfNombre } = data;
 
   try {
-    const info = await transporter.sendMail({
-      from: `"LogiTrack" <${process.env.EMAIL_FROM}>`,
+    if (!RESEND_API_KEY || !EMAIL_FROM) {
+      throw new Error("Configuración de email incompleta");
+    }
+
+    const resend = new Resend(RESEND_API_KEY);
+    const response = await resend.emails.send({
+      from: `LogiTrack <${EMAIL_FROM}>`,
       to,
       subject,
       html: htmlContent,
@@ -843,18 +848,21 @@ export async function enviarEmailConPDFAdjunto(data: EmailConPDFAdjunto) {
         {
           filename: pdfNombre,
           content: pdfBuffer,
-          contentType: "application/pdf",
         },
       ],
     });
 
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
+
     console.log("[EMAIL] Email con PDF enviado exitosamente:", {
-      messageId: info.messageId,
+      messageId: response.data?.id,
       to,
       archivo: pdfNombre,
     });
 
-    return { success: true, messageId: info.messageId };
+    return { success: true, messageId: response.data?.id };
   } catch (error) {
     console.error("[EMAIL] Error al enviar email con PDF:", error);
     throw error;
