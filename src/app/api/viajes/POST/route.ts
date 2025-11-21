@@ -341,6 +341,8 @@ export async function POST(req: NextRequest) {
       ["sige_ecp_enccarpor"]
     );
 
+    console.log("[DEBUG] Resultado autonumerador:", JSON.stringify(rowsAutonum));
+
     if (!rowsAutonum || rowsAutonum.length === 0) {
       throw new Error(
         'No existe numerador configurado para sige_ecp_enccarpor en la tabla sige_aut_autonum.'
@@ -348,7 +350,27 @@ export async function POST(req: NextRequest) {
     }
 
     const tablaOriginal = rowsAutonum[0].AUT_Tabla; // Guardar el nombre exacto
-    const ecpNumero = Number(rowsAutonum[0].AUT_Numero) + 1;
+    const autNumeroActual = rowsAutonum[0].AUT_Numero;
+
+    console.log("[DEBUG] AUT_Numero actual (raw):", autNumeroActual, "tipo:", typeof autNumeroActual);
+
+    // Validar que tenemos un número válido
+    if (autNumeroActual == null || autNumeroActual === '') {
+      throw new Error(
+        `El autonumerador tiene valor inválido: ${autNumeroActual}`
+      );
+    }
+
+    const ecpNumero = Number(autNumeroActual) + 1;
+
+    console.log("[DEBUG] ecpNumero calculado:", ecpNumero, "tipo:", typeof ecpNumero);
+
+    // Validación estricta
+    if (!Number.isFinite(ecpNumero) || ecpNumero <= 0) {
+      throw new Error(
+        `El número de carta porte calculado es inválido: ${ecpNumero} (de autNumeroActual: ${autNumeroActual})`
+      );
+    }
 
     // Actualizar el autonumerador usando el nombre exacto de la tabla
     await connection.execute(
@@ -356,13 +378,7 @@ export async function POST(req: NextRequest) {
       [ecpNumero, tablaOriginal]
     );
 
-    console.log("[DEBUG] ECP Numero obtenido:", ecpNumero);
-
-    if (!ecpNumero || ecpNumero <= 0) {
-      throw new Error(
-        `No se pudo obtener el número de carta porte del autonumerador. Valor obtenido: ${ecpNumero}`
-      );
-    }
+    console.log("[DEBUG] Autonumerador actualizado a:", ecpNumero);
 
     // Por si acaso el ECP_Numero ya está en uso, intentamos con el formato correcto
     const ecpNumeroStr = String(ecpNumero).padStart(6, "0");
@@ -370,7 +386,15 @@ export async function POST(req: NextRequest) {
 
     // ECP_IdEcp NO es AUTO_INCREMENT, usamos el mismo número que obtuvimos
     const ecpIdEcp = ecpNumero; // Usar el número del autonumerador como ID
-    console.log("[DEBUG] Usando ECP_IdEcp:", ecpIdEcp);
+
+    console.log("[DEBUG] ecpIdEcp final:", ecpIdEcp, "tipo:", typeof ecpIdEcp);
+
+    // Verificación adicional antes del INSERT
+    if (ecpIdEcp === 0 || !Number.isFinite(ecpIdEcp)) {
+      throw new Error(
+        `ERROR CRÍTICO: ecpIdEcp es inválido (${ecpIdEcp}). No se puede insertar.`
+      );
+    }
 
     const [resultEcp] = await connection.execute(
       `INSERT INTO sige_ecp_enccarpor (

@@ -209,15 +209,28 @@ export async function POST(request: NextRequest) {
           `[DEBUG] Todas las ECPs tienen choferes, creando nueva ECP para chofer ${choferId}`
         );
         try {
-          await connection.execute(
-            "UPDATE sige_aut_autonum SET AUT_Numero = LAST_INSERT_ID(AUT_Numero + 1) WHERE AUT_Tabla = ?",
+          // Usar LOWER() para comparación case-insensitive y SELECT FOR UPDATE para bloqueo
+          const [rowsAutonumEcp]: any = await connection.query(
+            "SELECT AUT_Numero, AUT_Tabla FROM sige_aut_autonum WHERE LOWER(AUT_Tabla) = LOWER(?) FOR UPDATE",
             ["sige_ecp_enccarpor"]
           );
-          const [rowsEcpNum]: any = await connection.query(
-            "SELECT LAST_INSERT_ID() AS numero"
+
+          if (!rowsAutonumEcp || rowsAutonumEcp.length === 0) {
+            throw new Error('No existe numerador configurado para sige_ecp_enccarpor');
+          }
+
+          const tablaOriginalEcp = rowsAutonumEcp[0].AUT_Tabla;
+          const newEcpId = Number(rowsAutonumEcp[0].AUT_Numero) + 1;
+
+          // Actualizar usando el nombre exacto de la tabla
+          await connection.execute(
+            "UPDATE sige_aut_autonum SET AUT_Numero = ? WHERE AUT_Tabla = ?",
+            [newEcpId, tablaOriginalEcp]
           );
-          const newEcpId = Number(rowsEcpNum?.[0]?.numero);
-          if (Number.isFinite(newEcpId)) {
+
+          console.log(`[DEBUG] Nuevo ECP ID obtenido: ${newEcpId} (tabla original: ${tablaOriginalEcp})`);
+
+          if (Number.isFinite(newEcpId) && newEcpId > 0) {
             const newNumero = String(newEcpId).padStart(6, "0");
 
             // Copiar TODOS los datos desde la ECP original (la primera del viaje)
@@ -254,6 +267,8 @@ export async function POST(request: NextRequest) {
             console.log(
               `[DEBUG] Nueva ECP creada: ${newEcpId} copiando datos completos desde ECP original ${ecpOriginal}`
             );
+          } else {
+            throw new Error(`ECP ID inválido obtenido del autonumerador: ${newEcpId}`);
           }
         } catch (error) {
           console.error("[DEBUG] Error al crear nueva ECP:", error);
