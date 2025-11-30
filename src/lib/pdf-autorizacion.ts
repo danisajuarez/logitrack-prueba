@@ -456,118 +456,97 @@ export async function generarPDFAutorizacionAsignacion(
 
   // Bloque proveedor
   const provLines = [
-    { label: "PROVEEDOR:", value: datos.proveedor || "" },
-    { label: "DOMICILIO:", value: datos.proveedorDomicilio || "" },
-    { label: "CUIT:", value: datos.proveedorCuit || "" },
+    { label: "PROVEEDOR:", value: datos.proveedor || "N/A" },
+    { label: "DOMICILIO:", value: datos.proveedorDomicilio || "N/A" },
+    { label: "CUIT:", value: datos.proveedorCuit || "N/A" },
   ];
   provLines.forEach((row) => {
-    page.drawText(row.label, { x: margin, y, size: 12, font: fontBold, color: negro });
-    page.drawText(String(row.value), { x: margin + 120, y, size: 12, font: fontRegular, color: negro });
-    y -= 20;
+    page.drawText(row.label, { x: margin, y, size: 11, font: fontBold, color: negro });
+    page.drawText(String(row.value), { x: margin + 120, y, size: 11, font: fontRegular, color: negro });
+    y -= 18;
   });
 
   // Línea separadora
-  y -= 8;
+  y -= 10;
   page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 3, color: verde });
-  y -= 24;
+  y -= 20;
 
   // Título detalle
-  page.drawText("Detalle de Transportes, Choferes y Camiones", {
+  page.drawText("Detalle de Transportes, Choferes y Vehículos", {
     x: margin,
     y,
-    size: 12,
+    size: 13,
     font: fontBold,
     color: negro,
   });
-  y -= 18;
+  y -= 20;
 
-  // Tabla
-  const headers = [
-    "Intermediario",
-    "CUIT Inter.",
-    "Transporte",
-    "CUIT Trans.",
-    "Chofer",
-    "CUIT Chofer",
-    "Pat.Camión",
-    "Pat.Acop.",
-    "Procedencia",
-    "Destino",
-    "Tarifa",
-  ];
-  const colXs = [
-    margin,
-    margin + 90,
-    margin + 180,
-    margin + 330,
-    margin + 420,
-    margin + 540,
-    margin + 640,
-    margin + 730,
-    margin + 820, // will overflow, adjust by scaling to landscape width 842
-  ];
-  // Recompute more compact columns fitting width
-  const cols = [
-    margin + 0,
-    margin + 95,
-    margin + 210,
-    margin + 340,
-    margin + 450,
-    margin + 560,
-    margin + 660,
-    margin + 740,
-  ];
-  const headerMap: Array<{ text: string; x: number }> = [
-    { text: headers[0], x: cols[0] },
-    { text: headers[1], x: cols[1] },
-    { text: headers[2], x: cols[2] },
-    { text: headers[3], x: cols[3] },
-    { text: headers[4], x: cols[4] },
-    { text: headers[5], x: cols[5] },
-    { text: headers[6], x: cols[6] },
-    { text: headers[7], x: cols[7] },
-  ];
+  // Diseño vertical compacto en 3 columnas para evitar superposiciones
+  const col1X = margin;
+  const col2X = margin + 270;
+  const col3X = margin + 540;
+  const labelWidth = 110;
+  const lineHeight = 16;
 
-  // Primera fila de headers (hasta Pat.Acop.)
-  headerMap.forEach((h) => {
-    page.drawText(h.text, { x: h.x, y, size: 10, font: fontBold, color: negro });
-  });
-  y -= 16;
-  // Segunda fila de headers (procedencia, destino, tarifa) en la siguiente línea para no saturar
-  const secondHeaders: Array<{ text: string; x: number }> = [
-    { text: headers[8], x: cols[0] },
-    { text: headers[9], x: cols[2] },
-    { text: headers[10], x: cols[4] },
-  ];
-  secondHeaders.forEach((h) => {
-    page.drawText(h.text, { x: h.x, y, size: 10, font: fontBold, color: negro });
-  });
-  y -= 10;
-  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: negro });
-  y -= 18;
+  // Helpers para valores seguros
+  const safe = (val: string | null | undefined, defaultVal = "N/A"): string =>
+    val && val.trim() !== "" ? val : defaultVal;
 
-  // Datos
   const intermediarioNombre = datos.intermediarioNombre || process.env.COMPANY_SHORTNAME || "LOGITRACK";
   const intermediarioCuit = datos.intermediarioCuit || process.env.COMPANY_CUIT || "";
-  const fila1: Array<{ text: string; x: number }> = [
-    { text: intermediarioNombre, x: cols[0] },
-    { text: intermediarioCuit, x: cols[1] },
-    { text: datos.transportista || "", x: cols[2] },
-    { text: datos.transportistaCuit || "", x: cols[3] },
-    { text: datos.chofer || "", x: cols[4] },
-    { text: datos.choferCuit || "", x: cols[5] },
-    { text: (datos.patChasis || "").toUpperCase(), x: cols[6] },
-    { text: (datos.patAcoplado || "").toUpperCase(), x: cols[7] },
-  ];
-  fila1.forEach((d) => page.drawText(d.text, { x: d.x, y, size: 10, font: fontRegular, color: negro }));
-  y -= 16;
 
-  const fila2: Array<{ text: string; x: number }> = [
-    { text: datos.procedencia || "", x: cols[0] },
-    { text: datos.destino || "", x: cols[2] },
-    { text: formatCurrencyArs(datos.tarifa ?? null), x: cols[4] },
-  ];
-  fila2.forEach((d) => page.drawText(d.text, { x: d.x, y, size: 10, font: fontRegular, color: negro }));
+  // Columna 1: Intermediario y Transporte
+  page.drawText("Intermediario:", { x: col1X, y, size: 10, font: fontBold, color: gris });
+  page.drawText(safe(intermediarioNombre), { x: col1X + labelWidth, y, size: 10, font: fontRegular, color: negro });
+  y -= lineHeight;
+
+  page.drawText("CUIT Inter.:", { x: col1X, y, size: 10, font: fontBold, color: gris });
+  page.drawText(safe(intermediarioCuit), { x: col1X + labelWidth, y, size: 10, font: fontRegular, color: negro });
+  y -= lineHeight + 4;
+
+  page.drawText("Transportista:", { x: col1X, y, size: 10, font: fontBold, color: gris });
+  page.drawText(safe(datos.transportista), { x: col1X + labelWidth, y, size: 10, font: fontRegular, color: negro });
+  y -= lineHeight;
+
+  page.drawText("CUIT Trans.:", { x: col1X, y, size: 10, font: fontBold, color: gris });
+  page.drawText(safe(datos.transportistaCuit), { x: col1X + labelWidth, y, size: 10, font: fontRegular, color: negro });
+
+  // Resetear Y para columna 2
+  let y2 = y + (lineHeight * 3) + 4;
+
+  // Columna 2: Chofer y Patentes
+  page.drawText("Chofer:", { x: col2X, y: y2, size: 10, font: fontBold, color: gris });
+  page.drawText(safe(datos.chofer), { x: col2X + labelWidth, y: y2, size: 10, font: fontRegular, color: negro });
+  y2 -= lineHeight;
+
+  page.drawText("CUIT Chofer:", { x: col2X, y: y2, size: 10, font: fontBold, color: gris });
+  page.drawText(safe(datos.choferCuit), { x: col2X + labelWidth, y: y2, size: 10, font: fontRegular, color: negro });
+  y2 -= lineHeight + 4;
+
+  page.drawText("Patente Camión:", { x: col2X, y: y2, size: 10, font: fontBold, color: gris });
+  page.drawText(safe((datos.patChasis || "").toUpperCase()), { x: col2X + labelWidth, y: y2, size: 10, font: fontRegular, color: verde });
+  y2 -= lineHeight;
+
+  page.drawText("Patente Acoplado:", { x: col2X, y: y2, size: 10, font: fontBold, color: gris });
+  page.drawText(safe((datos.patAcoplado || "").toUpperCase(), "SIN ACOPLADO"), { x: col2X + labelWidth, y: y2, size: 10, font: fontRegular, color: verde });
+
+  // Resetear Y para columna 3
+  let y3 = y + (lineHeight * 3) + 4;
+
+  // Columna 3: Procedencia, Destino, Tarifa
+  page.drawText("Procedencia:", { x: col3X, y: y3, size: 10, font: fontBold, color: gris });
+  page.drawText(safe(datos.procedencia), { x: col3X + labelWidth, y: y3, size: 10, font: fontRegular, color: negro });
+  y3 -= lineHeight;
+
+  page.drawText("Destino:", { x: col3X, y: y3, size: 10, font: fontBold, color: gris });
+  page.drawText(safe(datos.destino), { x: col3X + labelWidth, y: y3, size: 10, font: fontRegular, color: negro });
+  y3 -= lineHeight + 4;
+
+  page.drawText("Tarifa:", { x: col3X, y: y3, size: 10, font: fontBold, color: gris });
+  page.drawText(formatCurrencyArs(datos.tarifa ?? null), { x: col3X + labelWidth, y: y3, size: 11, font: fontBold, color: verde });
+
+  // Ajustar Y final
+  y = Math.min(y, y2, y3) - 10;
 
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes);
