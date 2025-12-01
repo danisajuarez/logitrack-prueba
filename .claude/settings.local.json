@@ -32,7 +32,8 @@
       "Bash(cmd.exe /c \"type src\\lib\\pdf-autorizacion.ts\")",
       "Bash(powershell -NoProfile -Command \"Get-Content ''C:\\Users\\danis\\proyecto-gustavo\\src\\lib\\pdf-autorizacion.ts''\")",
       "Bash(powershell:*)",
-      "Bash(cmd.exe /c \"type src\\app\\api\\viajes\\[id]\\pdf\\route.ts\")"
+      "Bash(cmd.exe /c \"type src\\app\\api\\viajes\\[id]\\pdf\\route.ts\")",
+      "Bash(del test-pdf-asignacion.js test-completo.pdf test-incompleto.pdf)"
     ],
     "deny": [],
     "ask": []

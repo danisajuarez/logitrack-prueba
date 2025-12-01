@@ -443,7 +443,7 @@ export async function POST(request: NextRequest) {
                   const pdfBuffer = await generarPDFOrdenEntrega({
                     numero: numeroOrden,
                     fecha: datos.fecha || new Date().toISOString(),
-                    proveedor: datos.proveedor || "N/A",
+                    proveedor: estacionRazonSocial || "N/A", // ESTACIÓN DE SERVICIO, no el cliente
                     transportista: datos.transportista || "N/A",
                     transportistaCuit: datos.transportistaCuit || "",
                     chofer: datos.chofer || "N/A",
@@ -457,7 +457,7 @@ export async function POST(request: NextRequest) {
                   const nombrePDF = generarNombrePDF({
                     numero: numeroOrden,
                     fecha: datos.fecha,
-                    proveedor: datos.proveedor,
+                    proveedor: estacionRazonSocial, // ESTACIÓN DE SERVICIO
                     transportista: datos.transportista,
                     transportistaCuit: datos.transportistaCuit,
                     chofer: datos.chofer,
@@ -527,7 +527,7 @@ export async function POST(request: NextRequest) {
                   const pdfBuffer = await generarPDFOrdenEntrega({
                     numero: numeroOrden,
                     fecha: datos.fecha || new Date().toISOString(),
-                    proveedor: datos.proveedor || "N/A",
+                    proveedor: estacionRazonSocial || "N/A", // ESTACIÓN DE SERVICIO, no el cliente
                     transportista: datos.transportista || "N/A",
                     transportistaCuit: datos.transportistaCuit || "",
                     chofer: datos.chofer || "N/A",
@@ -541,7 +541,7 @@ export async function POST(request: NextRequest) {
                   const nombrePDF = generarNombrePDF({
                     numero: numeroOrden,
                     fecha: datos.fecha,
-                    proveedor: datos.proveedor,
+                    proveedor: estacionRazonSocial, // ESTACIÓN DE SERVICIO
                     transportista: datos.transportista,
                     transportistaCuit: datos.transportistaCuit,
                     chofer: datos.chofer,
