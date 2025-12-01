@@ -1461,6 +1461,25 @@ export default function ChoferModal({
                   </div>
                 </div>
               )}
+              {postulaciones.length > 0 && (
+                <div className="mb-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (viaje?.id) {
+                        window.open(
+                          `/api/viajes/postulaciones/descargar-todas?viajeId=${viaje.id}`,
+                          '_blank'
+                        );
+                      }
+                    }}
+                    disabled={!viaje?.id}
+                    className="w-full px-4 py-2 text-sm rounded-md bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 active:from-green-700 active:to-green-600 disabled:from-neutral-700 disabled:to-neutral-700 disabled:text-neutral-400 transition-all duration-200 font-medium"
+                  >
+                    📋 Descargar Todas las Postulaciones (PDF)
+                  </button>
+                </div>
+              )}
               {postulaciones.map((row, index) => (
                 <div
                   key={`mobile-postulacion-${row.id}`}
@@ -2013,9 +2032,28 @@ export default function ChoferModal({
 
           {/* Lista de choferes postulados - Desktop (CON SCROLL) */}
           <div className="hidden md:block">
-            <h3 className="text-sm font-bold text-purple-400 mb-2">
-              📋 Choferes Postulados ({postulaciones.length})
-            </h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-bold text-purple-400">
+                📋 Choferes Postulados ({postulaciones.length})
+              </h3>
+              {postulaciones.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (viaje?.id) {
+                      window.open(
+                        `/api/viajes/postulaciones/descargar-todas?viajeId=${viaje.id}`,
+                        '_blank'
+                      );
+                    }
+                  }}
+                  disabled={!viaje?.id}
+                  className="px-3 py-1.5 text-xs rounded-md bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 disabled:from-neutral-700 disabled:to-neutral-700 disabled:text-neutral-400 transition-all duration-200 font-medium"
+                >
+                  📋 Descargar Todas (PDF)
+                </button>
+              )}
+            </div>
             <div className="border border-neutral-700 rounded-md shadow-lg">
               <div className="max-h-[45vh] overflow-y-auto custom-scrollbar">
                 <table className="min-w-full text-xs">
