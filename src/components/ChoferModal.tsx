@@ -1527,16 +1527,34 @@ export default function ChoferModal({
                     </div>
                   </div>
 
-                  {/* Botón Autorizaciones Mobile */}
-                  <button
-                    type="button"
-                    onClick={() => toggleAutorizacionPanel(row.id)}
-                    className="w-full px-3 py-2 text-sm rounded-md bg-blue-600 hover:bg-blue-500 active:bg-blue-700 transition-colors duration-200"
-                  >
-                    {expandedAutorizacionId === row.id
-                      ? "▼ Ocultar"
-                      : "▶ Autorizaciones"}
-                  </button>
+                  {/* Botones Mobile */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (viaje?.id && row.choferId) {
+                          window.open(
+                            `/api/viajes/postulaciones/descargar?viajeId=${viaje.id}&choferId=${row.choferId}&ecpId=${row.ecpId}`,
+                            '_blank'
+                          );
+                        }
+                      }}
+                      disabled={!viaje?.id || !row.choferId}
+                      title="Descargar PDF de Postulación"
+                      className="px-3 py-2 text-sm rounded-md bg-green-600 hover:bg-green-500 active:bg-green-700 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200"
+                    >
+                      📄 PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleAutorizacionPanel(row.id)}
+                      className="px-3 py-2 text-sm rounded-md bg-blue-600 hover:bg-blue-500 active:bg-blue-700 transition-colors duration-200"
+                    >
+                      {expandedAutorizacionId === row.id
+                        ? "▼ Ocultar"
+                        : "▶ Autorizaciones"}
+                    </button>
+                  </div>
 
                   {/* Panel de autorizaciones mobile */}
                   {expandedAutorizacionId === row.id && (
@@ -1626,14 +1644,32 @@ export default function ChoferModal({
                                         )}
                                       </div>
                                     </div>
-                                    <button
-                                      type="button"
-                                      disabled={true}
-                                      title="Función deshabilitada temporalmente"
-                                      className="text-neutral-600 cursor-not-allowed text-sm ml-2 px-2 py-1 opacity-50"
-                                    >
-                                      ✖
-                                    </button>
+                                    <div className="flex gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (aut.ecpIdEcp && aut.renglonId) {
+                                            window.open(
+                                              `/api/viajes/autorizaciones/descargar?ecpIdEcp=${aut.ecpIdEcp}&renglon=${aut.renglonId}`,
+                                              '_blank'
+                                            );
+                                          }
+                                        }}
+                                        disabled={!aut.ecpIdEcp || !aut.renglonId}
+                                        title="Descargar PDF"
+                                        className="text-blue-400 hover:text-blue-300 disabled:text-neutral-600 disabled:cursor-not-allowed text-sm px-2 py-1 transition-colors"
+                                      >
+                                        📄
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={true}
+                                        title="Función deshabilitada temporalmente"
+                                        className="text-neutral-600 cursor-not-allowed text-sm px-2 py-1 opacity-50"
+                                      >
+                                        ✖
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               ))}
@@ -2062,14 +2098,32 @@ export default function ChoferModal({
                             {row.vendedorNombre ?? "-"}
                           </td>
                           <td className="px-2 py-1.5 align-middle text-center">
-                            <button
-                              type="button"
-                              onClick={() => toggleAutorizacionPanel(row.id)}
-                              className="px-2 py-1 text-xs rounded-md bg-blue-600 hover:bg-blue-500 transition-colors duration-200"
-                            >
-                              {expandedAutorizacionId === row.id ? "▼" : "▶"}{" "}
-                              Autorizaciones
-                            </button>
+                            <div className="flex gap-1 justify-center">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (viaje?.id && row.choferId) {
+                                    window.open(
+                                      `/api/viajes/postulaciones/descargar?viajeId=${viaje.id}&choferId=${row.choferId}&ecpId=${row.ecpId}`,
+                                      '_blank'
+                                    );
+                                  }
+                                }}
+                                disabled={!viaje?.id || !row.choferId}
+                                title="Descargar PDF de Postulación"
+                                className="px-2 py-1 text-xs rounded-md bg-green-600 hover:bg-green-500 disabled:bg-neutral-700 disabled:text-neutral-400 transition-colors duration-200"
+                              >
+                                📄
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => toggleAutorizacionPanel(row.id)}
+                                className="px-2 py-1 text-xs rounded-md bg-blue-600 hover:bg-blue-500 transition-colors duration-200"
+                              >
+                                {expandedAutorizacionId === row.id ? "▼" : "▶"}{" "}
+                                Autorizaciones
+                              </button>
+                            </div>
                           </td>
                         </tr>
                         {expandedAutorizacionId === row.id && (
@@ -2171,14 +2225,32 @@ export default function ChoferModal({
                                                 Renglón: {aut.renglonId}
                                               </div>
                                             )}
-                                            <button
-                                              type="button"
-                                              disabled={true}
-                                              title="Función deshabilitada temporalmente"
-                                              className="text-neutral-600 cursor-not-allowed text-xs px-2 py-1 opacity-50"
-                                            >
-                                              ✖
-                                            </button>
+                                            <div className="flex gap-1">
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  if (aut.ecpIdEcp && aut.renglonId) {
+                                                    window.open(
+                                                      `/api/viajes/autorizaciones/descargar?ecpIdEcp=${aut.ecpIdEcp}&renglon=${aut.renglonId}`,
+                                                      '_blank'
+                                                    );
+                                                  }
+                                                }}
+                                                disabled={!aut.ecpIdEcp || !aut.renglonId}
+                                                title="Descargar PDF"
+                                                className="text-blue-400 hover:text-blue-300 disabled:text-neutral-600 disabled:cursor-not-allowed text-xs px-2 py-1 transition-colors"
+                                              >
+                                                📄
+                                              </button>
+                                              <button
+                                                type="button"
+                                                disabled={true}
+                                                title="Función deshabilitada temporalmente"
+                                                className="text-neutral-600 cursor-not-allowed text-xs px-2 py-1 opacity-50"
+                                              >
+                                                ✖
+                                              </button>
+                                            </div>
                                           </div>
                                         ))}
                                       </div>

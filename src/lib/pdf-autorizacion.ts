@@ -347,6 +347,7 @@ export interface DatosAutorizacionAsignacion {
   proveedorDomicilio?: string | null;
   proveedorCuit?: string | null;
 
+  mostrarIntermediario?: boolean; // Si es true, muestra las columnas de intermediario
   intermediarioNombre?: string; // default: LOGITRACK
   intermediarioCuit?: string | null;
 
@@ -494,15 +495,21 @@ export async function generarPDFAutorizacionAsignacion(
 
   const intermediarioNombre = datos.intermediarioNombre || process.env.COMPANY_SHORTNAME || "LOGITRACK";
   const intermediarioCuit = datos.intermediarioCuit || process.env.COMPANY_CUIT || "";
+  const mostrarIntermediario = datos.mostrarIntermediario === true;
 
-  // Columna 1: Intermediario y Transporte
-  page.drawText("Intermediario:", { x: col1X, y, size: 10, font: fontBold, color: gris });
-  page.drawText(safe(intermediarioNombre), { x: col1X + labelWidth, y, size: 10, font: fontRegular, color: negro });
-  y -= lineHeight;
+  // Guardar posición inicial para las columnas 2 y 3
+  const yInicial = y;
 
-  page.drawText("CUIT Inter.:", { x: col1X, y, size: 10, font: fontBold, color: gris });
-  page.drawText(safe(intermediarioCuit), { x: col1X + labelWidth, y, size: 10, font: fontRegular, color: negro });
-  y -= lineHeight + 4;
+  // Columna 1: Intermediario (solo si mostrarIntermediario = true) y Transporte
+  if (mostrarIntermediario) {
+    page.drawText("Intermediario:", { x: col1X, y, size: 10, font: fontBold, color: gris });
+    page.drawText(safe(intermediarioNombre), { x: col1X + labelWidth, y, size: 10, font: fontRegular, color: negro });
+    y -= lineHeight;
+
+    page.drawText("CUIT Inter.:", { x: col1X, y, size: 10, font: fontBold, color: gris });
+    page.drawText(safe(intermediarioCuit), { x: col1X + labelWidth, y, size: 10, font: fontRegular, color: negro });
+    y -= lineHeight + 4;
+  }
 
   page.drawText("Transportista:", { x: col1X, y, size: 10, font: fontBold, color: gris });
   page.drawText(safe(datos.transportista), { x: col1X + labelWidth, y, size: 10, font: fontRegular, color: negro });
@@ -511,10 +518,8 @@ export async function generarPDFAutorizacionAsignacion(
   page.drawText("CUIT Trans.:", { x: col1X, y, size: 10, font: fontBold, color: gris });
   page.drawText(safe(datos.transportistaCuit), { x: col1X + labelWidth, y, size: 10, font: fontRegular, color: negro });
 
-  // Resetear Y para columna 2
-  let y2 = y + (lineHeight * 3) + 4;
-
-  // Columna 2: Chofer y Patentes
+  // Columna 2: Chofer y Patentes (empieza desde yInicial)
+  let y2 = yInicial;
   page.drawText("Chofer:", { x: col2X, y: y2, size: 10, font: fontBold, color: gris });
   page.drawText(safe(datos.chofer), { x: col2X + labelWidth, y: y2, size: 10, font: fontRegular, color: negro });
   y2 -= lineHeight;
@@ -530,10 +535,8 @@ export async function generarPDFAutorizacionAsignacion(
   page.drawText("Patente Acoplado:", { x: col2X, y: y2, size: 10, font: fontBold, color: gris });
   page.drawText(safe((datos.patAcoplado || "").toUpperCase(), "SIN ACOPLADO"), { x: col2X + labelWidth, y: y2, size: 10, font: fontRegular, color: verde });
 
-  // Resetear Y para columna 3
-  let y3 = y + (lineHeight * 3) + 4;
-
-  // Columna 3: Procedencia, Destino, Tarifa
+  // Columna 3: Procedencia, Destino, Tarifa (empieza desde yInicial)
+  let y3 = yInicial;
   page.drawText("Procedencia:", { x: col3X, y: y3, size: 10, font: fontBold, color: gris });
   page.drawText(safe(datos.procedencia), { x: col3X + labelWidth, y: y3, size: 10, font: fontRegular, color: negro });
   y3 -= lineHeight;

@@ -666,10 +666,11 @@ export async function POST(request: NextRequest) {
             const fallback = process.env.EMAIL_TEST || process.env.EMAIL_FROM || null;
             const vendedorEmail = rawEmail && rawEmail.includes("@") ? rawEmail : fallback;
             if (vendedorEmail && vendedorEmail.includes("@")) {
-              // Datos del viaje para PDF
+              // Datos del viaje para PDF (incluyendo TER_IdTercero para obtener datos del proveedor)
               const [vInfo] = await connection.query<RowDataPacket[]>(
                 `SELECT ENT_Numero AS numero, ENT_Fecha AS fecha, LOC_NomLocalidadOrig AS origen,
-                        LOC_NomLocalidadDest AS destino, TER_RazonSocialTer AS razonSocial, ENT_Tarifa AS tarifa
+                        LOC_NomLocalidadDest AS destino, TER_RazonSocialTer AS razonSocial, ENT_Tarifa AS tarifa,
+                        TER_IdTercero AS terceroId
                  FROM sige_ent_encnegtra WHERE ENT_IdEnt = ? LIMIT 1`,
                 [viajeId]
               );
@@ -687,22 +688,28 @@ export async function POST(request: NextRequest) {
                 const { generarPDFAutorizacionAsignacion } = await import("@/lib/pdf-autorizacion");
                 const { enviarEmailConPDFAdjunto } = await import("@/lib/email");
 
-                // Intentar completar CUIT y domicilio del proveedor a partir de su razón social
+                // Obtener CUIT, domicilio y tipo de proveedor (mayorista o no) usando su ID
                 let proveedorCuit: string | null = null;
                 let proveedorDomicilio: string | null = null;
-                try {
-                  const [provRows] = await connection.query<RowDataPacket[]>(
-                    `SELECT TER_CUITTer AS cuit, TER_DireccionTer AS domicilio
-                     FROM sige_ter_tercero
-                     WHERE UPPER(TER_RazonSocialTer) = UPPER(?)
-                     LIMIT 1`,
-                    [viaje.razonSocial]
-                  );
-                  if (Array.isArray(provRows) && provRows.length > 0) {
-                    proveedorCuit = (provRows[0].cuit as any) || null;
-                    proveedorDomicilio = (provRows[0].domicilio as any) || null;
-                  }
-                } catch {}
+                let esMayorista: boolean = false;
+
+                const terceroId = viaje.terceroId;
+                if (terceroId) {
+                  try {
+                    const [provRows] = await connection.query<RowDataPacket[]>(
+                      `SELECT TER_CUITTer AS cuit, TER_DomicilioTer AS domicilio, TER_Mayorista AS mayorista
+                       FROM sige_ter_tercero
+                       WHERE TER_IDTercero = ?
+                       LIMIT 1`,
+                      [terceroId]
+                    );
+                    if (Array.isArray(provRows) && provRows.length > 0) {
+                      proveedorCuit = (provRows[0].cuit as any) || null;
+                      proveedorDomicilio = (provRows[0].domicilio as any) || null;
+                      esMayorista = provRows[0].mayorista === "S";
+                    }
+                  } catch {}
+                }
 
                 const pdfBuffer = await generarPDFAutorizacionAsignacion({
                   fecha: (viaje.fecha as any) || new Date().toISOString(),
@@ -718,6 +725,7 @@ export async function POST(request: NextRequest) {
                   choferCuit,
                   patChasis: patenteChasis,
                   patAcoplado: relacion.patAcoplado ? relacion.patAcoplado.toUpperCase() : null,
+                  mostrarIntermediario: esMayorista,
                   intermediarioNombre: process.env.COMPANY_SHORTNAME || "LOGITRACK",
                   intermediarioCuit: process.env.COMPANY_CUIT || undefined,
                 });
