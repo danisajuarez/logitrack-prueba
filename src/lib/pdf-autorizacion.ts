@@ -434,9 +434,9 @@ export async function generarPDFAutorizacionAsignacion(
 
   const companyName = process.env.COMPANY_NAME || "LOGITRACK S.A.S.";
   const companyIva = process.env.COMPANY_IVA || "I.V.A.: Responsable Inscripto";
-  const companyCuit = process.env.COMPANY_CUIT || "C.U.I.T.:";
-  const companyIb = process.env.COMPANY_IB || "Ing.Brutos:";
-  const companyStart = process.env.COMPANY_START || "Inicio Actividades:";
+  const companyCuit = process.env.COMPANY_CUIT || "C.U.I.T.: 30-71995249-9";
+  const companyIb = process.env.COMPANY_IB || "Ing.Brutos: 30-71995249-9";
+  const companyStart = process.env.COMPANY_START || "Inicio Actividades: 01/05/2024";
 
   let tx = boxX + 8;
   let ty = boxY + boxH - 14;
@@ -487,7 +487,7 @@ export async function generarPDFAutorizacionAsignacion(
     val && val.trim() !== "" ? val : defaultVal;
 
   const intermediarioNombre = datos.intermediarioNombre || process.env.COMPANY_SHORTNAME || "LOGITRACK";
-  const intermediarioCuit = datos.intermediarioCuit || process.env.COMPANY_CUIT || "";
+  const intermediarioCuit = datos.intermediarioCuit || process.env.COMPANY_CUIT || "30-71995249-9";
   const mostrarIntermediario = datos.mostrarIntermediario === true;
 
   // Definir estructura de tabla
@@ -750,9 +750,9 @@ export async function generarPDFAsignacionesMultiples(
 
   const companyName = process.env.COMPANY_NAME || "LOGITRACK S.A.S.";
   const companyIva = process.env.COMPANY_IVA || "I.V.A.: Responsable Inscripto";
-  const companyCuit = process.env.COMPANY_CUIT || "C.U.I.T.:";
-  const companyIb = process.env.COMPANY_IB || "Ing.Brutos:";
-  const companyStart = process.env.COMPANY_START || "Inicio Actividades:";
+  const companyCuit = process.env.COMPANY_CUIT || "C.U.I.T.: 30-71995249-9";
+  const companyIb = process.env.COMPANY_IB || "Ing.Brutos: 30-71995249-9";
+  const companyStart = process.env.COMPANY_START || "Inicio Actividades: 01/05/2024";
 
   let tx = boxX + 8;
   let ty = boxY + boxH - 14;
@@ -884,7 +884,7 @@ export async function generarPDFAsignacionesMultiples(
 
   // Dibujar filas de datos
   const intermediarioNombre = process.env.COMPANY_SHORTNAME || "LOGITRACK";
-  const intermediarioCuit = process.env.COMPANY_CUIT || "";
+  const intermediarioCuit = process.env.COMPANY_CUIT || "30-71995249-9";
 
   datos.asignaciones.forEach((asignacion, index) => {
     const patCamion = safe((asignacion.patChasis || "").toUpperCase());
