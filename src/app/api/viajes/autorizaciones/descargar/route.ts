@@ -206,7 +206,7 @@ export async function GET(request: NextRequest) {
           );
         }
 
-        // Obtener datos del viaje sin especificar el chofer
+        // Obtener datos del viaje y del chofer desde sige_icp_intcarpor
         const [datosRows] = await connection.query<RowDataPacket[]>(
           `SELECT
             e.ENT_Numero AS viajeNumero,
@@ -214,12 +214,16 @@ export async function GET(request: NextRequest) {
             e.TER_RazonSocialTer AS proveedor,
             t.TER_RazonSocialTer AS transportista,
             t.TER_CUITTer AS transportistaCuit,
+            chofer.TER_RazonSocialTer AS chofer,
+            chofer.TER_CUITTer AS choferCuit,
             ecp.ECP_PatCamion AS patChasis,
             ecp.ECP_PatAcoplado AS patAcoplado
            FROM sige_ecp_enccarpor ecp
            INNER JOIN sige_ent_encnegtra e ON e.ENT_IdEnt = ecp.ENT_IdEnt
-           LEFT JOIN sige_icp_intcarpor icp ON icp.ECP_IdEcp = ecp.ECP_IdEcp AND icp.TIC_IdTic = 8
-           LEFT JOIN sige_ter_tercero t ON t.TER_IDTercero = icp.TER_IDTerceroTic
+           LEFT JOIN sige_icp_intcarpor icp_trans ON icp_trans.ECP_IdEcp = ecp.ECP_IdEcp AND icp_trans.TIC_IdTic = 8
+           LEFT JOIN sige_ter_tercero t ON t.TER_IDTercero = icp_trans.TER_IDTerceroTic
+           LEFT JOIN sige_icp_intcarpor icp_chofer ON icp_chofer.ECP_IdEcp = ecp.ECP_IdEcp AND icp_chofer.TIC_IdTic = 9
+           LEFT JOIN sige_ter_tercero chofer ON chofer.TER_IDTercero = icp_chofer.TER_IDTerceroTic
            WHERE ecp.ECP_IdEcp = ?
            LIMIT 1`,
           [ecpIdEcp]
@@ -233,6 +237,12 @@ export async function GET(request: NextRequest) {
         }
 
         const datos = datosRows[0];
+
+        console.log("[DESCARGAR-PDF] Datos obtenidos para PDF:", {
+          chofer: datos.chofer,
+          choferCuit: datos.choferCuit,
+          transportista: datos.transportista,
+        });
 
         // Generar PDF
         const { generarPDFOrdenEntrega, generarNombrePDF } = await import(
@@ -251,8 +261,8 @@ export async function GET(request: NextRequest) {
           proveedor: autorizacion.estacionNombre || "N/A",
           transportista: datos.transportista || "N/A",
           transportistaCuit: datos.transportistaCuit || "",
-          chofer: "N/A",
-          choferCuit: "",
+          chofer: datos.chofer || "N/A",
+          choferCuit: datos.choferCuit || "",
           patente: patentes || "N/A",
           tipo: esAdelanto ? "adelanto" : "combustible",
           cantidad: Number(
@@ -267,8 +277,8 @@ export async function GET(request: NextRequest) {
           proveedor: autorizacion.estacionNombre,
           transportista: datos.transportista,
           transportistaCuit: datos.transportistaCuit,
-          chofer: "N/A",
-          choferCuit: "",
+          chofer: datos.chofer || "N/A",
+          choferCuit: datos.choferCuit || "",
           patente: patentes,
           tipo: esAdelanto ? "adelanto" : "combustible",
           cantidad: Number(

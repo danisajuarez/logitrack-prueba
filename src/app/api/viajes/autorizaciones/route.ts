@@ -120,6 +120,8 @@ export async function POST(request: NextRequest) {
         ecpIdEcp: ecpIdEcpValid,
       });
 
+      console.log("[DEBUG] ChoferId que se usará para el PDF:", choferId);
+
       // Traer estación válida (tipo=2, categoría=9)
       const [estacionRows] = await connection.query<RowDataPacket[]>(
         `SELECT TER_IDTercero, TER_RazonSocialTer
@@ -378,29 +380,45 @@ export async function POST(request: NextRequest) {
         );
 
         // Obtener datos necesarios para el PDF
+        // Primero obtener datos del chofer directamente
+        console.log("[PDF-EMAIL] Buscando datos del chofer con ID:", choferId);
+
+        const [choferRows] = await connection.query<RowDataPacket[]>(
+          `SELECT TER_RazonSocialTer AS nombre, TER_CUITTer AS cuit
+           FROM sige_ter_tercero
+           WHERE TER_IDTercero = ?
+           LIMIT 1`,
+          [choferId]
+        );
+
+        console.log("[PDF-EMAIL] Resultado del query del chofer:", choferRows);
+
+        const choferData = Array.isArray(choferRows) && choferRows.length > 0
+          ? choferRows[0]
+          : { nombre: null, cuit: null };
+
+        console.log("[PDF-EMAIL] Datos del chofer parseados:", choferData);
+
         const [datosRows] = await connection.query<RowDataPacket[]>(
-          `SELECT 
+          `SELECT
              e.ENT_Numero AS viajeNumero,
              e.ENT_Fecha AS fecha,
              e.TER_RazonSocialTer AS proveedor,
              t.TER_RazonSocialTer AS transportista,
              t.TER_CUITTer AS transportistaCuit,
-             c.TER_RazonSocialTer AS chofer,
-             c.TER_CUITTer AS choferCuit,
              ecp.ECP_PatCamion AS patChasis,
              ecp.ECP_PatAcoplado AS patAcoplado,
              v.VEN_NomVen AS vendedor,
              v.VEN_EMailVen AS vendedorEmail
            FROM sige_ent_encnegtra e
            INNER JOIN sige_ecp_enccarpor ecp ON e.ENT_IdEnt = ecp.ENT_IdEnt
-           LEFT JOIN sige_ter_tercero c ON c.TER_IDTercero = ?
            LEFT JOIN sige_icp_intcarpor icp ON icp.ECP_IdEcp = ecp.ECP_IdEcp AND icp.TIC_IdTic = 8
            LEFT JOIN sige_ter_tercero t ON t.TER_IDTercero = icp.TER_IDTerceroTic
            -- Enviar al vendedor que postuló (tomado desde la ECP creada al postular)
            LEFT JOIN sige_ven_vendedor v ON v.VEN_IDVendedor = ecp.VEN_IdVendPostula
            WHERE e.ENT_IdEnt = ? AND ecp.ECP_IdEcp = ?
            LIMIT 1`,
-          [choferId, viajeId, ecpIdEcp]
+          [viajeId, ecpIdEcp]
         );
 
         if (!Array.isArray(datosRows) || datosRows.length === 0) {
@@ -424,6 +442,18 @@ export async function POST(request: NextRequest) {
               datos.patAcoplado ? " " + datos.patAcoplado : ""
             }`.trim();
 
+            // Usar datos del chofer obtenidos previamente
+            const choferNombre = choferData.nombre || "N/A";
+            const choferCuit = choferData.cuit || "";
+
+            console.log("[PDF-EMAIL] Variables para PDF:", {
+              choferNombre,
+              choferCuit,
+              transportista: datos.transportista,
+              patChasis: datos.patChasis,
+              patAcoplado: datos.patAcoplado,
+            });
+
             // Generar PDF por cada adelanto guardado
             for (const renglonId of adelantosIds) {
               try {
@@ -446,8 +476,8 @@ export async function POST(request: NextRequest) {
                     proveedor: estacionRazonSocial || "N/A", // ESTACIÓN DE SERVICIO, no el cliente
                     transportista: datos.transportista || "N/A",
                     transportistaCuit: datos.transportistaCuit || "",
-                    chofer: datos.chofer || "N/A",
-                    choferCuit: datos.choferCuit || "",
+                    chofer: choferNombre,
+                    choferCuit: choferCuit,
                     patente: patentes || "N/A",
                     tipo: "adelanto",
                     cantidad: Number(adelantoData[0].importe || 0),
@@ -460,8 +490,8 @@ export async function POST(request: NextRequest) {
                     proveedor: estacionRazonSocial, // ESTACIÓN DE SERVICIO
                     transportista: datos.transportista,
                     transportistaCuit: datos.transportistaCuit,
-                    chofer: datos.chofer,
-                    choferCuit: datos.choferCuit,
+                    chofer: choferNombre,
+                    choferCuit: choferCuit,
                     patente: patentes,
                     tipo: "adelanto",
                     cantidad: Number(adelantoData[0].importe || 0),
@@ -471,9 +501,7 @@ export async function POST(request: NextRequest) {
                   const htmlEmail = `
                     <h2>Orden de Entrega - Adelanto</h2>
                     <p>Hola ${datos.vendedor || "Vendedor"},</p>
-                    <p>Se ha generado una nueva orden de entrega para el chofer <strong>${
-                      datos.chofer
-                    }</strong>.</p>
+                    <p>Se ha generado una nueva orden de entrega para el chofer <strong>${choferNombre}</strong>.</p>
                     <p><strong>Viaje:</strong> ${datos.viajeNumero}</p>
                     <p><strong>Tipo:</strong> Adelanto</p>
                     <p><strong>Monto:</strong> $${Number(
@@ -484,7 +512,7 @@ export async function POST(request: NextRequest) {
 
                   await enviarEmailConPDFAdjunto({
                     to: vendedorEmail,
-                    subject: `Orden de Entrega - Adelanto - ${datos.chofer}`,
+                    subject: `Orden de Entrega - Adelanto - ${choferNombre}`,
                     htmlContent: htmlEmail,
                     pdfBuffer,
                     pdfNombre: nombrePDF,
@@ -530,8 +558,8 @@ export async function POST(request: NextRequest) {
                     proveedor: estacionRazonSocial || "N/A", // ESTACIÓN DE SERVICIO, no el cliente
                     transportista: datos.transportista || "N/A",
                     transportistaCuit: datos.transportistaCuit || "",
-                    chofer: datos.chofer || "N/A",
-                    choferCuit: datos.choferCuit || "",
+                    chofer: choferNombre,
+                    choferCuit: choferCuit,
                     patente: patentes || "N/A",
                     tipo: "combustible",
                     cantidad: Number(combustibleData[0].litros || 0),
@@ -544,8 +572,8 @@ export async function POST(request: NextRequest) {
                     proveedor: estacionRazonSocial, // ESTACIÓN DE SERVICIO
                     transportista: datos.transportista,
                     transportistaCuit: datos.transportistaCuit,
-                    chofer: datos.chofer,
-                    choferCuit: datos.choferCuit,
+                    chofer: choferNombre,
+                    choferCuit: choferCuit,
                     patente: patentes,
                     tipo: "combustible",
                     cantidad: Number(combustibleData[0].litros || 0),
@@ -555,9 +583,7 @@ export async function POST(request: NextRequest) {
                   const htmlEmail = `
                     <h2>Orden de Entrega - Combustible</h2>
                     <p>Hola ${datos.vendedor || "Vendedor"},</p>
-                    <p>Se ha generado una nueva orden de entrega para el chofer <strong>${
-                      datos.chofer
-                    }</strong>.</p>
+                    <p>Se ha generado una nueva orden de entrega para el chofer <strong>${choferNombre}</strong>.</p>
                     <p><strong>Viaje:</strong> ${datos.viajeNumero}</p>
                     <p><strong>Tipo:</strong> Combustible</p>
                     <p><strong>Cantidad:</strong> ${Number(
@@ -568,7 +594,7 @@ export async function POST(request: NextRequest) {
 
                   await enviarEmailConPDFAdjunto({
                     to: vendedorEmail,
-                    subject: `Orden de Entrega - Combustible - ${datos.chofer}`,
+                    subject: `Orden de Entrega - Combustible - ${choferNombre}`,
                     htmlContent: htmlEmail,
                     pdfBuffer,
                     pdfNombre: nombrePDF,
@@ -754,9 +780,12 @@ export async function GET(request: NextRequest) {
         ocp.OCP_Cantidad        AS cantidad,
         ocp.OCP_CantPend        AS cantidadPendiente,
         ter.TER_CUITTer         AS estacionCuit,
-        ocp.CHO_IdChofer        AS choferId
+        ocp.CHO_IdChofer        AS choferId,
+        chofer.TER_RazonSocialTer AS choferNombre,
+        chofer.TER_CUITTer      AS choferCuit
       FROM SIGE_OCP_OrdCarPor ocp
       LEFT JOIN sige_ter_tercero ter ON ter.TER_IDTercero = ocp.TER_IdTercero
+      LEFT JOIN sige_ter_tercero chofer ON chofer.TER_IDTercero = ocp.CHO_IdChofer
       WHERE ocp.ECP_IdEcp IN (${placeholders})
         AND (
               ocp.ART_IdArticulo = ?                 -- "COMB"
@@ -775,10 +804,10 @@ export async function GET(request: NextRequest) {
       console.log("[DEBUG GET] Autorizaciones encontradas:", rows);
       return NextResponse.json(rows);
     } catch (e: any) {
-      // Si la columna CHO_IdChofer no existe, consultar sin ella
+      // Si la columna CHO_IdChofer no existe, obtener chofer desde sige_icp_intcarpor
       if (e?.code === "ER_BAD_FIELD_ERROR") {
         console.log(
-          "[DEBUG GET] Columna CHO_IdChofer no existe, usando query fallback"
+          "[DEBUG GET] Columna CHO_IdChofer no existe, obteniendo chofer desde sige_icp_intcarpor"
         );
         const queryFallback = `
           SELECT
@@ -791,9 +820,14 @@ export async function GET(request: NextRequest) {
             ocp.OCP_Importe         AS importe,
             ocp.OCP_Cantidad        AS cantidad,
             ocp.OCP_CantPend        AS cantidadPendiente,
-            ter.TER_CUITTer         AS estacionCuit
+            ter.TER_CUITTer         AS estacionCuit,
+            icp.TER_IDTerceroTic    AS choferId,
+            chofer.TER_RazonSocialTer AS choferNombre,
+            chofer.TER_CUITTer      AS choferCuit
           FROM SIGE_OCP_OrdCarPor ocp
           LEFT JOIN sige_ter_tercero ter ON ter.TER_IDTercero = ocp.TER_IdTercero
+          LEFT JOIN sige_icp_intcarpor icp ON icp.ECP_IdEcp = ocp.ECP_IdEcp AND icp.TIC_IdTic = 9
+          LEFT JOIN sige_ter_tercero chofer ON chofer.TER_IDTercero = icp.TER_IDTerceroTic
           WHERE ocp.ECP_IdEcp IN (${placeholders})
             AND (
                   ocp.ART_IdArticulo = ?

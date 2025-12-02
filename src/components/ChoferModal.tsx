@@ -1442,9 +1442,28 @@ export default function ChoferModal({
 
           {/* Lista de choferes postulados - Mobile (CON SCROLL) */}
           <div className="md:hidden">
-            <h3 className="text-xs font-bold text-purple-400 mb-1.5">
-              📋 Choferes Postulados ({postulaciones.length})
-            </h3>
+            <div className="flex items-center justify-between mb-1.5">
+              <h3 className="text-xs font-bold text-purple-400">
+                📋 Choferes Postulados ({postulaciones.length})
+              </h3>
+              {postulaciones.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (viaje?.id) {
+                      window.open(
+                        `/api/viajes/postulaciones/descargar-todas?viajeId=${viaje.id}`,
+                        '_blank'
+                      );
+                    }
+                  }}
+                  className="px-2 py-1 text-xs font-medium rounded bg-purple-600 hover:bg-purple-500 text-white transition-colors"
+                  title="Descargar todas las asignaciones (postulaciones) en un solo PDF"
+                >
+                  📄 Descargar PDF
+                </button>
+              )}
+            </div>
             <div className="max-h-[40vh] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
               {postulaciones.length === 0 && !loadingPostulaciones && (
                 <div className="text-center py-8 text-neutral-400 text-sm">
@@ -2013,9 +2032,28 @@ export default function ChoferModal({
 
           {/* Lista de choferes postulados - Desktop (CON SCROLL) */}
           <div className="hidden md:block">
-            <h3 className="text-sm font-bold text-purple-400 mb-2">
-              📋 Choferes Postulados ({postulaciones.length})
-            </h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-bold text-purple-400">
+                📋 Choferes Postulados ({postulaciones.length})
+              </h3>
+              {postulaciones.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (viaje?.id) {
+                      window.open(
+                        `/api/viajes/postulaciones/descargar-todas?viajeId=${viaje.id}`,
+                        '_blank'
+                      );
+                    }
+                  }}
+                  className="px-3 py-1.5 text-xs font-medium rounded bg-purple-600 hover:bg-purple-500 text-white transition-colors"
+                  title="Descargar todas las asignaciones (postulaciones) en un solo PDF"
+                >
+                  📄 Descargar PDF
+                </button>
+              )}
+            </div>
             <div className="border border-neutral-700 rounded-md shadow-lg">
               <div className="max-h-[45vh] overflow-y-auto custom-scrollbar">
                 <table className="min-w-full text-xs">
