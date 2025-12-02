@@ -193,7 +193,7 @@ export async function GET(request: NextRequest) {
       console.log("[DESCARGAR-TODAS-POSTULACIONES] PDF generado:", nombrePDF);
 
       // Devolver PDF como descarga
-      return new NextResponse(pdfBuffer, {
+      return new NextResponse(new Uint8Array(pdfBuffer), {
         status: 200,
         headers: {
           "Content-Type": "application/pdf",

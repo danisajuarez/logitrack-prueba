@@ -595,8 +595,8 @@ export async function generarPDFAutorizacionAsignacion(
         formatCurrencyArs(datos.tarifa ?? null),
       ]
     : [
-        safe(datos.transportista, "N/A"),
-        safe(datos.transportistaCuit, "N/A"),
+        safe(intermediarioNombre, "N/A"), // Cuando no hay intermediario, en "Transportista" va LOGITRACK
+        safe(intermediarioCuit, "N/A"),
         safe(datos.chofer, "N/A"),
         safe(datos.choferCuit, "N/A"),
         patCamion,
@@ -666,8 +666,28 @@ export async function generarPDFAutorizacionAsignacion(
 // Función para generar PDF con múltiples asignaciones
 // ================================================
 
-export interface AsignacionMultiple extends DatosAutorizacionAsignacion {
+export interface AsignacionMultiple {
   id?: number; // ID único para cada asignación (opcional)
+  fecha?: string;
+  proveedor?: string;
+  proveedorDomicilio?: string | null;
+  proveedorCuit?: string | null;
+
+  intermediarioNombre?: string;
+  intermediarioCuit?: string | null;
+
+  transportista?: string | null;
+  transportistaCuit?: string | null;
+
+  chofer?: string | null;
+  choferCuit?: string | null;
+
+  patChasis?: string | null;
+  patAcoplado?: string | null;
+
+  procedencia?: string | null;
+  destino?: string | null;
+  tarifa?: number | null;
 }
 
 export async function generarPDFAsignacionesMultiples(
@@ -885,8 +905,8 @@ export async function generarPDFAsignacionesMultiples(
           formatCurrencyArs(asignacion.tarifa ?? null),
         ]
       : [
-          safe(asignacion.transportista, "N/A"),
-          safe(asignacion.transportistaCuit, "N/A"),
+          safe(intermediarioNombre, "N/A"), // Cuando no hay intermediario, en "Transportista" va LOGITRACK
+          safe(intermediarioCuit, "N/A"),
           safe(asignacion.chofer, "N/A"),
           safe(asignacion.choferCuit, "N/A"),
           patCamion,
