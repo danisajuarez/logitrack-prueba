@@ -34,8 +34,18 @@ export async function generarPDFOrdenEntrega(
   const page = pdfDoc.addPage([595, 842]); // A4 en puntos
 
   // Cargar fuentes Roboto con soporte para caracteres especiales (ñ, acentos, etc.)
-  const fontBoldPath = path.join(process.cwd(), "public", "fonts", "Roboto-Bold.ttf");
-  const fontRegularPath = path.join(process.cwd(), "public", "fonts", "Roboto-Regular.ttf");
+  const fontBoldPath = path.join(
+    process.cwd(),
+    "public",
+    "fonts",
+    "Roboto-Bold.ttf"
+  );
+  const fontRegularPath = path.join(
+    process.cwd(),
+    "public",
+    "fonts",
+    "Roboto-Regular.ttf"
+  );
   const fontBoldBytes = fs.readFileSync(fontBoldPath);
   const fontRegularBytes = fs.readFileSync(fontRegularPath);
   const fontBold = await pdfDoc.embedFont(fontBoldBytes);
@@ -139,7 +149,7 @@ export async function generarPDFOrdenEntrega(
     color: colorNegro,
   });
 
-  page.drawText("C.U.I.T.: 30-71995249-9", {
+  page.drawText("C.U.I.T.: 30-71895249-9", {
     x: empresaX + 5,
     y: empresaY + empresaHeight - 39,
     size: 7,
@@ -294,8 +304,7 @@ export async function generarPDFOrdenEntrega(
   // Datos de la tabla
   yPos -= 20;
 
-  const detalleTipo =
-    datos.tipo === "combustible" ? "COMBUSTIBLE" : "ADELANTO";
+  const detalleTipo = datos.tipo === "combustible" ? "COMBUSTIBLE" : "ADELANTO";
   const cantidadTexto =
     datos.tipo === "combustible"
       ? `${datos.cantidad.toFixed(2)}`
@@ -401,8 +410,18 @@ export async function generarPDFAutorizacionAsignacion(
   const page = pdfDoc.addPage([842, 595]); // A4 apaisado similar al ejemplo
 
   // Cargar fuentes Roboto con soporte para caracteres especiales (ñ, acentos, etc.)
-  const fontBoldPath = path.join(process.cwd(), "public", "fonts", "Roboto-Bold.ttf");
-  const fontRegularPath = path.join(process.cwd(), "public", "fonts", "Roboto-Regular.ttf");
+  const fontBoldPath = path.join(
+    process.cwd(),
+    "public",
+    "fonts",
+    "Roboto-Bold.ttf"
+  );
+  const fontRegularPath = path.join(
+    process.cwd(),
+    "public",
+    "fonts",
+    "Roboto-Regular.ttf"
+  );
   const fontBoldBytes = fs.readFileSync(fontBoldPath);
   const fontRegularBytes = fs.readFileSync(fontRegularPath);
   const fontBold = await pdfDoc.embedFont(fontBoldBytes);
@@ -411,9 +430,9 @@ export async function generarPDFAutorizacionAsignacion(
   const { width, height } = page.getSize();
   const margin = 40;
 
-  const fechaFormateada = new Date(datos.fecha || new Date()).toLocaleDateString(
-    "es-AR"
-  );
+  const fechaFormateada = new Date(
+    datos.fecha || new Date()
+  ).toLocaleDateString("es-AR");
 
   const verde = rgb(0, 0.52, 0.34); // verde institucional
   const gris = rgb(0.25, 0.25, 0.25);
@@ -450,18 +469,32 @@ export async function generarPDFAutorizacionAsignacion(
     font: fontBold,
     color: negro,
   });
-  page.drawRectangle({ x: boxX, y: boxY, width: boxW, height: boxH, borderColor: negro, borderWidth: 1 });
+  page.drawRectangle({
+    x: boxX,
+    y: boxY,
+    width: boxW,
+    height: boxH,
+    borderColor: negro,
+    borderWidth: 1,
+  });
 
   const companyName = process.env.COMPANY_NAME || "LOGITRACK S.A.S.";
   const companyIva = process.env.COMPANY_IVA || "I.V.A.: Responsable Inscripto";
-  const companyCuit = process.env.COMPANY_CUIT || "C.U.I.T.: 30-71995249-9";
-  const companyIb = process.env.COMPANY_IB || "Ing.Brutos: 30-71995249-9";
-  const companyStart = process.env.COMPANY_START || "Inicio Actividades: 01/05/2024";
+  const companyCuit = process.env.COMPANY_CUIT || "C.U.I.T.: 30-71895249-9";
+  const companyIb = process.env.COMPANY_IB || "Ing.Brutos: 30-71895249-9";
+  const companyStart =
+    process.env.COMPANY_START || "Inicio Actividades: 01/05/2024";
 
   let tx = boxX + 8;
   let ty = boxY + boxH - 14;
   const line = (text: string) => {
-    page.drawText(text, { x: tx, y: ty, size: 9, font: fontRegular, color: negro });
+    page.drawText(text, {
+      x: tx,
+      y: ty,
+      size: 9,
+      font: fontRegular,
+      color: negro,
+    });
     ty -= 12;
   };
   line(companyName);
@@ -472,24 +505,49 @@ export async function generarPDFAutorizacionAsignacion(
 
   // Línea separadora verde
   y -= 18;
-  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 3, color: verde });
+  page.drawLine({
+    start: { x: margin, y },
+    end: { x: width - margin, y },
+    thickness: 3,
+    color: verde,
+  });
   y -= 20;
 
   // Bloque proveedor
   const provLines = [
     { label: "PROVEEDOR:", value: fixEncoding(datos.proveedor) || "N/A" },
-    { label: "DOMICILIO:", value: fixEncoding(datos.proveedorDomicilio) || "N/A" },
+    {
+      label: "DOMICILIO:",
+      value: fixEncoding(datos.proveedorDomicilio) || "N/A",
+    },
     { label: "CUIT:", value: fixEncoding(datos.proveedorCuit) || "N/A" },
   ];
   provLines.forEach((row) => {
-    page.drawText(row.label, { x: margin, y, size: 11, font: fontBold, color: negro });
-    page.drawText(String(row.value), { x: margin + 120, y, size: 11, font: fontRegular, color: negro });
+    page.drawText(row.label, {
+      x: margin,
+      y,
+      size: 11,
+      font: fontBold,
+      color: negro,
+    });
+    page.drawText(String(row.value), {
+      x: margin + 120,
+      y,
+      size: 11,
+      font: fontRegular,
+      color: negro,
+    });
     y -= 18;
   });
 
   // Línea separadora
   y -= 10;
-  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 3, color: verde });
+  page.drawLine({
+    start: { x: margin, y },
+    end: { x: width - margin, y },
+    thickness: 3,
+    color: verde,
+  });
   y -= 20;
 
   // Título detalle
@@ -506,20 +564,22 @@ export async function generarPDFAutorizacionAsignacion(
   const safe = (val: string | null | undefined, defaultVal = "N/A"): string =>
     val && val.trim() !== "" ? fixEncoding(val) : defaultVal;
 
-  const intermediarioNombre = datos.intermediarioNombre || process.env.COMPANY_SHORTNAME || "LOGITRACK";
-  const intermediarioCuit = datos.intermediarioCuit || process.env.COMPANY_CUIT || "30-71995249-9";
+  const intermediarioNombre =
+    datos.intermediarioNombre || process.env.COMPANY_SHORTNAME || "LOGITRACK";
+  const intermediarioCuit =
+    datos.intermediarioCuit || process.env.COMPANY_CUIT || "30-71895249-9";
   const mostrarIntermediario = datos.mostrarIntermediario === true;
 
   // Definir estructura de tabla
   const tableX = margin;
-  const tableWidth = width - (2 * margin); // 842 - 80 = 762 puntos disponibles
+  const tableWidth = width - 2 * margin; // 842 - 80 = 762 puntos disponibles
   const rowHeight = 20;
   const cellPadding = 3;
 
   // Definir columnas (anchos ajustados para que todo quepa en la página apaisada)
   const columns = mostrarIntermediario
     ? [
-        { label: "Intermediario", width: 70 },      // Total: ~762 puntos
+        { label: "Intermediario", width: 70 }, // Total: ~762 puntos
         { label: "CUIT Inter.", width: 70 },
         { label: "Transportista", width: 75 },
         { label: "CUIT Trans.", width: 70 },
@@ -532,7 +592,7 @@ export async function generarPDFAutorizacionAsignacion(
         { label: "Tarifa", width: 67 },
       ]
     : [
-        { label: "Transportista", width: 95 },      // Total: ~762 puntos
+        { label: "Transportista", width: 95 }, // Total: ~762 puntos
         { label: "CUIT Trans.", width: 90 },
         { label: "Chofer", width: 105 },
         { label: "CUIT Chofer", width: 90 },
@@ -598,7 +658,10 @@ export async function generarPDFAutorizacionAsignacion(
 
   // Preparar datos de la fila (con patentes separadas)
   const patCamion = safe((datos.patChasis || "").toUpperCase());
-  const patAcoplado = safe((datos.patAcoplado || "").toUpperCase(), "SIN ACOP.");
+  const patAcoplado = safe(
+    (datos.patAcoplado || "").toUpperCase(),
+    "SIN ACOP."
+  );
 
   const rowData = mostrarIntermediario
     ? [
@@ -650,7 +713,7 @@ export async function generarPDFAutorizacionAsignacion(
     // Texto de la celda (con padding)
     const cellText = rowData[i];
     const fontSize = 6.5;
-    const maxWidth = col.width - (2 * cellPadding);
+    const maxWidth = col.width - 2 * cellPadding;
 
     // Truncar texto si es muy largo
     let displayText = cellText;
@@ -660,7 +723,10 @@ export async function generarPDFAutorizacionAsignacion(
       // Truncar progresivamente hasta que quepa
       while (textWidth > maxWidth && displayText.length > 0) {
         displayText = displayText.slice(0, -1);
-        textWidth = fontRegular.widthOfTextAtSize(displayText + "...", fontSize);
+        textWidth = fontRegular.widthOfTextAtSize(
+          displayText + "...",
+          fontSize
+        );
       }
       if (displayText.length > 0) {
         displayText += "...";
@@ -710,16 +776,14 @@ export interface AsignacionMultiple {
   tarifa?: number | null;
 }
 
-export async function generarPDFAsignacionesMultiples(
-  datos: {
-    fecha: string;
-    proveedor: string;
-    proveedorDomicilio?: string | null;
-    proveedorCuit?: string | null;
-    mostrarIntermediario?: boolean;
-    asignaciones: AsignacionMultiple[];
-  }
-): Promise<Buffer> {
+export async function generarPDFAsignacionesMultiples(datos: {
+  fecha: string;
+  proveedor: string;
+  proveedorDomicilio?: string | null;
+  proveedorCuit?: string | null;
+  mostrarIntermediario?: boolean;
+  asignaciones: AsignacionMultiple[];
+}): Promise<Buffer> {
   const pdfDoc = await PDFDocument.create();
 
   // Registrar fontkit para usar fuentes personalizadas
@@ -728,8 +792,18 @@ export async function generarPDFAsignacionesMultiples(
   const page = pdfDoc.addPage([842, 595]); // A4 apaisado
 
   // Cargar fuentes Roboto con soporte para caracteres especiales (ñ, acentos, etc.)
-  const fontBoldPath = path.join(process.cwd(), "public", "fonts", "Roboto-Bold.ttf");
-  const fontRegularPath = path.join(process.cwd(), "public", "fonts", "Roboto-Regular.ttf");
+  const fontBoldPath = path.join(
+    process.cwd(),
+    "public",
+    "fonts",
+    "Roboto-Bold.ttf"
+  );
+  const fontRegularPath = path.join(
+    process.cwd(),
+    "public",
+    "fonts",
+    "Roboto-Regular.ttf"
+  );
   const fontBoldBytes = fs.readFileSync(fontBoldPath);
   const fontRegularBytes = fs.readFileSync(fontRegularPath);
   const fontBold = await pdfDoc.embedFont(fontBoldBytes);
@@ -738,7 +812,9 @@ export async function generarPDFAsignacionesMultiples(
   const { width, height } = page.getSize();
   const margin = 40;
 
-  const fechaFormateada = new Date(datos.fecha || new Date()).toLocaleDateString("es-AR");
+  const fechaFormateada = new Date(
+    datos.fecha || new Date()
+  ).toLocaleDateString("es-AR");
 
   const verde = rgb(0, 0.52, 0.34);
   const gris = rgb(0.25, 0.25, 0.25);
@@ -775,18 +851,32 @@ export async function generarPDFAsignacionesMultiples(
     font: fontBold,
     color: negro,
   });
-  page.drawRectangle({ x: boxX, y: boxY, width: boxW, height: boxH, borderColor: negro, borderWidth: 1 });
+  page.drawRectangle({
+    x: boxX,
+    y: boxY,
+    width: boxW,
+    height: boxH,
+    borderColor: negro,
+    borderWidth: 1,
+  });
 
   const companyName = process.env.COMPANY_NAME || "LOGITRACK S.A.S.";
   const companyIva = process.env.COMPANY_IVA || "I.V.A.: Responsable Inscripto";
-  const companyCuit = process.env.COMPANY_CUIT || "C.U.I.T.: 30-71995249-9";
-  const companyIb = process.env.COMPANY_IB || "Ing.Brutos: 30-71995249-9";
-  const companyStart = process.env.COMPANY_START || "Inicio Actividades: 01/05/2024";
+  const companyCuit = process.env.COMPANY_CUIT || "C.U.I.T.: 30-71895249-9";
+  const companyIb = process.env.COMPANY_IB || "Ing.Brutos: 30-71895249-9";
+  const companyStart =
+    process.env.COMPANY_START || "Inicio Actividades: 01/05/2024";
 
   let tx = boxX + 8;
   let ty = boxY + boxH - 14;
   const line = (text: string) => {
-    page.drawText(text, { x: tx, y: ty, size: 9, font: fontRegular, color: negro });
+    page.drawText(text, {
+      x: tx,
+      y: ty,
+      size: 9,
+      font: fontRegular,
+      color: negro,
+    });
     ty -= 12;
   };
   line(companyName);
@@ -797,24 +887,49 @@ export async function generarPDFAsignacionesMultiples(
 
   // Línea separadora verde
   y -= 18;
-  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 3, color: verde });
+  page.drawLine({
+    start: { x: margin, y },
+    end: { x: width - margin, y },
+    thickness: 3,
+    color: verde,
+  });
   y -= 20;
 
   // Bloque proveedor
   const provLines = [
     { label: "PROVEEDOR:", value: fixEncoding(datos.proveedor) || "N/A" },
-    { label: "DOMICILIO:", value: fixEncoding(datos.proveedorDomicilio) || "N/A" },
+    {
+      label: "DOMICILIO:",
+      value: fixEncoding(datos.proveedorDomicilio) || "N/A",
+    },
     { label: "CUIT:", value: fixEncoding(datos.proveedorCuit) || "N/A" },
   ];
   provLines.forEach((row) => {
-    page.drawText(row.label, { x: margin, y, size: 11, font: fontBold, color: negro });
-    page.drawText(String(row.value), { x: margin + 120, y, size: 11, font: fontRegular, color: negro });
+    page.drawText(row.label, {
+      x: margin,
+      y,
+      size: 11,
+      font: fontBold,
+      color: negro,
+    });
+    page.drawText(String(row.value), {
+      x: margin + 120,
+      y,
+      size: 11,
+      font: fontRegular,
+      color: negro,
+    });
     y -= 18;
   });
 
   // Línea separadora
   y -= 10;
-  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 3, color: verde });
+  page.drawLine({
+    start: { x: margin, y },
+    end: { x: width - margin, y },
+    thickness: 3,
+    color: verde,
+  });
   y -= 20;
 
   // Título detalle
@@ -913,11 +1028,14 @@ export async function generarPDFAsignacionesMultiples(
 
   // Dibujar filas de datos
   const intermediarioNombre = process.env.COMPANY_SHORTNAME || "LOGITRACK";
-  const intermediarioCuit = process.env.COMPANY_CUIT || "30-71995249-9";
+  const intermediarioCuit = process.env.COMPANY_CUIT || "30-71895249-9";
 
   datos.asignaciones.forEach((asignacion, index) => {
     const patCamion = safe((asignacion.patChasis || "").toUpperCase());
-    const patAcoplado = safe((asignacion.patAcoplado || "").toUpperCase(), "SIN ACOP.");
+    const patAcoplado = safe(
+      (asignacion.patAcoplado || "").toUpperCase(),
+      "SIN ACOP."
+    );
 
     const rowData = mostrarIntermediario
       ? [
@@ -946,7 +1064,8 @@ export async function generarPDFAsignacionesMultiples(
         ];
 
     // Fondo alternado
-    const bgColor = index % 2 === 0 ? rgb(0.97, 0.97, 0.97) : rgb(0.92, 0.92, 0.92);
+    const bgColor =
+      index % 2 === 0 ? rgb(0.97, 0.97, 0.97) : rgb(0.92, 0.92, 0.92);
 
     columns.forEach((col, i) => {
       page.drawRectangle({
@@ -968,7 +1087,7 @@ export async function generarPDFAsignacionesMultiples(
 
       const cellText = rowData[i];
       const fontSize = 6.5;
-      const maxWidth = col.width - (2 * cellPadding);
+      const maxWidth = col.width - 2 * cellPadding;
 
       let displayText = cellText;
       let textWidth = fontRegular.widthOfTextAtSize(displayText, fontSize);
@@ -976,7 +1095,10 @@ export async function generarPDFAsignacionesMultiples(
       if (textWidth > maxWidth) {
         while (textWidth > maxWidth && displayText.length > 0) {
           displayText = displayText.slice(0, -1);
-          textWidth = fontRegular.widthOfTextAtSize(displayText + "...", fontSize);
+          textWidth = fontRegular.widthOfTextAtSize(
+            displayText + "...",
+            fontSize
+          );
         }
         if (displayText.length > 0) {
           displayText += "...";

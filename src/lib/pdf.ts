@@ -196,8 +196,18 @@ export async function generateNegocioPDF(
   const page = pdfDoc.addPage([595, 842]); // A4 portrait
 
   // Cargar fuentes Roboto con soporte para caracteres especiales (ñ, acentos, etc.)
-  const fontBoldPath = path.join(process.cwd(), "public", "fonts", "Roboto-Bold.ttf");
-  const fontRegularPath = path.join(process.cwd(), "public", "fonts", "Roboto-Regular.ttf");
+  const fontBoldPath = path.join(
+    process.cwd(),
+    "public",
+    "fonts",
+    "Roboto-Bold.ttf"
+  );
+  const fontRegularPath = path.join(
+    process.cwd(),
+    "public",
+    "fonts",
+    "Roboto-Regular.ttf"
+  );
   const fontBoldBytes = fs.readFileSync(fontBoldPath);
   const fontRegularBytes = fs.readFileSync(fontRegularPath);
   const fontBold = await pdfDoc.embedFont(fontBoldBytes);
@@ -216,17 +226,40 @@ export async function generateNegocioPDF(
   page.drawText(title, { x: margin, y, size: 20, font: fontBold, color: azul });
   y -= 18;
   const numero = `Negocio Nº ${data.numeroNegocio}`;
-  page.drawText(numero, { x: margin, y, size: 12, font: fontRegular, color: gris });
+  page.drawText(numero, {
+    x: margin,
+    y,
+    size: 12,
+    font: fontRegular,
+    color: gris,
+  });
 
   // Línea divisoria
   y -= 14;
-  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 2, color: azul });
+  page.drawLine({
+    start: { x: margin, y },
+    end: { x: width - margin, y },
+    thickness: 2,
+    color: azul,
+  });
 
   // Utilidades
   const drawLabelValue = (label: string, value: string, gap = 90) => {
     y -= 16;
-    page.drawText(label, { x: margin, y, size: 12, font: fontBold, color: negro });
-    page.drawText(fixEncoding(value) || "", { x: margin + gap, y, size: 12, font: fontRegular, color: negro });
+    page.drawText(label, {
+      x: margin,
+      y,
+      size: 12,
+      font: fontBold,
+      color: negro,
+    });
+    page.drawText(fixEncoding(value) || "", {
+      x: margin + gap,
+      y,
+      size: 12,
+      font: fontRegular,
+      color: negro,
+    });
   };
   const formatDate = (d?: string) => {
     try {
@@ -238,7 +271,10 @@ export async function generateNegocioPDF(
   const formatCurrency = (v?: number) => {
     try {
       return typeof v === "number"
-        ? new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(v)
+        ? new Intl.NumberFormat("es-AR", {
+            style: "currency",
+            currency: "ARS",
+          }).format(v)
         : "";
     } catch {
       return typeof v === "number" ? `$${v.toFixed(2)}` : "";
@@ -247,37 +283,84 @@ export async function generateNegocioPDF(
 
   // Fechas
   y -= 22;
-  page.drawText("Fechas", { x: margin, y, size: 14, font: fontBold, color: azul });
+  page.drawText("Fechas", {
+    x: margin,
+    y,
+    size: 14,
+    font: fontBold,
+    color: azul,
+  });
   y -= 8;
-  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.88, 0.92, 1) });
+  page.drawLine({
+    start: { x: margin, y },
+    end: { x: width - margin, y },
+    thickness: 1,
+    color: rgb(0.88, 0.92, 1),
+  });
   drawLabelValue("Fecha:", formatDate(data.fecha));
   drawLabelValue("Vencimiento:", formatDate(data.fechaVencimiento));
 
   // Proveedor
   y -= 22;
-  page.drawText("Proveedor", { x: margin, y, size: 14, font: fontBold, color: azul });
+  page.drawText("Proveedor", {
+    x: margin,
+    y,
+    size: 14,
+    font: fontBold,
+    color: azul,
+  });
   y -= 8;
-  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.88, 0.92, 1) });
+  page.drawLine({
+    start: { x: margin, y },
+    end: { x: width - margin, y },
+    thickness: 1,
+    color: rgb(0.88, 0.92, 1),
+  });
   drawLabelValue("Razón Social:", data.proveedor || "");
   if (data.proveedorCuit) drawLabelValue("CUIT:", data.proveedorCuit);
 
   // Ubicaciones
   y -= 22;
-  page.drawText("Ubicaciones", { x: margin, y, size: 14, font: fontBold, color: azul });
+  page.drawText("Ubicaciones", {
+    x: margin,
+    y,
+    size: 14,
+    font: fontBold,
+    color: azul,
+  });
   y -= 8;
-  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.88, 0.92, 1) });
+  page.drawLine({
+    start: { x: margin, y },
+    end: { x: width - margin, y },
+    thickness: 1,
+    color: rgb(0.88, 0.92, 1),
+  });
   drawLabelValue("Procedencia:", data.procedencia || "");
   drawLabelValue("Destino:", data.destino || "");
 
   // Transporte
   if (data.intermediario || data.transportista || data.chofer) {
     y -= 22;
-    page.drawText("Transporte", { x: margin, y, size: 14, font: fontBold, color: azul });
+    page.drawText("Transporte", {
+      x: margin,
+      y,
+      size: 14,
+      font: fontBold,
+      color: azul,
+    });
     y -= 8;
-    page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.88, 0.92, 1) });
-    if (data.intermediario) drawLabelValue("Intermediario:", data.intermediario);
-    if (data.transportista) drawLabelValue("Transportista:", data.transportista);
-    if (data.transportistaCuit) drawLabelValue("CUIT Transp.:", data.transportistaCuit);
+    page.drawLine({
+      start: { x: margin, y },
+      end: { x: width - margin, y },
+      thickness: 1,
+      color: rgb(0.88, 0.92, 1),
+    });
+    if (data.intermediario)
+      drawLabelValue("Intermediario:", data.intermediario);
+    if (data.transportista)
+      drawLabelValue("Transportista:", data.transportista);
+    if (data.transportistaCuit)
+      drawLabelValue("CUIT Transp.:", data.transportistaCuit);
     if (data.chofer) drawLabelValue("Chofer:", data.chofer);
     if (data.choferCuit) drawLabelValue("CUIT Chofer:", data.choferCuit);
   }
@@ -285,21 +368,46 @@ export async function generateNegocioPDF(
   // Vehículos
   if (data.patenteChasis || data.patenteAcoplado) {
     y -= 22;
-    page.drawText("Vehículos", { x: margin, y, size: 14, font: fontBold, color: azul });
+    page.drawText("Vehículos", {
+      x: margin,
+      y,
+      size: 14,
+      font: fontBold,
+      color: azul,
+    });
     y -= 8;
-    page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.88, 0.92, 1) });
-    if (data.patenteChasis) drawLabelValue("Chasis:", (data.patenteChasis || "").toUpperCase());
-    if (data.patenteAcoplado) drawLabelValue("Acoplado:", (data.patenteAcoplado || "").toUpperCase());
+    page.drawLine({
+      start: { x: margin, y },
+      end: { x: width - margin, y },
+      thickness: 1,
+      color: rgb(0.88, 0.92, 1),
+    });
+    if (data.patenteChasis)
+      drawLabelValue("Chasis:", (data.patenteChasis || "").toUpperCase());
+    if (data.patenteAcoplado)
+      drawLabelValue("Acoplado:", (data.patenteAcoplado || "").toUpperCase());
   }
 
   // Artículo y tarifa
   y -= 22;
-  page.drawText("Negocio", { x: margin, y, size: 14, font: fontBold, color: azul });
+  page.drawText("Negocio", {
+    x: margin,
+    y,
+    size: 14,
+    font: fontBold,
+    color: azul,
+  });
   y -= 8;
-  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.88, 0.92, 1) });
+  page.drawLine({
+    start: { x: margin, y },
+    end: { x: width - margin, y },
+    thickness: 1,
+    color: rgb(0.88, 0.92, 1),
+  });
   drawLabelValue("Artículo:", data.articulo || "");
   drawLabelValue("Tarifa:", formatCurrency(data.tarifa));
-  if (typeof data.cupos !== "undefined") drawLabelValue("Cupos:", String(data.cupos));
+  if (typeof data.cupos !== "undefined")
+    drawLabelValue("Cupos:", String(data.cupos));
   if (data.vendedor) drawLabelValue("Vendedor:", data.vendedor);
 
   const bytes = await pdfDoc.save();
