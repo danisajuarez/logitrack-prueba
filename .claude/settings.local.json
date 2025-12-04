@@ -37,7 +37,17 @@
       "Bash(npx tsc:*)",
       "Bash(cd:*)",
       "Bash(cmd.exe /c \"dir /s /b src\\app\\viajes\")",
-      "Bash(cmd.exe /c \"npm run dev\")"
+      "Bash(cmd.exe /c \"npm run dev\")",
+      "Bash(mkdir:*)",
+      "Bash(unzip:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(cmd.exe /c \"npx tsc --noEmit\")",
+      "Bash(yarn build)",
+      "Bash(npm install:*)",
+      "Bash(yarn add:*)",
+      "Bash(cmd.exe /c \"yarn add @pdf-lib/fontkit\")",
+      "Bash(cmd.exe /c \"type src\\app\\viajes\\page.tsx\")"
     ],
     "deny": [],
     "ask": []

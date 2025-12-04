@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { RowDataPacket } from "mysql2";
+import { fixEncodingObject } from "@/lib/encoding";
 
 export const runtime = "nodejs";
 
@@ -188,7 +189,11 @@ export async function GET(req: NextRequest) {
       if (dateB - dateA !== 0) return dateB - dateA; // Fecha DESC
       return b.numero.localeCompare(a.numero); // Numero DESC
     });
-    return NextResponse.json(rows);
+
+    // Corregir encoding en todos los datos
+    const fixedRows = rows.map(row => fixEncodingObject(row));
+
+    return NextResponse.json(fixedRows);
   } catch (error) {
     console.error("Error al obtener viajes:", error);
     const expose = process.env.EXPOSE_ERRORS === "1";

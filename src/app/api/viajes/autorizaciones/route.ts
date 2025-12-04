@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { RowDataPacket } from "mysql2/promise";
 import { db } from "@/lib/db";
+import { fixEncodingObject } from "@/lib/encoding";
 export const runtime = "nodejs"; // fuerza Node (no Edge)
 export const dynamic = "force-dynamic"; // evita que Next intente prerender
 export const revalidate = 0; // sin cache estática para API
@@ -632,7 +633,10 @@ export async function POST(request: NextRequest) {
 
       console.log("[DEBUG API] Respuesta a enviar:", response);
 
-      return NextResponse.json(response);
+      // Corregir encoding en la respuesta
+      const fixedResponse = fixEncodingObject(response);
+
+      return NextResponse.json(fixedResponse);
     } catch (error: any) {
       try {
         await connection.rollback();

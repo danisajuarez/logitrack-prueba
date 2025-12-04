@@ -39,6 +39,7 @@ async function getPool(): Promise<mysql.Pool> {
     queueLimit: 0,
     enableKeepAlive: true, // Mantener conexiones vivas
     keepAliveInitialDelay: 10000, // 10 segundos
+    charset: 'utf8mb4', // Soporte completo para caracteres especiales (ñ, acentos, emojis, etc.)
   });
   return pool;
 }

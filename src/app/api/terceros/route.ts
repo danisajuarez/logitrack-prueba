@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { fixEncodingObject } from "@/lib/encoding";
 
 export const runtime = "nodejs";
 
@@ -37,7 +38,10 @@ export async function GET() {
     console.log('[DEBUG /api/terceros] Registros encontrados con TTE_IDTipoTercero=1 Y CCT_IDCCT=1:', rows.length);
     console.log('[DEBUG /api/terceros] Primeros 3 registros:', rows.slice(0, 3));
 
-    return NextResponse.json(rows);
+    // Corregir encoding
+    const fixedRows = rows.map(row => fixEncodingObject(row));
+
+    return NextResponse.json(fixedRows);
   } catch (error: any) {
     console.error("Error al obtener datos en /api/terceros:", error);
     // Si hay error de columna, intentar sin filtro para ver qué pasa
@@ -60,7 +64,8 @@ export async function GET() {
           LIMIT 500;`
         )) as unknown as [any[]];
         console.log('[DEBUG] Sin filtro encontró:', rowsSinFiltro.length, 'registros');
-        return NextResponse.json(rowsSinFiltro);
+        const fixedRowsSinFiltro = rowsSinFiltro.map(row => fixEncodingObject(row));
+        return NextResponse.json(fixedRowsSinFiltro);
       } catch (e2) {
         console.error('[DEBUG] Error sin filtro también:', e2);
       }

@@ -1,6 +1,7 @@
 // /api/choferes/route.ts
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { fixEncodingObject } from "@/lib/encoding";
 
 export async function GET() {
   const [rows] = await db.query(`
@@ -11,5 +12,6 @@ export async function GET() {
     GROUP BY ch.TER_IDTercero, ch.TER_RazonSocialTer
     ORDER BY ch.TER_RazonSocialTer
   `);
-  return NextResponse.json(rows);
+  const fixedRows = Array.isArray(rows) ? rows.map(row => fixEncodingObject(row)) : rows;
+  return NextResponse.json(fixedRows);
 }

@@ -10,6 +10,19 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
   },
   session: {
     strategy: "jwt",
+    maxAge: 60 * 60, // 1 hora de inactividad
+    updateAge: 0, // Actualizar en cada request para trackear inactividad
+  },
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      }
+    }
   },
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
@@ -28,14 +41,20 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
 
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = (user as any).id;
         token.name = (user as any).name;
         token.username = (user as any).username;
         token.vendedorId = (user as any).vendedorId ?? null;
         token.vendedorNombre = (user as any).vendedorNombre ?? null;
+        // Inicializar timestamp en el primer login
+        token.lastActivity = Date.now();
+      } else {
+        // Actualizar timestamp de última actividad en cada request
+        token.lastActivity = Date.now();
       }
+
       return token;
     },
     async session({ session, token }) {

@@ -1,4 +1,8 @@
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import { PDFDocument, rgb } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
+import * as fs from "fs";
+import * as path from "path";
+import { fixEncoding } from "./encoding";
 
 interface DatosOrdenEntrega {
   numero: string; // Número de orden (ej: "0001-00001814")
@@ -23,11 +27,19 @@ export async function generarPDFOrdenEntrega(
 ): Promise<Buffer> {
   // Crear nuevo documento PDF
   const pdfDoc = await PDFDocument.create();
+
+  // Registrar fontkit para usar fuentes personalizadas
+  pdfDoc.registerFontkit(fontkit);
+
   const page = pdfDoc.addPage([595, 842]); // A4 en puntos
 
-  // Cargar fuentes
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  // Cargar fuentes Roboto con soporte para caracteres especiales (ñ, acentos, etc.)
+  const fontBoldPath = path.join(process.cwd(), "public", "fonts", "Roboto-Bold.ttf");
+  const fontRegularPath = path.join(process.cwd(), "public", "fonts", "Roboto-Regular.ttf");
+  const fontBoldBytes = fs.readFileSync(fontBoldPath);
+  const fontRegularBytes = fs.readFileSync(fontRegularPath);
+  const fontBold = await pdfDoc.embedFont(fontBoldBytes);
+  const fontRegular = await pdfDoc.embedFont(fontRegularBytes);
 
   const { width, height } = page.getSize();
   const margin = 50;
@@ -146,7 +158,7 @@ export async function generarPDFOrdenEntrega(
     color: colorNegro,
   });
 
-  page.drawText(datos.proveedor, {
+  page.drawText(fixEncoding(datos.proveedor), {
     x: margin + 100,
     y: yPos,
     size: 11,
@@ -174,7 +186,7 @@ export async function generarPDFOrdenEntrega(
     color: colorNegro,
   });
 
-  page.drawText(datos.transportista, {
+  page.drawText(fixEncoding(datos.transportista), {
     x: margin + 130,
     y: yPos,
     size: 11,
@@ -182,11 +194,9 @@ export async function generarPDFOrdenEntrega(
     color: colorNegro,
   });
 
-  const cuitTranspAncho = fontRegular.widthOfTextAtSize(
-    datos.transportistaCuit,
-    11
-  );
-  page.drawText(datos.transportistaCuit, {
+  const cuitTranspText = fixEncoding(datos.transportistaCuit);
+  const cuitTranspAncho = fontRegular.widthOfTextAtSize(cuitTranspText, 11);
+  page.drawText(cuitTranspText, {
     x: width - margin - cuitTranspAncho,
     y: yPos,
     size: 11,
@@ -204,7 +214,7 @@ export async function generarPDFOrdenEntrega(
     color: colorNegro,
   });
 
-  page.drawText(datos.chofer, {
+  page.drawText(fixEncoding(datos.chofer), {
     x: margin + 130,
     y: yPos,
     size: 11,
@@ -212,8 +222,9 @@ export async function generarPDFOrdenEntrega(
     color: colorNegro,
   });
 
-  const cuitChoferAncho = fontRegular.widthOfTextAtSize(datos.choferCuit, 11);
-  page.drawText(datos.choferCuit, {
+  const cuitChoferText = fixEncoding(datos.choferCuit);
+  const cuitChoferAncho = fontRegular.widthOfTextAtSize(cuitChoferText, 11);
+  page.drawText(cuitChoferText, {
     x: width - margin - cuitChoferAncho,
     y: yPos,
     size: 11,
@@ -231,7 +242,7 @@ export async function generarPDFOrdenEntrega(
     color: colorNegro,
   });
 
-  page.drawText(datos.patente, {
+  page.drawText(fixEncoding(datos.patente), {
     x: margin + 130,
     y: yPos,
     size: 11,
@@ -383,10 +394,19 @@ export async function generarPDFAutorizacionAsignacion(
   datos: DatosAutorizacionAsignacion
 ): Promise<Buffer> {
   const pdfDoc = await PDFDocument.create();
+
+  // Registrar fontkit para usar fuentes personalizadas
+  pdfDoc.registerFontkit(fontkit);
+
   const page = pdfDoc.addPage([842, 595]); // A4 apaisado similar al ejemplo
 
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  // Cargar fuentes Roboto con soporte para caracteres especiales (ñ, acentos, etc.)
+  const fontBoldPath = path.join(process.cwd(), "public", "fonts", "Roboto-Bold.ttf");
+  const fontRegularPath = path.join(process.cwd(), "public", "fonts", "Roboto-Regular.ttf");
+  const fontBoldBytes = fs.readFileSync(fontBoldPath);
+  const fontRegularBytes = fs.readFileSync(fontRegularPath);
+  const fontBold = await pdfDoc.embedFont(fontBoldBytes);
+  const fontRegular = await pdfDoc.embedFont(fontRegularBytes);
 
   const { width, height } = page.getSize();
   const margin = 40;
@@ -457,9 +477,9 @@ export async function generarPDFAutorizacionAsignacion(
 
   // Bloque proveedor
   const provLines = [
-    { label: "PROVEEDOR:", value: datos.proveedor || "N/A" },
-    { label: "DOMICILIO:", value: datos.proveedorDomicilio || "N/A" },
-    { label: "CUIT:", value: datos.proveedorCuit || "N/A" },
+    { label: "PROVEEDOR:", value: fixEncoding(datos.proveedor) || "N/A" },
+    { label: "DOMICILIO:", value: fixEncoding(datos.proveedorDomicilio) || "N/A" },
+    { label: "CUIT:", value: fixEncoding(datos.proveedorCuit) || "N/A" },
   ];
   provLines.forEach((row) => {
     page.drawText(row.label, { x: margin, y, size: 11, font: fontBold, color: negro });
@@ -484,7 +504,7 @@ export async function generarPDFAutorizacionAsignacion(
 
   // Helpers para valores seguros
   const safe = (val: string | null | undefined, defaultVal = "N/A"): string =>
-    val && val.trim() !== "" ? val : defaultVal;
+    val && val.trim() !== "" ? fixEncoding(val) : defaultVal;
 
   const intermediarioNombre = datos.intermediarioNombre || process.env.COMPANY_SHORTNAME || "LOGITRACK";
   const intermediarioCuit = datos.intermediarioCuit || process.env.COMPANY_CUIT || "30-71995249-9";
@@ -701,10 +721,19 @@ export async function generarPDFAsignacionesMultiples(
   }
 ): Promise<Buffer> {
   const pdfDoc = await PDFDocument.create();
+
+  // Registrar fontkit para usar fuentes personalizadas
+  pdfDoc.registerFontkit(fontkit);
+
   const page = pdfDoc.addPage([842, 595]); // A4 apaisado
 
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  // Cargar fuentes Roboto con soporte para caracteres especiales (ñ, acentos, etc.)
+  const fontBoldPath = path.join(process.cwd(), "public", "fonts", "Roboto-Bold.ttf");
+  const fontRegularPath = path.join(process.cwd(), "public", "fonts", "Roboto-Regular.ttf");
+  const fontBoldBytes = fs.readFileSync(fontBoldPath);
+  const fontRegularBytes = fs.readFileSync(fontRegularPath);
+  const fontBold = await pdfDoc.embedFont(fontBoldBytes);
+  const fontRegular = await pdfDoc.embedFont(fontRegularBytes);
 
   const { width, height } = page.getSize();
   const margin = 40;
@@ -773,9 +802,9 @@ export async function generarPDFAsignacionesMultiples(
 
   // Bloque proveedor
   const provLines = [
-    { label: "PROVEEDOR:", value: datos.proveedor || "N/A" },
-    { label: "DOMICILIO:", value: datos.proveedorDomicilio || "N/A" },
-    { label: "CUIT:", value: datos.proveedorCuit || "N/A" },
+    { label: "PROVEEDOR:", value: fixEncoding(datos.proveedor) || "N/A" },
+    { label: "DOMICILIO:", value: fixEncoding(datos.proveedorDomicilio) || "N/A" },
+    { label: "CUIT:", value: fixEncoding(datos.proveedorCuit) || "N/A" },
   ];
   provLines.forEach((row) => {
     page.drawText(row.label, { x: margin, y, size: 11, font: fontBold, color: negro });
@@ -800,7 +829,7 @@ export async function generarPDFAsignacionesMultiples(
 
   // Helper
   const safe = (val: string | null | undefined, defaultVal = "N/A"): string =>
-    val && val.trim() !== "" ? val : defaultVal;
+    val && val.trim() !== "" ? fixEncoding(val) : defaultVal;
 
   const mostrarIntermediario = datos.mostrarIntermediario === true;
 

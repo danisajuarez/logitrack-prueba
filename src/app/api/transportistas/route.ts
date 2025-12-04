@@ -1,6 +1,7 @@
 // /api/transportistas/route.ts
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { fixEncodingObject } from "@/lib/encoding";
 
 // Devuelve todos los transportistas únicos que tienen vehículos/choferes asociados
 export async function GET() {
@@ -15,5 +16,7 @@ export async function GET() {
       AND sige_tvp_terveipat.tvp_patente <> ''
     ORDER BY nombre
   `);
-  return NextResponse.json(rows);
+
+  const fixedRows = Array.isArray(rows) ? rows.map(row => fixEncodingObject(row)) : rows;
+  return NextResponse.json(fixedRows);
 }

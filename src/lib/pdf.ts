@@ -1,5 +1,9 @@
 import type { NegocioEmailData } from "./email";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, rgb } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
+import * as fs from "fs";
+import * as path from "path";
+import { fixEncoding } from "./encoding";
 
 /**
  * Genera un HTML completo para el PDF (puede ser el mismo que el email o personalizado)
@@ -185,9 +189,19 @@ export async function generateNegocioPDF(
   data: NegocioEmailData
 ): Promise<Buffer> {
   const pdfDoc = await PDFDocument.create();
+
+  // Registrar fontkit para usar fuentes personalizadas
+  pdfDoc.registerFontkit(fontkit);
+
   const page = pdfDoc.addPage([595, 842]); // A4 portrait
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+  // Cargar fuentes Roboto con soporte para caracteres especiales (ñ, acentos, etc.)
+  const fontBoldPath = path.join(process.cwd(), "public", "fonts", "Roboto-Bold.ttf");
+  const fontRegularPath = path.join(process.cwd(), "public", "fonts", "Roboto-Regular.ttf");
+  const fontBoldBytes = fs.readFileSync(fontBoldPath);
+  const fontRegularBytes = fs.readFileSync(fontRegularPath);
+  const fontBold = await pdfDoc.embedFont(fontBoldBytes);
+  const fontRegular = await pdfDoc.embedFont(fontRegularBytes);
 
   const { width, height } = page.getSize();
   const margin = 50;
@@ -212,7 +226,7 @@ export async function generateNegocioPDF(
   const drawLabelValue = (label: string, value: string, gap = 90) => {
     y -= 16;
     page.drawText(label, { x: margin, y, size: 12, font: fontBold, color: negro });
-    page.drawText(value || "", { x: margin + gap, y, size: 12, font: fontRegular, color: negro });
+    page.drawText(fixEncoding(value) || "", { x: margin + gap, y, size: 12, font: fontRegular, color: negro });
   };
   const formatDate = (d?: string) => {
     try {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { fixEncodingObject } from "@/lib/encoding";
 
 export async function GET(request: NextRequest) {
   try {
@@ -88,7 +89,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(allVehicles || []);
       }
 
-      return NextResponse.json(rows);
+      const fixedRows = Array.isArray(rows) ? rows.map(row => fixEncodingObject(row)) : rows;
+  return NextResponse.json(fixedRows);
     } else {
       // Si no se especifica chofer, devolver todos los vehículos disponibles
       console.log("4. Devolviendo todos los vehículos disponibles...");
@@ -104,7 +106,8 @@ export async function GET(request: NextRequest) {
 
       const [rows] = await db.query(query);
       console.log(`Todos los vehículos: ${Array.isArray(rows) ? rows.length : 0}`, rows);
-      return NextResponse.json(rows);
+      const fixedRows = Array.isArray(rows) ? rows.map(row => fixEncodingObject(row)) : rows;
+  return NextResponse.json(fixedRows);
     }
   } catch (error) {
     console.error("❌ Error al obtener vehículos:", error);

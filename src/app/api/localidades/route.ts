@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { fixEncodingObject } from "@/lib/encoding";
 
 export const runtime = "nodejs";
 
@@ -16,7 +17,8 @@ export async function GET() {
       LIMIT 1000;`
     )) as unknown as [any[]];
 
-    return NextResponse.json(rows);
+    const fixedRows = Array.isArray(rows) ? rows.map(row => fixEncodingObject(row)) : rows;
+  return NextResponse.json(fixedRows);
   } catch (error) {
     console.error("Error al obtener localidades:", error);
     return NextResponse.json(

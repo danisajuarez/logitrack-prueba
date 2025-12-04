@@ -2,9 +2,9 @@
 
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 
-export default function LoginPage() {
+function LoginForm() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -20,15 +20,19 @@ export default function LoginPage() {
       const result = await signIn("credentials", {
         username,
         password,
+        callbackUrl: "/viajes",
         redirect: false,
       });
 
       if (result?.error) {
         setError("Usuario o contraseña incorrectos");
         setLoading(false);
+      } else if (result?.ok) {
+        // Forzar recarga completa para limpiar cualquier estado residual
+        window.location.href = "/viajes";
       } else {
-        router.push("/viajes");
-        router.refresh();
+        setError("Ocurrió un error. Por favor intenta de nuevo.");
+        setLoading(false);
       }
     } catch (error) {
       setError("Ocurrió un error. Por favor intenta de nuevo.");
@@ -109,5 +113,17 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-gray-600 dark:text-gray-400">Cargando...</div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

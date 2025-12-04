@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { useState } from "react";
 
 interface UserNavProps {
@@ -9,15 +9,16 @@ interface UserNavProps {
 }
 
 export default function UserNav({ username, displayName }: UserNavProps) {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const handleLogout = async () => {
     setLoading(true);
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
-      router.push("/login");
-      router.refresh();
+      // Usar signOut de NextAuth que maneja correctamente la eliminación de sesión
+      await signOut({
+        callbackUrl: "/login",
+        redirect: true,
+      });
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
       setLoading(false);
