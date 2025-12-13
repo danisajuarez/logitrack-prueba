@@ -32,7 +32,7 @@ export async function GET() {
         AND TTE_IDTipoTercero = 1
         AND CCT_IDCCT = 1
       ORDER BY TER_RazonSocialTer ASC
-      LIMIT 2000;`
+    ;`
     )) as unknown as [any[]];
 
     console.log(
@@ -69,7 +69,7 @@ export async function GET() {
           WHERE TER_RazonSocialTer IS NOT NULL
             AND TER_RazonSocialTer != ''
           ORDER BY TER_RazonSocialTer ASC
-          LIMIT 500;`
+          `
         )) as unknown as [any[]];
         console.log(
           "[DEBUG] Sin filtro encontró:",
