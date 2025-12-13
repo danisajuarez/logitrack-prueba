@@ -47,7 +47,8 @@
       "Bash(npm install:*)",
       "Bash(yarn add:*)",
       "Bash(cmd.exe /c \"yarn add @pdf-lib/fontkit\")",
-      "Bash(cmd.exe /c \"type src\\app\\viajes\\page.tsx\")"
+      "Bash(cmd.exe /c \"type src\\app\\viajes\\page.tsx\")",
+      "Bash(cmd.exe /c \"type src\\app\\api\\terceros\\route.ts\")"
     ],
     "deny": [],
     "ask": []
