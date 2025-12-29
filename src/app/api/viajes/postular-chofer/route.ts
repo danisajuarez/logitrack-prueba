@@ -22,6 +22,179 @@ function normalizeNumber(value: unknown): number {
   const num = Number(value);
   return Number.isFinite(num) ? num : 0;
 }
+async function crearPrimeraCartaPorte(
+  connection: PoolConnection,
+  viajeId: number,
+  vendedorId: number
+): Promise<number> {
+  console.log(`[DEBUG] Creando primera carta porte para viaje ${viajeId}`);
+
+  // Obtener datos del viaje
+  const [viajeRows]: any = await connection.query(
+    `SELECT
+      ENT_Fecha,
+      TER_RazonSocialTer,
+      LOC_NomLocalidadOrig,
+      LOC_IDLocalidadOrig,
+      PRO_IDProvinciaOrig,
+      PRO_NomProvinciaOrig,
+      LOC_NomLocalidadDest,
+      LOC_IDLocalidadDest,
+      PRO_IDProvinciaDest,
+      PRO_NomProvinciaDest,
+      ENT_Tarifa
+    FROM sige_ent_encnegtra
+    WHERE ENT_IdEnt = ?
+    LIMIT 1`,
+    [viajeId]
+  );
+
+  if (!viajeRows || viajeRows.length === 0) {
+    throw new Error(`No se encontró el viaje con ID ${viajeId}`);
+  }
+
+  const viaje = viajeRows[0];
+
+  let terIdTercero = 15; // Valor por defecto
+  try {
+    const [terceroRows]: any = await connection.query(
+      `SELECT TER_IDTercero FROM sige_ter_tercero WHERE TER_RazonSocialTer = ? LIMIT 1`,
+      [viaje.TER_RazonSocialTer]
+    );
+    if (terceroRows && terceroRows.length > 0) {
+      terIdTercero = terceroRows[0].TER_IDTercero;
+    }
+  } catch (e) {
+    console.log("[DEBUG] No se pudo obtener TER_IDTercero, usando default 15");
+  }
+  // Obtener CUIT del tercero
+  let cuitTercero = "";
+  try {
+    const [terceroRows]: any = await connection.query(
+      `SELECT TER_CUITTer FROM sige_ter_tercero WHERE TER_IDTercero = ? LIMIT 1`,
+      [terIdTercero]
+    );
+    if (terceroRows && terceroRows.length > 0) {
+      cuitTercero = terceroRows[0].TER_CUITTer || "";
+    }
+  } catch (e) {
+    console.log("[DEBUG] No se pudo obtener CUIT del tercero");
+  }
+
+  // Obtener número del autonumerador
+  const [rowsAutonum]: any = await connection.query(
+    "SELECT AUT_Numero, AUT_Tabla FROM sige_aut_autonum WHERE LOWER(AUT_Tabla) = LOWER(?) FOR UPDATE",
+    ["sige_ecp_enccarpor"]
+  );
+
+  if (!rowsAutonum || rowsAutonum.length === 0) {
+    throw new Error("No existe numerador configurado para sige_ecp_enccarpor");
+  }
+
+  const tablaOriginal = rowsAutonum[0].AUT_Tabla;
+  const ecpNumero = Number(rowsAutonum[0].AUT_Numero) + 1;
+
+  await connection.execute(
+    "UPDATE sige_aut_autonum SET AUT_Numero = ? WHERE AUT_Tabla = ?",
+    [ecpNumero, tablaOriginal]
+  );
+
+  const ecpNumeroStr = String(ecpNumero);
+  const ecpIdEcp = ecpNumero;
+
+  if (ecpIdEcp === 0 || !Number.isFinite(ecpIdEcp)) {
+    throw new Error(
+      `ERROR CRÍTICO: ecpIdEcp es inválido (${ecpIdEcp}). No se puede insertar.`
+    );
+  }
+
+  console.log(`[DEBUG] Creando carta porte con ECP_IdEcp: ${ecpIdEcp}`);
+
+  // Crear carta porte
+  await connection.execute(
+    `INSERT INTO sige_ecp_enccarpor (
+      ECP_IdEcp,
+      ECP_Numero,
+      ECP_Fecha,
+      ECP_FechaVencimiento,
+      TCP_IDTipoComp,
+      EPC_IdEpd,
+      TER_IDTerceroEst,
+      TER_RazonSocialTerEst,
+      LOC_NomLocalidadEst,
+      LOC_IDLocalidadEst,
+      PRO_IDProvinciaEst,
+      PRO_NomProvinciaEst,
+      LOC_NomLocalidadGran,
+      LOC_IDLocalidadGran,
+      PRO_IDProvinciaGran,
+      PRO_NomProvinciaGran,
+      ECP_Tarifa,
+      TVP_Caracteristicas,
+      DEP_IDDeposito,
+      ENT_IdEnt,
+      VEN_IdVendPostula,
+      USU_IdUsuario,
+      EQU_IDEquipo,
+      ECP_PreCartaPorte,
+      ECP_CancCompra,
+      ECP_CancVenta
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      ecpIdEcp,
+      ecpNumeroStr,
+      viaje.ENT_Fecha,
+      viaje.ENT_Fecha,
+      38, // TCP_IDTipoComp
+      0, // EPC_IdEpd
+      terIdTercero,
+      viaje.TER_RazonSocialTer,
+      viaje.LOC_NomLocalidadOrig,
+      viaje.LOC_IDLocalidadOrig,
+      viaje.PRO_IDProvinciaOrig,
+      viaje.PRO_NomProvinciaOrig,
+      viaje.LOC_NomLocalidadDest,
+      viaje.LOC_IDLocalidadDest,
+      viaje.PRO_IDProvinciaDest,
+      viaje.PRO_NomProvinciaDest,
+      viaje.ENT_Tarifa,
+      "", // TVP_Caracteristicas
+      1, // DEP_IDDeposito
+      viajeId, // ENT_IdEnt
+      vendedorId,
+      1, // USU_IdUsuario
+      1, // EQU_IDEquipo
+      "S", // ECP_PreCartaPorte
+      "N", // ECP_CancCompra
+      "N", // ECP_CancVenta
+    ]
+  );
+
+  // Crear destinatario (intermediario) con TIC_IdTic = 6
+  await connection.execute(
+    `INSERT INTO sige_icp_intcarpor (
+      ECP_IdEcp,
+      TIC_IdTic,
+      TER_IDTercero,
+      TER_RazonSocialTer,
+      TER_CUITTer,
+      LOC_NomLocalidad,
+      ICP_Porcentaje
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      ecpIdEcp,
+      6, // TIC_IdTic = 6 (destinatario)
+      terIdTercero,
+      viaje.TER_RazonSocialTer,
+      cuitTercero,
+      viaje.LOC_NomLocalidadDest,
+      100,
+    ]
+  );
+
+  console.log(`[DEBUG] Primera carta porte creada exitosamente: ${ecpIdEcp}`);
+  return ecpIdEcp;
+}
 
 async function fetchViajeMetrics(
   connection: PoolConnection,
@@ -137,21 +310,42 @@ export async function POST(request: NextRequest) {
       const metrics = await fetchViajeMetrics(connection, viajeId);
 
       // Obtener TODOS los ECP_IdEcp desde ENT_IdEnt (viajeId)
-      const [ecpRows]: any = await connection.query(
+      // Obtener TODOS los ECP_IdEcp desde ENT_IdEnt (viajeId)
+      let [ecpRows]: any = await connection.query(
         `SELECT ECP_IdEcp FROM sige_ecp_enccarpor WHERE ENT_IdEnt = ? ORDER BY ECP_IdEcp`,
         [viajeId]
       );
+
+      let ecpIds: number[] = [];
+
+      // Si NO hay cartas porte, crear la primera automáticamente
       if (!Array.isArray(ecpRows) || ecpRows.length === 0) {
-        await connection.rollback();
-        return NextResponse.json(
-          { error: "No se encontró la carta porte para este viaje" },
-          { status: 404 }
+        console.log(
+          `[DEBUG] No hay carta porte para viaje ${viajeId}, creando la primera...`
         );
+        try {
+          const nuevaEcpId = await crearPrimeraCartaPorte(
+            connection,
+            viajeId,
+            vendedorId
+          );
+          ecpIds = [nuevaEcpId];
+        } catch (error: any) {
+          await connection.rollback();
+          return NextResponse.json(
+            { error: `Error al crear carta porte: ${error.message}` },
+            { status: 500 }
+          );
+        }
+      } else {
+        ecpIds = ecpRows
+          .map((r: any) => Number(r.ECP_IdEcp))
+          .filter((n: number) => Number.isInteger(n));
       }
-      const ecpIds: number[] = ecpRows
-        .map((r: any) => Number(r.ECP_IdEcp))
-        .filter((n: number) => Number.isInteger(n));
+
       const ecpIdEcp = ecpIds[ecpIds.length - 1]; // usar la ECP más reciente
+
+      // usar la ECP más reciente
       const placeholders = ecpIds.map(() => "?").join(", ");
 
       // Estrategia: Crear una nueva ECP para CADA postulación (permite duplicados del mismo chofer)
@@ -190,7 +384,9 @@ export async function POST(request: NextRequest) {
       if (libre != null) {
         // Usar la ECP libre existente, pero actualizar el vendedor
         ecpIdForInsert = libre;
-        console.log(`[DEBUG] Usando ECP libre existente: ${libre}, actualizando vendedor a ${vendedorId}`);
+        console.log(
+          `[DEBUG] Usando ECP libre existente: ${libre}, actualizando vendedor a ${vendedorId}`
+        );
 
         // Actualizar el VEN_IdVendPostula en la ECP libre para reflejar el vendedor correcto de esta postulación
         try {
@@ -198,9 +394,14 @@ export async function POST(request: NextRequest) {
             `UPDATE sige_ecp_enccarpor SET VEN_IdVendPostula = ? WHERE ECP_IdEcp = ?`,
             [vendedorId, libre]
           );
-          console.log(`[DEBUG] Vendedor actualizado en ECP ${libre} a vendedorId ${vendedorId}`);
+          console.log(
+            `[DEBUG] Vendedor actualizado en ECP ${libre} a vendedorId ${vendedorId}`
+          );
         } catch (e) {
-          console.error(`[DEBUG] Error al actualizar vendedor en ECP ${libre}:`, e);
+          console.error(
+            `[DEBUG] Error al actualizar vendedor en ECP ${libre}:`,
+            e
+          );
           // No abortar por esto
         }
       } else {
@@ -216,7 +417,9 @@ export async function POST(request: NextRequest) {
           );
 
           if (!rowsAutonumEcp || rowsAutonumEcp.length === 0) {
-            throw new Error('No existe numerador configurado para sige_ecp_enccarpor');
+            throw new Error(
+              "No existe numerador configurado para sige_ecp_enccarpor"
+            );
           }
 
           const tablaOriginalEcp = rowsAutonumEcp[0].AUT_Tabla;
@@ -228,7 +431,9 @@ export async function POST(request: NextRequest) {
             [newEcpId, tablaOriginalEcp]
           );
 
-          console.log(`[DEBUG] Nuevo ECP ID obtenido: ${newEcpId} (tabla original: ${tablaOriginalEcp})`);
+          console.log(
+            `[DEBUG] Nuevo ECP ID obtenido: ${newEcpId} (tabla original: ${tablaOriginalEcp})`
+          );
 
           if (Number.isFinite(newEcpId) && newEcpId > 0) {
             const newNumero = String(newEcpId); // Sin ceros a la izquierda
@@ -268,7 +473,9 @@ export async function POST(request: NextRequest) {
               `[DEBUG] Nueva ECP creada: ${newEcpId} copiando datos completos desde ECP original ${ecpOriginal}`
             );
           } else {
-            throw new Error(`ECP ID inválido obtenido del autonumerador: ${newEcpId}`);
+            throw new Error(
+              `ECP ID inválido obtenido del autonumerador: ${newEcpId}`
+            );
           }
         } catch (error) {
           console.error("[DEBUG] Error al crear nueva ECP:", error);
@@ -662,9 +869,12 @@ export async function POST(request: NextRequest) {
           );
           if (Array.isArray(vRows) && vRows.length > 0) {
             const rawEmail = vRows[0].VEN_EMailVen as string | null;
-            const vendedorNombre = (vRows[0].VEN_NomVen as string) || "Vendedor";
-            const fallback = process.env.EMAIL_TEST || process.env.EMAIL_FROM || null;
-            const vendedorEmail = rawEmail && rawEmail.includes("@") ? rawEmail : fallback;
+            const vendedorNombre =
+              (vRows[0].VEN_NomVen as string) || "Vendedor";
+            const fallback =
+              process.env.EMAIL_TEST || process.env.EMAIL_FROM || null;
+            const vendedorEmail =
+              rawEmail && rawEmail.includes("@") ? rawEmail : fallback;
             if (vendedorEmail && vendedorEmail.includes("@")) {
               // Datos del viaje para PDF (incluyendo TER_IdTercero para obtener datos del proveedor)
               const [vInfo] = await connection.query<RowDataPacket[]>(
@@ -685,8 +895,12 @@ export async function POST(request: NextRequest) {
                     ? (choferRows[0].TER_CUITTer as string) || ""
                     : "";
 
-                const { generarPDFAutorizacionAsignacion } = await import("@/lib/pdf-autorizacion");
-                const { enviarEmailConPDFAdjunto } = await import("@/lib/email");
+                const { generarPDFAutorizacionAsignacion } = await import(
+                  "@/lib/pdf-autorizacion"
+                );
+                const { enviarEmailConPDFAdjunto } = await import(
+                  "@/lib/email"
+                );
 
                 // Obtener CUIT, domicilio y tipo de proveedor (mayorista o no) usando su ID
                 let proveedorCuit: string | null = null;
@@ -705,7 +919,8 @@ export async function POST(request: NextRequest) {
                     );
                     if (Array.isArray(provRows) && provRows.length > 0) {
                       proveedorCuit = (provRows[0].cuit as any) || null;
-                      proveedorDomicilio = (provRows[0].domicilio as any) || null;
+                      proveedorDomicilio =
+                        (provRows[0].domicilio as any) || null;
                       esMayorista = provRows[0].mayorista === "S";
                     }
                   } catch {}
@@ -724,9 +939,12 @@ export async function POST(request: NextRequest) {
                   chofer: choferNombre,
                   choferCuit,
                   patChasis: patenteChasis,
-                  patAcoplado: relacion.patAcoplado ? relacion.patAcoplado.toUpperCase() : null,
+                  patAcoplado: relacion.patAcoplado
+                    ? relacion.patAcoplado.toUpperCase()
+                    : null,
                   mostrarIntermediario: esMayorista,
-                  intermediarioNombre: process.env.COMPANY_SHORTNAME || "LOGITRACK",
+                  intermediarioNombre:
+                    process.env.COMPANY_SHORTNAME || "LOGITRACK",
                   intermediarioCuit: process.env.COMPANY_CUIT || undefined,
                 });
 
@@ -740,25 +958,39 @@ export async function POST(request: NextRequest) {
                   </div>
                 `;
 
-                const nombrePDF = `Autorizacion_${(choferNombre || "").replace(/[^a-zA-Z0-9]/g, "_")}_${
-                  (viaje.numero as any) || String(viajeId)
-                }.pdf`;
+                const nombrePDF = `Autorizacion_${(choferNombre || "").replace(
+                  /[^a-zA-Z0-9]/g,
+                  "_"
+                )}_${(viaje.numero as any) || String(viajeId)}.pdf`;
 
                 await enviarEmailConPDFAdjunto({
                   to: vendedorEmail,
-                  subject: `Autorización de asignación - Viaje #${(viaje.numero as any) || String(viajeId)}`,
+                  subject: `Autorización de asignación - Viaje #${
+                    (viaje.numero as any) || String(viajeId)
+                  }`,
                   htmlContent,
                   pdfBuffer,
                   pdfNombre: nombrePDF,
                 });
-                console.log("[EMAIL] PDF de asignación enviado a:", vendedorEmail, "(vendedorId:", vendedorId, ")");
+                console.log(
+                  "[EMAIL] PDF de asignación enviado a:",
+                  vendedorEmail,
+                  "(vendedorId:",
+                  vendedorId,
+                  ")"
+                );
               }
             } else {
-              console.warn("[EMAIL] Vendedor sin email válido y sin fallback configurado");
+              console.warn(
+                "[EMAIL] Vendedor sin email válido y sin fallback configurado"
+              );
             }
           }
         } catch (e) {
-          console.error("[EMAIL] Error al generar/enviar PDF de asignación:", e);
+          console.error(
+            "[EMAIL] Error al generar/enviar PDF de asignación:",
+            e
+          );
           // No romper la respuesta principal
         }
       }
