@@ -18,8 +18,8 @@ export async function GET(req: NextRequest) {
     if (!fechaDesde) {
       const d = new Date();
       const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
       fechaDesde = `${yyyy}-${mm}-${dd}`;
     }
 
@@ -47,7 +47,9 @@ export async function GET(req: NextRequest) {
       paramsViejos.push(`%${razonSocial}%`);
     }
 
-    const whereClauseViejos = filtrosViejos.length ? `AND ${filtrosViejos.join(" AND ")}` : "";
+    const whereClauseViejos = filtrosViejos.length
+      ? `AND ${filtrosViejos.join(" AND ")}`
+      : "";
 
     // Consultar primero la tabla nueva si existe
     let rowsNuevos: RowDataPacket[] = [];
@@ -72,7 +74,9 @@ export async function GET(req: NextRequest) {
         paramsNuevos.push(`%${razonSocial}%`);
       }
 
-      const whereClauseNuevos = filtrosNuevos.length ? `WHERE ${filtrosNuevos.join(" AND ")}` : "";
+      const whereClauseNuevos = filtrosNuevos.length
+        ? `WHERE ${filtrosNuevos.join(" AND ")}`
+        : "";
 
       const queryNuevos = `
         SELECT
@@ -88,16 +92,19 @@ export async function GET(req: NextRequest) {
           cuposReservados,
           cuposPendientes,
           tarifa,
-          vendedor
+          vendedor,
+          codPostal
         FROM viajes_nuevos
         ${whereClauseNuevos}
         ORDER BY fecha DESC, numero DESC
       `;
-      const [rows] = (await db.query(queryNuevos, paramsNuevos)) as unknown as [RowDataPacket[]];
+      const [rows] = (await db.query(queryNuevos, paramsNuevos)) as unknown as [
+        RowDataPacket[]
+      ];
       rowsNuevos = rows || [];
     } catch (error) {
       // Si la tabla no existe, continuar con la tabla vieja
-      console.log('Tabla viajes_nuevos no disponible, usando tabla legacy');
+      console.log("Tabla viajes_nuevos no disponible, usando tabla legacy");
     }
 
     // Consultar tabla vieja
@@ -115,16 +122,20 @@ export async function GET(req: NextRequest) {
         e.ENT_CantCuposReser AS cuposReservados,
         e.ENT_CantCuposPend AS cuposPendientes,
         e.ENT_Tarifa AS tarifa,
-        e.VEN_IdVendPostula AS vendedor
+        e.VEN_IdVendPostula AS vendedor,
+        ter.TER_CodPostalTer AS codPostal
       FROM sige_ent_encnegtra e
       LEFT JOIN sige_equ_equipos eq ON e.EQU_IDEquipo = eq.EQU_IDEquipo
       LEFT JOIN sige_ven_vendedor v ON e.VEN_IdVendPostula = v.VEN_IdVendedor
       LEFT JOIN sige_dnt_detnegtra dnt ON e.ENT_IdEnt = dnt.ent_ident AND dnt.dnt_renglondcp = 1
+      LEFT JOIN sige_ter_tercero ter ON e.TER_IDTercero = ter.TER_IDTercero
       WHERE e.ENT_IdEnt > 0
-      ${whereClauseViejos.replace('AND', 'AND')}
+      ${whereClauseViejos.replace("AND", "AND")}
       ORDER BY e.ENT_Fecha DESC, e.ENT_Numero DESC
     `;
-    const [rowsViejos] = (await db.query(query, paramsViejos)) as unknown as [RowDataPacket[]];
+    const [rowsViejos] = (await db.query(query, paramsViejos)) as unknown as [
+      RowDataPacket[]
+    ];
 
     // Combinar ambas tablas y enriquecer métricas
     const allRows = [...rowsNuevos, ...(rowsViejos || [])];
@@ -143,7 +154,7 @@ export async function GET(req: NextRequest) {
       const placeholders = uniqueIds.map(() => "?").join(", ");
       try {
         // Buscar postulados usando sige_icp_intcarpor en lugar de viajes_choferes
-        const [postuladosRows] = await db.query(
+        const [postuladosRows] = (await db.query(
           `SELECT ecp.ENT_IdEnt AS viaje_id, COUNT(*) AS total
            FROM sige_icp_intcarpor icp
            INNER JOIN sige_ecp_enccarpor ecp ON ecp.ECP_IdEcp = icp.ECP_IdEcp
@@ -151,7 +162,7 @@ export async function GET(req: NextRequest) {
              AND icp.TIC_IdTic = 9
            GROUP BY ecp.ENT_IdEnt`,
           uniqueIds
-        ) as unknown as [RowDataPacket[]];
+        )) as unknown as [RowDataPacket[]];
         if (Array.isArray(postuladosRows)) {
           postuladosPorViaje = new Map(
             postuladosRows.map((row: any) => [
@@ -166,7 +177,6 @@ export async function GET(req: NextRequest) {
         }
       }
     }
-
     const enrichedRows = allRows.map((row: any) => {
       const id = Number(row?.id) || 0;
       const cupos = Number(row?.cupos ?? 0) || 0;
@@ -174,12 +184,20 @@ export async function GET(req: NextRequest) {
       const postulados = postuladosPorViaje.get(id) ?? 0;
       const pendientes = Math.max(cupos - reservados - postulados, 0);
 
+      // Limpieza de Código Postal
+      const codPostal = row?.codPostal || "";
+      const codPostalLimpio = String(codPostal).includes("#QNAN") || codPostal === "0"
+        ? ""
+        : String(codPostal).trim();
+
+      // UN SOLO RETURN CON TODO
       return {
         ...row,
         cupos,
         cuposReservados: reservados,
         postulados,
         cuposPendientes: pendientes,
+        codPostal: codPostalLimpio,
       };
     });
 
@@ -191,16 +209,19 @@ export async function GET(req: NextRequest) {
     });
 
     // Corregir encoding en todos los datos
-    const fixedRows = rows.map(row => fixEncodingObject(row));
+    const fixedRows = rows.map((row) => fixEncodingObject(row));
 
     return NextResponse.json(fixedRows);
   } catch (error) {
     console.error("Error al obtener viajes:", error);
     const expose = process.env.EXPOSE_ERRORS === "1";
     const body = expose
-      ? { error: "Error al obtener los viajes", code: (error as any)?.code, message: (error as any)?.message }
+      ? {
+          error: "Error al obtener los viajes",
+          code: (error as any)?.code,
+          message: (error as any)?.message,
+        }
       : { error: "Error al obtener los viajes" };
     return NextResponse.json(body, { status: 500 });
   }
 }
-    

@@ -48,7 +48,9 @@
       "Bash(yarn add:*)",
       "Bash(cmd.exe /c \"yarn add @pdf-lib/fontkit\")",
       "Bash(cmd.exe /c \"type src\\app\\viajes\\page.tsx\")",
-      "Bash(cmd.exe /c \"type src\\app\\api\\terceros\\route.ts\")"
+      "Bash(cmd.exe /c \"type src\\app\\api\\terceros\\route.ts\")",
+      "Bash(del:*)",
+      "Bash(cmd.exe /c \"type src\\\\app\\\\api\\\\viajes\\\\POST\\\\route.ts\")"
     ],
     "deny": [],
     "ask": []

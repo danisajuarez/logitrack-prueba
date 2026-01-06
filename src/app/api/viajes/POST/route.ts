@@ -65,7 +65,10 @@ export async function POST(req: NextRequest) {
 
     if (reservadosNum > cuposNum) {
       return NextResponse.json(
-        { error: "Los cupos reservados no pueden ser mayores que los cupos totales" },
+        {
+          error:
+            "Los cupos reservados no pueden ser mayores que los cupos totales",
+        },
         { status: 400 }
       );
     }
@@ -86,16 +89,30 @@ export async function POST(req: NextRequest) {
     // Resolver TER_IDTercero por razón social y obtener CUIT
     let terIdTercero: number | null = null;
     let terCUIT: string | null = null;
+    let terCP: string | null = null; // <--- Nueva variable para el CP
+
     try {
       const [terRows]: any = await connection.query(
-        `SELECT TER_IDTercero AS id, TER_CUITTer AS cuit FROM sige_ter_tercero WHERE TER_RazonSocialTer = ? LIMIT 1`,
+        `SELECT 
+            TER_IDTercero AS id, 
+            TER_CUITTer AS cuit, 
+            TER_CodPostalTer AS cp -- <--- AHORA SÍ LO TRAEMOS
+         FROM sige_ter_tercero 
+         WHERE TER_RazonSocialTer = ? LIMIT 1`,
         [razonSocial]
       );
+
       if (Array.isArray(terRows) && terRows.length > 0) {
         terIdTercero = Number(terRows[0].id) || null;
         terCUIT = terRows[0].cuit ? String(terRows[0].cuit) : null;
+
+        // Limpieza: si tiene el error #QNAN, lo dejamos vacío, si no, lo guardamos como texto
+        const rawCP = terRows[0].cp ? String(terRows[0].cp).trim() : "";
+        terCP = rawCP.includes("#QNAN") ? "" : rawCP;
       }
-    } catch {}
+    } catch (err) {
+      console.error("[DEBUG POST] Error buscando tercero:", err);
+    }
 
     // Resolver vendedor: por id/nombre o caer a la sesión
     let vendedorId: number | null = null;
@@ -213,15 +230,17 @@ export async function POST(req: NextRequest) {
 
     if (!rowsAutonumEnt || rowsAutonumEnt.length === 0) {
       throw new Error(
-        'No existe numerador configurado para sige_ent_encnegtra en la tabla sige_aut_autonum.'
+        "No existe numerador configurado para sige_ent_encnegtra en la tabla sige_aut_autonum."
       );
     }
 
     const tablaOriginalEnt = rowsAutonumEnt[0].AUT_Tabla;
     const autNumeroActualEnt = rowsAutonumEnt[0].AUT_Numero;
 
-    if (autNumeroActualEnt == null || autNumeroActualEnt === '') {
-      throw new Error(`El autonumerador ENT tiene valor inválido: ${autNumeroActualEnt}`);
+    if (autNumeroActualEnt == null || autNumeroActualEnt === "") {
+      throw new Error(
+        `El autonumerador ENT tiene valor inválido: ${autNumeroActualEnt}`
+      );
     }
 
     const entIdEnt = Number(autNumeroActualEnt) + 1;
@@ -240,7 +259,10 @@ export async function POST(req: NextRequest) {
 
     const entNumero = String(entIdEnt); // Sin ceros a la izquierda
 
-    console.log("[DEBUG] Insertando en sige_ent_encnegtra con ENT_IdEnt:", entIdEnt);
+    console.log(
+      "[DEBUG] Insertando en sige_ent_encnegtra con ENT_IdEnt:",
+      entIdEnt
+    );
 
     await connection.execute(
       `INSERT INTO sige_ent_encnegtra (
@@ -384,21 +406,29 @@ export async function POST(req: NextRequest) {
       ["sige_ecp_enccarpor"]
     );
 
-    console.log("[DEBUG] Resultado autonumerador:", JSON.stringify(rowsAutonum));
+    console.log(
+      "[DEBUG] Resultado autonumerador:",
+      JSON.stringify(rowsAutonum)
+    );
 
     if (!rowsAutonum || rowsAutonum.length === 0) {
       throw new Error(
-        'No existe numerador configurado para sige_ecp_enccarpor en la tabla sige_aut_autonum.'
+        "No existe numerador configurado para sige_ecp_enccarpor en la tabla sige_aut_autonum."
       );
     }
 
     const tablaOriginal = rowsAutonum[0].AUT_Tabla; // Guardar el nombre exacto
     const autNumeroActual = rowsAutonum[0].AUT_Numero;
 
-    console.log("[DEBUG] AUT_Numero actual (raw):", autNumeroActual, "tipo:", typeof autNumeroActual);
+    console.log(
+      "[DEBUG] AUT_Numero actual (raw):",
+      autNumeroActual,
+      "tipo:",
+      typeof autNumeroActual
+    );
 
     // Validar que tenemos un número válido
-    if (autNumeroActual == null || autNumeroActual === '') {
+    if (autNumeroActual == null || autNumeroActual === "") {
       throw new Error(
         `El autonumerador tiene valor inválido: ${autNumeroActual}`
       );
@@ -406,7 +436,12 @@ export async function POST(req: NextRequest) {
 
     const ecpNumero = Number(autNumeroActual) + 1;
 
-    console.log("[DEBUG] ecpNumero calculado:", ecpNumero, "tipo:", typeof ecpNumero);
+    console.log(
+      "[DEBUG] ecpNumero calculado:",
+      ecpNumero,
+      "tipo:",
+      typeof ecpNumero
+    );
 
     // Validación estricta
     if (!Number.isFinite(ecpNumero) || ecpNumero <= 0) {

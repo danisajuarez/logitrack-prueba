@@ -12,7 +12,9 @@ export async function GET(req: NextRequest) {
       FROM sige_ent_encnegtra e
       WHERE DATE(e.ENT_Fecha) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)
     `;
-    const [countRows] = (await db.query(countQuery)) as unknown as [RowDataPacket[]];
+    const [countRows] = (await db.query(countQuery)) as unknown as [
+      RowDataPacket[]
+    ];
     const cantAyer = Number(countRows?.[0]?.cant_ayer || 0);
 
     if (!Number.isFinite(cantAyer) || cantAyer === 0) {
@@ -32,8 +34,8 @@ export async function GET(req: NextRequest) {
       const d = new Date();
       d.setDate(d.getDate() - 1);
       const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
       fechaDesde = `${yyyy}-${mm}-${dd}`;
     }
 
@@ -78,8 +80,12 @@ export async function GET(req: NextRequest) {
       paramsNuevos.push(`%${vendedor}%`);
     }
 
-    const whereClauseViejos = filtrosViejos.length ? `AND ${filtrosViejos.join(" AND ")}` : "";
-    const whereClauseNuevos = filtrosNuevos.length ? `WHERE ${filtrosNuevos.join(" AND ")}` : "";
+    const whereClauseViejos = filtrosViejos.length
+      ? `AND ${filtrosViejos.join(" AND ")}`
+      : "";
+    const whereClauseNuevos = filtrosNuevos.length
+      ? `WHERE ${filtrosNuevos.join(" AND ")}`
+      : "";
 
     const query = `
       SELECT 
@@ -95,11 +101,12 @@ export async function GET(req: NextRequest) {
         n.cuposReservados AS cuposReservados,
         n.cuposPendientes AS cuposPendientes,
         n.tarifa AS tarifa,
+        n.codPostal AS cp,
         n.vendedor AS vendedor
       FROM viajes_nuevos n
       ${whereClauseNuevos}
       UNION ALL
-      SELECT 
+      SELECT
         NULL AS id,
         e.ENT_Numero AS numero,
         e.ENT_Fecha AS fecha,
@@ -112,12 +119,14 @@ export async function GET(req: NextRequest) {
         e.ENT_CantCuposReser AS cuposReservados,
         (e.ENT_CantCupos - e.ENT_CantCuposReser) AS cuposPendientes,
         e.ENT_Tarifa AS tarifa,
-        e.VEN_IdVendPostula AS vendedor
+        e.VEN_IdVendPostula AS vendedor,
+        ter.TER_CodPostalTer AS cp
       FROM sige_ent_encnegtra e
       INNER JOIN sige_dnt_detnegtra d ON e.ENT_IdEnt = d.ENT_IdEnt
       INNER JOIN sige_usu_usuario u ON e.USU_IdUsuario = u.USU_IdUsuario
       INNER JOIN sige_equ_equipos eq ON e.EQU_IDEquipo = eq.EQU_IDEquipo
       LEFT JOIN sige_ven_vendedor v ON e.VEN_IdVendPostula = v.VEN_IdVendedor
+      LEFT JOIN sige_ter_tercero ter ON e.TER_IDTercero = ter.TER_IDTercero
       WHERE e.TER_IdTercero > 0
       ${whereClauseViejos}
       ORDER BY fecha DESC
@@ -125,13 +134,19 @@ export async function GET(req: NextRequest) {
     const paramsAll = [...paramsNuevos, ...paramsViejos];
 
     try {
-      const [rows] = (await db.query(query, paramsAll)) as unknown as [RowDataPacket[]];
+      const [rows] = (await db.query(query, paramsAll)) as unknown as [
+        RowDataPacket[]
+      ];
       return NextResponse.json({ hasNew: true, items: rows });
     } catch (err: any) {
       // Si viajes_nuevos no existe o no hay permisos, caer a la tabla vieja solamente
-      if (err?.code === "ER_NO_SUCH_TABLE" || err?.code === "ER_TABLEACCESS_DENIED_ERROR" || err?.code === "ER_DBACCESS_DENIED_ERROR") {
+      if (
+        err?.code === "ER_NO_SUCH_TABLE" ||
+        err?.code === "ER_TABLEACCESS_DENIED_ERROR" ||
+        err?.code === "ER_DBACCESS_DENIED_ERROR"
+      ) {
         const onlyOldQuery = `
-          SELECT 
+          SELECT
             NULL AS id,
             e.ENT_Numero AS numero,
             e.ENT_Fecha AS fecha,
@@ -144,17 +159,22 @@ export async function GET(req: NextRequest) {
             e.ENT_CantCuposReser AS cuposReservados,
             (e.ENT_CantCupos - e.ENT_CantCuposReser) AS cuposPendientes,
             e.ENT_Tarifa AS tarifa,
-            e.VEN_IdVendPostula AS vendedor
+            e.VEN_IdVendPostula AS vendedor,
+            ter.TER_CodPostalTer AS cp
           FROM sige_ent_encnegtra e
           INNER JOIN sige_dnt_detnegtra d ON e.ENT_IdEnt = d.ENT_IdEnt
           INNER JOIN sige_usu_usuario u ON e.USU_IdUsuario = u.USU_IdUsuario
           INNER JOIN sige_equ_equipos eq ON e.EQU_IDEquipo = eq.EQU_IDEquipo
           LEFT JOIN sige_ven_vendedor v ON e.VEN_IdVendPostula = v.VEN_IdVendedor
+          LEFT JOIN sige_ter_tercero ter ON e.TER_IDTercero = ter.TER_IDTercero
           WHERE e.TER_IdTercero > 0
           ${whereClauseViejos}
           ORDER BY fecha DESC
         `;
-        const [rows] = (await db.query(onlyOldQuery, paramsViejos)) as unknown as [RowDataPacket[]];
+        const [rows] = (await db.query(
+          onlyOldQuery,
+          paramsViejos
+        )) as unknown as [RowDataPacket[]];
         return NextResponse.json({ hasNew: true, items: rows });
       }
       console.error("Error en consulta de viajes nuevos:", err);
@@ -164,9 +184,12 @@ export async function GET(req: NextRequest) {
     console.error("Error en /api/viajes/nuevos:", error);
     const expose = process.env.EXPOSE_ERRORS === "1";
     const body = expose
-      ? { error: "Error al obtener viajes nuevos", code: (error as any)?.code, message: (error as any)?.message }
+      ? {
+          error: "Error al obtener viajes nuevos",
+          code: (error as any)?.code,
+          message: (error as any)?.message,
+        }
       : { error: "Error al obtener viajes nuevos" };
     return NextResponse.json(body, { status: 500 });
   }
 }
-
