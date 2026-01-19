@@ -40,7 +40,7 @@ interface Vendedor {
 }
 
 interface Localidad {
-  id: number;
+  id: number | string;
   nombre: string;
 }
 
@@ -79,6 +79,8 @@ export default function ViajeModal({
     razonSocial: "",
     origen: "",
     destino: "",
+    origenId: null as number | string | null,
+    destinoId: null as number | string | null,
     articulo: "",
     equipo: "0",
     cupos: "",
@@ -116,6 +118,8 @@ export default function ViajeModal({
         razonSocial: viaje.razonSocial || "",
         origen: viaje.origen || "",
         destino: viaje.destino || "",
+        origenId: null, // Se resuelve por nombre al editar
+        destinoId: null,
         articulo: viaje.articulo || "",
         equipo: "0",
         cupos: viaje.cupos?.toString() || "",
@@ -129,6 +133,8 @@ export default function ViajeModal({
         razonSocial: "",
         origen: "",
         destino: "",
+        origenId: null,
+        destinoId: null,
         articulo: "",
         equipo: "0",
         cupos: "",
@@ -538,9 +544,9 @@ export default function ViajeModal({
             <SearchableSelect
               options={localidades}
               value={form.origen}
-              onChange={(value) =>
-                handleSearchableSelectChange("origen", value)
-              }
+              onChangeId={(id, option) => {
+                setForm({ ...form, origen: option.nombre, origenId: id });
+              }}
               placeholder="Seleccionar Origen"
               name="origen"
               required
@@ -555,9 +561,9 @@ export default function ViajeModal({
             <SearchableSelect
               options={localidades}
               value={form.destino}
-              onChange={(value) =>
-                handleSearchableSelectChange("destino", value)
-              }
+              onChangeId={(id, option) => {
+                setForm({ ...form, destino: option.nombre, destinoId: id });
+              }}
               placeholder="Seleccionar Destino"
               name="destino"
               required

@@ -97,7 +97,7 @@ export default function ViajesNuevosPage() {
                     <td className="p-2">{v.cupos}</td>
                     <td className="p-2">{v.cuposReservados}</td>
                     <td className="p-2">{v.cuposPendientes}</td>
-                    <td className="p-2">{v.tarifa != null ? `$${v.tarifa.toLocaleString()}` : "-"}</td>
+                    <td className="p-2">{v.tarifa != null ? `$${v.tarifa.toLocaleString("es-AR")}` : "-"}</td>
                     <td className="p-2">{v.vendedor || "-"}</td>
                   </tr>
                 ))}

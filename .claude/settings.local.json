@@ -50,7 +50,15 @@
       "Bash(cmd.exe /c \"type src\\app\\viajes\\page.tsx\")",
       "Bash(cmd.exe /c \"type src\\app\\api\\terceros\\route.ts\")",
       "Bash(del:*)",
-      "Bash(cmd.exe /c \"type src\\\\app\\\\api\\\\viajes\\\\POST\\\\route.ts\")"
+      "Bash(cmd.exe /c \"type src\\\\app\\\\api\\\\viajes\\\\POST\\\\route.ts\")",
+      "Bash(git -C \"C:/Users/danis/proyecto-gustavo\" show f487cd8 --stat)",
+      "Bash(git -C \"C:/Users/danis/proyecto-gustavo\" show 8f8c2d7 --stat)",
+      "Bash(git -C \"C:/Users/danis/proyecto-gustavo\" log --oneline -15)",
+      "Bash(git -C \"C:/Users/danis/proyecto-gustavo\" show 4dbd8c0 --stat)",
+      "Bash(git -C \"C:/Users/danis/proyecto-gustavo\" show 482704a --stat)",
+      "Bash(git -C \"C:/Users/danis/proyecto-gustavo\" show 482704a -- src/app/api/viajes/POST/route.ts)",
+      "Bash(git -C \"C:/Users/danis/proyecto-gustavo\" show 8f8c2d7 --name-only)",
+      "Bash(git -C \"C:/Users/danis/proyecto-gustavo\" show 8f8c2d7 -- src/app/api/viajes/postular-chofer/route.ts)"
     ],
     "deny": [],
     "ask": []
