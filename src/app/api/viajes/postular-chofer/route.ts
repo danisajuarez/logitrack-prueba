@@ -171,26 +171,53 @@ async function crearPrimeraCartaPorte(
   );
 
   // Crear destinatario (intermediario) con TIC_IdTic = 6
-  await connection.execute(
-    `INSERT INTO sige_icp_intcarpor (
-      ECP_IdEcp,
-      TIC_IdTic,
-      TER_IDTercero,
-      TER_RazonSocialTer,
-      TER_CUITTer,
-      LOC_NomLocalidad,
-      ICP_Porcentaje
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [
-      ecpIdEcp,
-      6, // TIC_IdTic = 6 (destinatario)
-      terIdTercero,
-      viaje.TER_RazonSocialTer,
-      cuitTercero,
-      viaje.LOC_NomLocalidadDest,
-      100,
-    ]
+  // IMPORTANTE: Usar las mismas columnas que en POST /api/viajes para consistencia
+  console.log(`[DEBUG] Insertando intermediario Destinatario para ECP: ${ecpIdEcp}`);
+  try {
+    await connection.execute(
+      `INSERT INTO sige_icp_intcarpor (
+        ECP_IdEcp,
+        TIC_IdTic,
+        ICP_Orden,
+        TIC_DescripcionTic,
+        TER_IDTerceroTic,
+        TER_RazonSocialTerTic,
+        TER_CUITTerTic
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        ecpIdEcp,
+        6, // TIC_IdTic = 6 (destinatario)
+        1, // Orden
+        "Destinatario",
+        terIdTercero,
+        viaje.TER_RazonSocialTer,
+        cuitTercero,
+      ]
+    );
+    console.log(`[DEBUG] Intermediario Destinatario insertado correctamente`);
+  } catch (icpError: any) {
+    console.error(
+      "[ERROR] Falló INSERT de intermediario Destinatario:",
+      icpError?.message,
+      "Code:",
+      icpError?.code
+    );
+    if (icpError?.code !== "ER_DUP_ENTRY") {
+      throw icpError;
+    }
+    console.log("[DEBUG] Intermediario ya existía (ER_DUP_ENTRY), continuando...");
+  }
+
+  // Verificar que el intermediario se creó
+  const [verificacionIcp]: any = await connection.query(
+    "SELECT 1 FROM sige_icp_intcarpor WHERE ECP_IdEcp = ? AND TIC_IdTic = 6",
+    [ecpIdEcp]
   );
+  if (!verificacionIcp || verificacionIcp.length === 0) {
+    throw new Error(
+      `Error crítico: El intermediario Destinatario no se creó para la carta de porte ${ecpIdEcp}`
+    );
+  }
 
   console.log(`[DEBUG] Primera carta porte creada exitosamente: ${ecpIdEcp}`);
   return ecpIdEcp;

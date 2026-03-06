@@ -595,6 +595,26 @@ export async function POST(req: NextRequest) {
       ecpIdEcp,
     );
 
+    // VERIFICACIÓN CRÍTICA: Confirmar que la carta de porte se creó correctamente
+    const [verificacionEcp]: any = await connection.query(
+      "SELECT ECP_IdEcp FROM sige_ecp_enccarpor WHERE ECP_IdEcp = ? AND ENT_IdEnt = ?",
+      [ecpIdEcp, entIdEnt],
+    );
+
+    if (!verificacionEcp || verificacionEcp.length === 0) {
+      console.error(
+        "[ERROR CRÍTICO] La carta de porte NO se encontró después del INSERT. ecpIdEcp:",
+        ecpIdEcp,
+        "entIdEnt:",
+        entIdEnt,
+      );
+      throw new Error(
+        `Error crítico: La carta de porte ${ecpIdEcp} no se creó correctamente para el viaje ${entIdEnt}`,
+      );
+    }
+
+    console.log("[DEBUG] Verificación OK: Carta de porte confirmada en BD");
+
     // Completar campos adicionales de localidades y provincias en carta porte
     // LOC_NomLocalidadEst = origen, LOC_NomLocalidadGran = destino
     try {
@@ -651,26 +671,58 @@ export async function POST(req: NextRequest) {
     // ============================================
 
     // Destinatario (orden 1)
-    await connection.execute(
-      `INSERT INTO sige_icp_intcarpor (
-        ECP_IdEcp,
-        TIC_IdTic,
-        ICP_Orden,
-        TIC_DescripcionTic,
-        TER_IDTerceroTic,
-        TER_RazonSocialTerTic,
-        TER_CUITTerTic
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        ecpIdEcp,
-        6, // TIC_IdTic = 6 para Destinatario (corregido)
-        1, // Orden
-        "Destinatario",
-        terIdTercero ?? 15, // Usar el TER_IDTercero resuelto
-        razonSocial,
-        terCUIT ?? "", // Usar el CUIT resuelto del tercero
-      ],
+    console.log("[DEBUG] Insertando intermediario Destinatario para ECP:", ecpIdEcp);
+    try {
+      await connection.execute(
+        `INSERT INTO sige_icp_intcarpor (
+          ECP_IdEcp,
+          TIC_IdTic,
+          ICP_Orden,
+          TIC_DescripcionTic,
+          TER_IDTerceroTic,
+          TER_RazonSocialTerTic,
+          TER_CUITTerTic
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          ecpIdEcp,
+          6, // TIC_IdTic = 6 para Destinatario (corregido)
+          1, // Orden
+          "Destinatario",
+          terIdTercero ?? 15, // Usar el TER_IDTercero resuelto
+          razonSocial,
+          terCUIT ?? "", // Usar el CUIT resuelto del tercero
+        ],
+      );
+      console.log("[DEBUG] Intermediario Destinatario insertado correctamente");
+    } catch (icpError: any) {
+      console.error(
+        "[ERROR] Falló INSERT de intermediario Destinatario:",
+        icpError?.message,
+        "Code:",
+        icpError?.code,
+      );
+      // Si es duplicado, continuar (puede pasar en reintentos)
+      if (icpError?.code !== "ER_DUP_ENTRY") {
+        throw icpError;
+      }
+      console.log("[DEBUG] Intermediario ya existía (ER_DUP_ENTRY), continuando...");
+    }
+
+    // Verificar que el intermediario se creó
+    const [verificacionIcp]: any = await connection.query(
+      "SELECT 1 FROM sige_icp_intcarpor WHERE ECP_IdEcp = ? AND TIC_IdTic = 6",
+      [ecpIdEcp],
     );
+    if (!verificacionIcp || verificacionIcp.length === 0) {
+      console.error(
+        "[ERROR CRÍTICO] El intermediario Destinatario NO se encontró después del INSERT. ecpIdEcp:",
+        ecpIdEcp,
+      );
+      throw new Error(
+        `Error crítico: El intermediario Destinatario no se creó para la carta de porte ${ecpIdEcp}`,
+      );
+    }
+    console.log("[DEBUG] Verificación OK: Intermediario Destinatario confirmado en BD");
 
     // Transportista (orden 2) - OPCIONAL por ahora
     // TODO: Agregar cuando se asigne chofer/transportista (TIC_IdTic = 8)
@@ -681,36 +733,67 @@ export async function POST(req: NextRequest) {
     // ============================================
     // PASO 4: Insertar detalle de producto en SIGE_DCP_DetCarPor
     // ============================================
-    await connection.execute(
-      `INSERT INTO SIGE_DCP_DetCarPor (
-        ecp_idecp,
-        dcp_renglondcp,
-        art_idarticulo,
-        art_desarticulo,
-        dcp_cosecha,
-        dcp_pesobruto,
-        dcp_pesotara,
-        dcp_pesoneto,
-        DCP_PesoBrutoDescarga,
-        DCP_PesoTaraDescarga,
-        DCP_PesoNetoDescarga,
-        DEP_IDDeposito
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        ecpIdEcp,
-        1, // dcp_renglondcp
-        articuloId ?? "7", // art_idarticulo (fallback '7')
-        articulo, // art_desarticulo
-        "", // dcp_cosecha
-        0.0, // dcp_pesobruto
-        0.0, // dcp_pesotara
-        0.0, // dcp_pesoneto
-        0.0, // DCP_PesoBrutoDescarga
-        0.0, // DCP_PesoTaraDescarga
-        0.0, // DCP_PesoNetoDescarga
-        1, // DEP_IDDeposito
-      ],
+    console.log("[DEBUG] Insertando detalle de producto para ECP:", ecpIdEcp);
+    try {
+      await connection.execute(
+        `INSERT INTO SIGE_DCP_DetCarPor (
+          ecp_idecp,
+          dcp_renglondcp,
+          art_idarticulo,
+          art_desarticulo,
+          dcp_cosecha,
+          dcp_pesobruto,
+          dcp_pesotara,
+          dcp_pesoneto,
+          DCP_PesoBrutoDescarga,
+          DCP_PesoTaraDescarga,
+          DCP_PesoNetoDescarga,
+          DEP_IDDeposito
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          ecpIdEcp,
+          1, // dcp_renglondcp
+          articuloId ?? "7", // art_idarticulo (fallback '7')
+          articulo, // art_desarticulo
+          "", // dcp_cosecha
+          0.0, // dcp_pesobruto
+          0.0, // dcp_pesotara
+          0.0, // dcp_pesoneto
+          0.0, // DCP_PesoBrutoDescarga
+          0.0, // DCP_PesoTaraDescarga
+          0.0, // DCP_PesoNetoDescarga
+          1, // DEP_IDDeposito
+        ],
+      );
+      console.log("[DEBUG] Detalle de producto insertado correctamente");
+    } catch (dcpError: any) {
+      console.error(
+        "[ERROR] Falló INSERT de detalle de producto:",
+        dcpError?.message,
+        "Code:",
+        dcpError?.code,
+      );
+      if (dcpError?.code !== "ER_DUP_ENTRY") {
+        throw dcpError;
+      }
+      console.log("[DEBUG] Detalle ya existía (ER_DUP_ENTRY), continuando...");
+    }
+
+    // Verificar que el detalle se creó
+    const [verificacionDcp]: any = await connection.query(
+      "SELECT 1 FROM SIGE_DCP_DetCarPor WHERE ecp_idecp = ?",
+      [ecpIdEcp],
     );
+    if (!verificacionDcp || verificacionDcp.length === 0) {
+      console.error(
+        "[ERROR CRÍTICO] El detalle de producto NO se encontró después del INSERT. ecpIdEcp:",
+        ecpIdEcp,
+      );
+      throw new Error(
+        `Error crítico: El detalle de producto no se creó para la carta de porte ${ecpIdEcp}`,
+      );
+    }
+    console.log("[DEBUG] Verificación OK: Detalle de producto confirmado en BD");
 
     // ============================================
     // PASO 5: Detalle de Negocio (sige_dnt_detnegtra)
