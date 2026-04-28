@@ -88,6 +88,7 @@ export default function ViajeModal({
     pendientes: "",
     tarifa: "",
     vendedor: "",
+    fecha: new Date().toISOString().split("T")[0], // Fecha por defecto: hoy
   });
   const [terceros, setTerceros] = useState<Tercero[]>([]);
   const [loadingTerceros, setLoadingTerceros] = useState(false);
@@ -127,6 +128,7 @@ export default function ViajeModal({
         pendientes: viaje.cuposPendientes?.toString() || "",
         tarifa: viaje.tarifa?.toString() || "",
         vendedor: viaje.vendedor || "",
+        fecha: viaje.fecha ? viaje.fecha.split("T")[0] : new Date().toISOString().split("T")[0],
       });
     } else {
       setForm({
@@ -142,6 +144,7 @@ export default function ViajeModal({
         pendientes: "",
         tarifa: "",
         vendedor: "",
+        fecha: new Date().toISOString().split("T")[0], // Fecha por defecto: hoy
       });
     }
   }, [viaje]);
@@ -511,10 +514,25 @@ export default function ViajeModal({
           )}
 
           {!viaje && (
-            <div className="col-span-full bg-neutral-700 p-3 rounded-lg text-center">
-              <span className="text-sm text-neutral-300">
-                El número de viaje se generará automáticamente
-              </span>
+            <div className="col-span-full bg-neutral-800 p-3 rounded-lg">
+              <span className="text-sm text-neutral-400">Número: </span>
+              <span className="text-neutral-300 italic">se generará automáticamente</span>
+            </div>
+          )}
+
+          {/* Fecha del Negocio - Solo para nuevo viaje */}
+          {!viaje && (
+            <div className="md:col-span-1">
+              <label className="block text-sm font-semibold text-neutral-200 mb-2">
+                Fecha del Negocio
+              </label>
+              <input
+                type="date"
+                name="fecha"
+                value={form.fecha}
+                onChange={handleChange}
+                className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base [color-scheme:dark]"
+              />
             </div>
           )}
 

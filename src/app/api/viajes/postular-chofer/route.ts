@@ -219,6 +219,61 @@ async function crearPrimeraCartaPorte(
     );
   }
 
+  // Insertar detalle de producto en SIGE_DCP_DetCarPor
+  let articuloId: string = "7";
+  let articuloDesc: string = "";
+  try {
+    const [dntRows]: any = await connection.query(
+      `SELECT ART_IdArticulo, DNT_Detalle FROM sige_dnt_detnegtra WHERE ENT_IdEnt = ? LIMIT 1`,
+      [viajeId]
+    );
+    if (Array.isArray(dntRows) && dntRows.length > 0) {
+      articuloId = String(dntRows[0].ART_IdArticulo || "7");
+      articuloDesc = String(dntRows[0].DNT_Detalle || "");
+    }
+  } catch (e) {
+    console.log("[DEBUG] No se pudo obtener artículo de sige_dnt_detnegtra, usando fallback");
+  }
+
+  try {
+    await connection.execute(
+      `INSERT INTO SIGE_DCP_DetCarPor (
+        ecp_idecp,
+        dcp_renglondcp,
+        art_idarticulo,
+        art_desarticulo,
+        dcp_cosecha,
+        dcp_pesobruto,
+        dcp_pesotara,
+        dcp_pesoneto,
+        DCP_PesoBrutoDescarga,
+        DCP_PesoTaraDescarga,
+        DCP_PesoNetoDescarga,
+        DEP_IDDeposito
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        ecpIdEcp,
+        1,
+        articuloId,
+        articuloDesc,
+        "",
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1,
+      ]
+    );
+    console.log(`[DEBUG] Detalle de producto (DCP) insertado para carta porte ${ecpIdEcp}`);
+  } catch (dcpError: any) {
+    if (dcpError?.code !== "ER_DUP_ENTRY") {
+      console.error("[ERROR] Falló INSERT de DCP en crearPrimeraCartaPorte:", dcpError?.message);
+      throw dcpError;
+    }
+  }
+
   console.log(`[DEBUG] Primera carta porte creada exitosamente: ${ecpIdEcp}`);
   return ecpIdEcp;
 }
@@ -469,7 +524,8 @@ export async function POST(request: NextRequest) {
             // Esto garantiza que tenga los mismos datos de localidad/provincia
             const ecpOriginal = ecpIds[0]; // La primera ECP tiene todos los datos completos
 
-            // Copiar todos los datos desde la ECP original, pero actualizar el VEN_IdVendPostula con el vendedor de esta postulación
+            // Copiar todos los datos desde la ECP original, incluyendo la fecha del negocio (no NOW())
+            // Esto asegura que la postulación herede la fecha programada del negocio
             await connection.execute(
               `INSERT INTO sige_ecp_enccarpor (
                  ECP_IdEcp, ECP_Numero, ECP_Fecha, ECP_FechaVencimiento,
@@ -481,7 +537,7 @@ export async function POST(request: NextRequest) {
                  ENT_IdEnt, VEN_IdVendPostula, USU_IdUsuario, EQU_IDEquipo,
                  ECP_PreCartaPorte, ECP_CancCompra, ECP_CancVenta
                )
-               SELECT ?, ?, NOW(), NOW(),
+               SELECT ?, ?, ECP.ECP_Fecha, ECP.ECP_FechaVencimiento,
                       ECP.TCP_IDTipoComp, ECP.EPC_IdEpd,
                       ECP.TER_IDTerceroEst, ECP.TER_RazonSocialTerEst,
                       ECP.LOC_NomLocalidadEst, ECP.LOC_IDLocalidadEst, ECP.PRO_IDProvinciaEst, ECP.PRO_NomProvinciaEst,

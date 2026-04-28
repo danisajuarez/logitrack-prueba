@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
       cuposReservados,
       tarifa,
       vendedor,
+      fecha, // Fecha opcional desde el frontend
     } = data;
 
     // Validaciones básicas
@@ -77,7 +78,18 @@ export async function POST(req: NextRequest) {
 
     // Vendedor: puede provenir del selector o de la sesión; si no viene, continuar
 
-    const fechaActual = new Date();
+    // Fecha: usar la fecha del formulario si viene, o la fecha actual como fallback
+    let fechaActual: Date;
+    if (fecha && typeof fecha === "string" && fecha.trim() !== "") {
+      // El frontend envía formato YYYY-MM-DD, parseamos y agregamos hora actual
+      const [year, month, day] = fecha.split("-").map(Number);
+      fechaActual = new Date(year, month - 1, day);
+      // Agregar la hora actual para mantener consistencia
+      const now = new Date();
+      fechaActual.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+    } else {
+      fechaActual = new Date();
+    }
     const fechaSQL = fechaActual.toISOString().slice(0, 19).replace("T", " ");
 
     // Obtener conexión para transacción

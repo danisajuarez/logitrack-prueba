@@ -167,6 +167,10 @@ export default function ChoferModal({
   const [tempEstacionId, setTempEstacionId] = useState<number | null>(null);
   const [tempTipo, setTempTipo] = useState<TipoEvento>("combustible");
   const [tempCantidad, setTempCantidad] = useState<string>("");
+  // Fecha de operación: permite cargar tickets con fecha real (no la del negocio)
+  const [tempFechaOperacion, setTempFechaOperacion] = useState<string>(
+    new Date().toISOString().split("T")[0]
+  );
 
   const [savingAutorizaciones, setSavingAutorizaciones] = useState(false);
   const [autorizacionesGuardadas, setAutorizacionesGuardadas] = useState<
@@ -883,6 +887,7 @@ export default function ChoferModal({
         estacionId: tempEstacionId,
         patChasis: row.patChasis || null,
         patAcoplado: row.patAcoplado || null,
+        fechaOperacion: tempFechaOperacion, // Fecha real de la operación (no la del negocio)
       };
 
       if (tempTipo === "adelanto") {
@@ -1037,6 +1042,7 @@ export default function ChoferModal({
           estacionId,
           patChasis: row.patChasis || null,
           patAcoplado: row.patAcoplado || null,
+          fechaOperacion: tempFechaOperacion, // Fecha real de la operación (no la del negocio)
         };
 
         if (datos.adelantos.length > 0) {
@@ -1772,6 +1778,20 @@ export default function ChoferModal({
                           </div>
                         </div>
 
+                        {/* Fecha de Operación */}
+                        <div>
+                          <label className="text-xs text-neutral-400 mb-1 block">
+                            Fecha de Carga
+                          </label>
+                          <input
+                            type="date"
+                            value={tempFechaOperacion}
+                            onChange={(e) => setTempFechaOperacion(e.target.value)}
+                            className="w-full rounded bg-neutral-900 px-3 py-2 text-sm border border-neutral-700 min-h-[44px] [color-scheme:dark]"
+                            disabled={savingAutorizaciones}
+                          />
+                        </div>
+
                         {/* Cantidad */}
                         <div>
                           <label className="text-xs text-neutral-400 mb-1 block">
@@ -2376,6 +2396,20 @@ export default function ChoferModal({
                                           💸
                                         </button>
                                       </div>
+                                    </div>
+
+                                    {/* Fecha de Operación */}
+                                    <div>
+                                      <label className="text-xs text-neutral-400 mb-1 block">
+                                        Fecha
+                                      </label>
+                                      <input
+                                        type="date"
+                                        value={tempFechaOperacion}
+                                        onChange={(e) => setTempFechaOperacion(e.target.value)}
+                                        className="w-full rounded bg-neutral-900 px-2 py-1.5 text-xs border border-neutral-700 [color-scheme:dark]"
+                                        disabled={savingAutorizaciones}
+                                      />
                                     </div>
 
                                     {/* Cantidad */}

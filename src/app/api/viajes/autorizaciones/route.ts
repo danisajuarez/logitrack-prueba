@@ -27,6 +27,7 @@ interface AutorizacionRequest {
   patAcoplado?: string | null;
   adelantos?: Array<{ importe: number }>;
   combustibles?: Array<{ litros: number; precioUnitario?: number }>;
+  fechaOperacion?: string; // Fecha real de la operación (YYYY-MM-DD). Si no viene, usa fecha actual.
 }
 
 // Artículos según sistema
@@ -59,7 +60,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { adelantos, combustibles } = body;
+    const { adelantos, combustibles, fechaOperacion } = body;
+
+    // Fecha de operación: si viene del frontend usarla, sino usar fecha actual
+    // Esto permite cargar tickets atrasados con su fecha real
+    let fechaSQL: string;
+    if (fechaOperacion && typeof fechaOperacion === "string" && fechaOperacion.trim() !== "") {
+      // Validar formato YYYY-MM-DD
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (dateRegex.test(fechaOperacion.trim())) {
+        fechaSQL = fechaOperacion.trim();
+      } else {
+        // Formato inválido, usar fecha actual
+        fechaSQL = new Date().toISOString().split("T")[0];
+      }
+    } else {
+      // Sin fecha especificada, usar fecha actual
+      fechaSQL = new Date().toISOString().split("T")[0];
+    }
+    console.log("[DEBUG API] Fecha de operación a usar:", fechaSQL);
 
     // Validar que al menos haya un array con elementos
     const hasAdelantos = Array.isArray(adelantos) && adelantos.length > 0;
@@ -219,15 +238,15 @@ export async function POST(request: NextRequest) {
             choferId
           );
 
-          // Intentar insertar con CHO_IdChofer si la columna existe
+          // Intentar insertar con CHO_IdChofer y OCP_Fecha si las columnas existen
           try {
             const [result] = await connection.query(
               `INSERT INTO SIGE_OCP_OrdCarPor
                (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
                 ART_IdArticulo, ART_DesArticulo, OCP_Importe,
                 OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
-                EFO_IdEfcFac, EFO_IdEfcRp, CHO_IdChofer)
-               VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, 0, 0, 0, 0, ?)`,
+                EFO_IdEfcFac, EFO_IdEfcRp, CHO_IdChofer, OCP_Fecha)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, 0, 0, 0, 0, ?, ?)`,
               [
                 ecpIdEcp,
                 renglon,
@@ -238,40 +257,69 @@ export async function POST(request: NextRequest) {
                 importe,
                 importe, // OCP_CantPend = importe para adelantos
                 choferId, // Guardar el ID del chofer
+                fechaSQL, // Fecha real de la operación
               ]
             );
             console.log(
-              "[DEBUG API] Adelanto insertado correctamente con choferId"
+              "[DEBUG API] Adelanto insertado correctamente con choferId y fecha:", fechaSQL
             );
             adelantosIds.push(renglon);
           } catch (e: any) {
-            // Si la columna CHO_IdChofer no existe, insertar sin ella
+            // Si alguna columna no existe, intentar sin ella
             if (e?.code === "ER_BAD_FIELD_ERROR") {
               console.log(
-                "[DEBUG API] Columna CHO_IdChofer no existe, insertando sin ella"
+                "[DEBUG API] Alguna columna no existe, intentando insert básico"
               );
-              const [result] = await connection.query(
-                `INSERT INTO SIGE_OCP_OrdCarPor
-                 (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
-                  ART_IdArticulo, ART_DesArticulo, OCP_Importe,
-                  OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
-                  EFO_IdEfcFac, EFO_IdEfcRp)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, 0, 0, 0, 0)`,
-                [
-                  ecpIdEcp,
-                  renglon,
-                  estacionId,
-                  estacionRazonSocial,
-                  ARTICULO_ADELANTO_ID,
-                  ARTICULO_ADELANTO_DESC,
-                  importe,
-                  importe, // OCP_CantPend = importe para adelantos
-                ]
-              );
-              console.log(
-                "[DEBUG API] Adelanto insertado sin choferId (columna no existe)"
-              );
-              adelantosIds.push(renglon);
+              try {
+                // Intentar con fecha pero sin choferId
+                const [result] = await connection.query(
+                  `INSERT INTO SIGE_OCP_OrdCarPor
+                   (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
+                    ART_IdArticulo, ART_DesArticulo, OCP_Importe,
+                    OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
+                    EFO_IdEfcFac, EFO_IdEfcRp, OCP_Fecha)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, 0, 0, 0, 0, ?)`,
+                  [
+                    ecpIdEcp,
+                    renglon,
+                    estacionId,
+                    estacionRazonSocial,
+                    ARTICULO_ADELANTO_ID,
+                    ARTICULO_ADELANTO_DESC,
+                    importe,
+                    importe,
+                    fechaSQL,
+                  ]
+                );
+                console.log("[DEBUG API] Adelanto insertado con fecha, sin choferId");
+                adelantosIds.push(renglon);
+              } catch (e2: any) {
+                // Si OCP_Fecha tampoco existe, insertar sin ambas
+                if (e2?.code === "ER_BAD_FIELD_ERROR") {
+                  const [result] = await connection.query(
+                    `INSERT INTO SIGE_OCP_OrdCarPor
+                     (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
+                      ART_IdArticulo, ART_DesArticulo, OCP_Importe,
+                      OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
+                      EFO_IdEfcFac, EFO_IdEfcRp)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, 0, 0, 0, 0)`,
+                    [
+                      ecpIdEcp,
+                      renglon,
+                      estacionId,
+                      estacionRazonSocial,
+                      ARTICULO_ADELANTO_ID,
+                      ARTICULO_ADELANTO_DESC,
+                      importe,
+                      importe,
+                    ]
+                  );
+                  console.log("[DEBUG API] Adelanto insertado sin choferId ni fecha (columnas no existen)");
+                  adelantosIds.push(renglon);
+                } else {
+                  throw e2;
+                }
+              }
             } else {
               throw e;
             }
@@ -306,15 +354,15 @@ export async function POST(request: NextRequest) {
             { litros, precioUnitario, importe, choferId }
           );
 
-          // Intentar insertar con CHO_IdChofer si la columna existe
+          // Intentar insertar con CHO_IdChofer y OCP_Fecha si las columnas existen
           try {
             await connection.query(
               `INSERT INTO SIGE_OCP_OrdCarPor
                (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
                 ART_IdArticulo, ART_DesArticulo, OCP_Importe,
                 OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
-                EFO_IdEfcFac, EFO_IdEfcRp, CHO_IdChofer)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, ?)`,
+                EFO_IdEfcFac, EFO_IdEfcRp, CHO_IdChofer, OCP_Fecha)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, ?, ?)`,
               [
                 ecpIdEcp,
                 renglon,
@@ -326,41 +374,71 @@ export async function POST(request: NextRequest) {
                 litros,
                 litros,
                 choferId, // Guardar el ID del chofer
+                fechaSQL, // Fecha real de la operación
               ]
             );
             console.log(
-              "[DEBUG API] Combustible insertado correctamente con choferId"
+              "[DEBUG API] Combustible insertado correctamente con choferId y fecha:", fechaSQL
             );
             combustiblesIds.push(renglon);
           } catch (e: any) {
-            // Si la columna CHO_IdChofer no existe, insertar sin ella
+            // Si alguna columna no existe, intentar sin ella
             if (e?.code === "ER_BAD_FIELD_ERROR") {
               console.log(
-                "[DEBUG API] Columna CHO_IdChofer no existe, insertando sin ella"
+                "[DEBUG API] Alguna columna no existe, intentando insert básico"
               );
-              await connection.query(
-                `INSERT INTO SIGE_OCP_OrdCarPor
-                 (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
-                  ART_IdArticulo, ART_DesArticulo, OCP_Importe,
-                  OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
-                  EFO_IdEfcFac, EFO_IdEfcRp)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0)`,
-                [
-                  ecpIdEcp,
-                  renglon,
-                  estacionId,
-                  estacionRazonSocial,
-                  ARTICULO_COMBUSTIBLE_ID,
-                  ARTICULO_COMBUSTIBLE_DESC,
-                  importe,
-                  litros,
-                  litros,
-                ]
-              );
-              console.log(
-                "[DEBUG API] Combustible insertado sin choferId (columna no existe)"
-              );
-              combustiblesIds.push(renglon);
+              try {
+                // Intentar con fecha pero sin choferId
+                await connection.query(
+                  `INSERT INTO SIGE_OCP_OrdCarPor
+                   (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
+                    ART_IdArticulo, ART_DesArticulo, OCP_Importe,
+                    OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
+                    EFO_IdEfcFac, EFO_IdEfcRp, OCP_Fecha)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, ?)`,
+                  [
+                    ecpIdEcp,
+                    renglon,
+                    estacionId,
+                    estacionRazonSocial,
+                    ARTICULO_COMBUSTIBLE_ID,
+                    ARTICULO_COMBUSTIBLE_DESC,
+                    importe,
+                    litros,
+                    litros,
+                    fechaSQL,
+                  ]
+                );
+                console.log("[DEBUG API] Combustible insertado con fecha, sin choferId");
+                combustiblesIds.push(renglon);
+              } catch (e2: any) {
+                // Si OCP_Fecha tampoco existe, insertar sin ambas
+                if (e2?.code === "ER_BAD_FIELD_ERROR") {
+                  await connection.query(
+                    `INSERT INTO SIGE_OCP_OrdCarPor
+                     (ECP_IdEcp, OCP_Renglon, TER_IdTercero, TER_RazonSocialTer,
+                      ART_IdArticulo, ART_DesArticulo, OCP_Importe,
+                      OCP_Cantidad, OCP_CantPend, OCP_CantReal, OCP_CantRealPend,
+                      EFO_IdEfcFac, EFO_IdEfcRp)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0)`,
+                    [
+                      ecpIdEcp,
+                      renglon,
+                      estacionId,
+                      estacionRazonSocial,
+                      ARTICULO_COMBUSTIBLE_ID,
+                      ARTICULO_COMBUSTIBLE_DESC,
+                      importe,
+                      litros,
+                      litros,
+                    ]
+                  );
+                  console.log("[DEBUG API] Combustible insertado sin choferId ni fecha (columnas no existen)");
+                  combustiblesIds.push(renglon);
+                } else {
+                  throw e2;
+                }
+              }
             } else {
               throw e;
             }
