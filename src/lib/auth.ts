@@ -3,71 +3,10 @@ import Credentials from "next-auth/providers/credentials";
 import { db } from "./db";
 import { RowDataPacket } from "mysql2";
 import bcrypt from "bcryptjs";
+import { authConfig } from "./auth.config";
 
 export const { auth, signIn, signOut, handlers } = NextAuth({
-  pages: {
-    signIn: "/login",
-  },
-  session: {
-    strategy: "jwt",
-    maxAge: 60 * 60, // 1 hora de inactividad
-    updateAge: 0, // Actualizar en cada request para trackear inactividad
-  },
-  cookies: {
-    sessionToken: {
-      name: `next-auth.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-      }
-    }
-  },
-  callbacks: {
-    authorized({ auth, request: { nextUrl } }) {
-      const isLoggedIn = !!auth?.user;
-      const isOnDashboard = nextUrl.pathname.startsWith("/");
-      const isOnLoginPage = nextUrl.pathname.startsWith("/login");
-
-      if (isOnLoginPage) {
-        if (isLoggedIn) return Response.redirect(new URL("/viajes", nextUrl));
-        return true;
-      }
-
-      if (!isLoggedIn && !isOnLoginPage) {
-        return false;
-      }
-
-      return true;
-    },
-    async jwt({ token, user, trigger }) {
-      if (user) {
-        token.id = (user as any).id;
-        token.name = (user as any).name;
-        token.username = (user as any).username;
-        token.vendedorId = (user as any).vendedorId ?? null;
-        token.vendedorNombre = (user as any).vendedorNombre ?? null;
-        // Inicializar timestamp en el primer login
-        token.lastActivity = Date.now();
-      } else {
-        // Actualizar timestamp de última actividad en cada request
-        token.lastActivity = Date.now();
-      }
-
-      return token;
-    },
-    async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = (token as any).id as string;
-        session.user.name = (token as any).name as string;
-        (session.user as any).username = (token as any).username as string | undefined;
-        (session.user as any).vendedorId = (token as any).vendedorId as number | null | undefined;
-        (session.user as any).vendedorNombre = (token as any).vendedorNombre as string | null | undefined;
-      }
-      return session;
-    },
-  },
+  ...authConfig,
   providers: [
     Credentials({
       async authorize(credentials) {
