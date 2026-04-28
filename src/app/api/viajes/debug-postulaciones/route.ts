@@ -42,12 +42,20 @@ export async function GET(req: NextRequest) {
         [ecp.ECP_IdEcp]
       );
 
+      const [dcpRows]: any = await db.query(
+        `SELECT ecp_idecp, dcp_renglondcp, art_idarticulo, art_desarticulo
+         FROM SIGE_DCP_DetCarPor
+         WHERE ecp_idecp = ?`,
+        [ecp.ECP_IdEcp]
+      );
+
       ecpDetails.push({
         ecp_id: ecp.ECP_IdEcp,
         ecp_numero: ecp.ECP_Numero,
         pat_camion: ecp.ECP_PatCamion,
         pat_acoplado: ecp.ECP_PatAcoplado,
         vendedor_id: ecp.VEN_IdVendPostula,
+        dcp: dcpRows.length > 0 ? dcpRows : "SIN DCP ❌",
         intermediarios: icpRows.map((icp: any) => ({
           tipo: icp.TIC_IdTic === 8 ? 'Transportista' : icp.TIC_IdTic === 9 ? 'Chofer' : 'Otro',
           tipo_id: icp.TIC_IdTic,
