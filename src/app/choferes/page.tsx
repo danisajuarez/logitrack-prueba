@@ -223,7 +223,7 @@ export default function ChoferesPage() {
 
                               {detalleChofer.transportista && (
                                 <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg px-4 py-3 border border-orange-100 dark:border-orange-800">
-                                  <p className="text-xs font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wide mb-2">Transporte (dueño del camión)</p>
+                                  <p className="text-xs font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wide mb-2">Transporte</p>
                                   <div className="grid grid-cols-2 gap-3">
                                     <Campo label="Razón Social" value={detalleChofer.transportista.nombre} full />
                                     <Campo label="CUIT" value={detalleChofer.transportista.cuit} />
