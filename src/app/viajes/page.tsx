@@ -41,16 +41,48 @@ export default function ViajesPage() {
     null
   );
 
-  const [isModalOpen, setIsModalOpen] = useState(false); // <-- Estado del modal
-  const [isChoferModalOpen, setIsChoferModalOpen] = useState(false); // <-- Estado del modal de chofer
-  const [viajeParaChofer, setViajeParaChofer] = useState<Viaje | null>(null); // <-- Viaje seleccionado para asignar chofer
-  const [noHayViajes, setNoHayViajes] = useState(false); // mostrar mensaje si no hay viajes
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isChoferModalOpen, setIsChoferModalOpen] = useState(false);
+  const [viajeParaChofer, setViajeParaChofer] = useState<Viaje | null>(null);
+  const [noHayViajes, setNoHayViajes] = useState(false);
+
+  // Filtro por chofer
+  interface ChoferOption { id: number; nombre: string; }
+  const [choferes, setChoferes] = useState<ChoferOption[]>([]);
+  const [choferSeleccionado, setChoferSeleccionado] = useState<number | "">("");
+  const [choferTexto, setChoferTexto] = useState("");
+  const [choferDropdownAbierto, setChoferDropdownAbierto] = useState(false);
+  const [viajeIdsPorChofer, setViajeIdsPorChofer] = useState<number[] | null>(null);
+  const [loadingChoferes, setLoadingChoferes] = useState(false);
+  const [loadingChoferFiltro, setLoadingChoferFiltro] = useState(false);
   const [notification, setNotification] = useState<{
     type: "success" | "error" | "warning" | "info";
     title: string;
     message?: string;
     isVisible: boolean;
   }>({ type: "success", title: "", message: "", isVisible: false });
+
+  useEffect(() => {
+    setLoadingChoferes(true);
+    fetch("/api/choferes")
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setChoferes(data); })
+      .catch(() => {})
+      .finally(() => setLoadingChoferes(false));
+  }, []);
+
+  useEffect(() => {
+    if (!choferSeleccionado) {
+      setViajeIdsPorChofer(null);
+      return;
+    }
+    setLoadingChoferFiltro(true);
+    fetch(`/api/viajes/por-chofer?choferId=${choferSeleccionado}`)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data.ids)) setViajeIdsPorChofer(data.ids); })
+      .catch(() => setViajeIdsPorChofer([]))
+      .finally(() => setLoadingChoferFiltro(false));
+  }, [choferSeleccionado]);
 
   const dateToYMD = (d: Date) => {
     const yyyy = d.getFullYear();
@@ -90,7 +122,11 @@ export default function ViajesPage() {
     loadViajes();
   }, [loadViajes]);
 
-  const filtrados = Array.isArray(viajes) ? viajes : [];
+  const filtrados = Array.isArray(viajes)
+    ? viajeIdsPorChofer !== null
+      ? viajes.filter((v) => viajeIdsPorChofer.includes(v.id))
+      : viajes
+    : [];
 
   return (
     <main className="min-h-screen  bg-gray-50 dark:bg-neutral-900">
@@ -102,25 +138,46 @@ export default function ViajesPage() {
           </h1>
         </div>
         <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
-          <a
-            href="/"
-            className="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 shadow-md hover:shadow-lg"
-          >
-            <svg
-              className="w-5 h-5 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div className="flex items-center gap-2 flex-wrap">
+            <a
+              href="/"
+              className="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 shadow-md hover:shadow-lg"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-              />
-            </svg>
-            Estadísticas
-          </a>
+              <svg
+                className="w-5 h-5 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
+              </svg>
+              Estadísticas
+            </a>
+            <a
+              href="/choferes"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-md hover:shadow-lg"
+            >
+              <svg
+                className="w-5 h-5 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                />
+              </svg>
+              Choferes
+            </a>
+          </div>
           <button
             onClick={() => {
               setViajeSeleccionado(null);
@@ -162,6 +219,9 @@ export default function ViajesPage() {
                 setFechaDesde("");
                 setFechaHasta("");
                 setMinPendientes("");
+                setChoferSeleccionado("");
+                setChoferTexto("");
+                setViajeIdsPorChofer(null);
                 setNoHayViajes(false);
               }}
               className="inline-flex items-center px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-md transition-colors duration-200"
@@ -184,6 +244,79 @@ export default function ViajesPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Filtro por chofer */}
+            <div className="relative">
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                Chofer
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Buscar chofer..."
+                  value={choferTexto}
+                  onChange={(e) => {
+                    setChoferTexto(e.target.value);
+                    setChoferSeleccionado("");
+                    setViajeIdsPorChofer(null);
+                    setChoferDropdownAbierto(true);
+                  }}
+                  onFocus={() => setChoferDropdownAbierto(true)}
+                  onBlur={() => setTimeout(() => setChoferDropdownAbierto(false), 150)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors pr-8"
+                />
+                {loadingChoferFiltro && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                    <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+                {choferTexto && !loadingChoferFiltro && (
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setChoferTexto("");
+                      setChoferSeleccionado("");
+                      setViajeIdsPorChofer(null);
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              {/* Dropdown sugerencias */}
+              {choferDropdownAbierto && choferTexto.length >= 1 && (
+                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-600 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                  {loadingChoferes ? (
+                    <div className="px-3 py-3 text-sm text-neutral-400">Cargando...</div>
+                  ) : choferes.filter(c => c.nombre.toLowerCase().includes(choferTexto.toLowerCase())).length === 0 ? (
+                    <div className="px-3 py-3 text-sm text-neutral-400">Sin resultados</div>
+                  ) : (
+                    choferes
+                      .filter(c => c.nombre.toLowerCase().includes(choferTexto.toLowerCase()))
+                      .slice(0, 20)
+                      .map((c) => (
+                        <button
+                          key={c.id}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setChoferTexto(c.nombre);
+                            setChoferSeleccionado(c.id);
+                            setChoferDropdownAbierto(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 dark:hover:bg-neutral-700 transition-colors ${
+                            choferSeleccionado === c.id ? "bg-blue-50 dark:bg-neutral-700 font-medium" : "text-neutral-900 dark:text-white"
+                          }`}
+                        >
+                          {c.nombre}
+                        </button>
+                      ))
+                  )}
+                </div>
+              )}
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                 Razón Social
@@ -237,7 +370,7 @@ export default function ViajesPage() {
           </div>
 
           {/* Indicador de filtros activos */}
-          {(razonSearch || fechaDesde || fechaHasta || minPendientes) && (
+          {(razonSearch || fechaDesde || fechaHasta || minPendientes || choferSeleccionado || choferTexto) && (
             <div className="mt-3 flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
               <svg
                 className="w-4 h-4"
@@ -271,6 +404,11 @@ export default function ViajesPage() {
               {minPendientes && (
                 <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">
                   Min. Pendientes: {minPendientes}
+                </span>
+              )}
+              {choferSeleccionado && choferTexto && (
+                <span className="bg-orange-100 dark:bg-orange-900 px-2 py-1 rounded text-xs">
+                  Chofer: {choferTexto}
                 </span>
               )}
             </div>

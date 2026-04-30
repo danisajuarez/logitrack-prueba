@@ -9,6 +9,7 @@ export async function GET() {
     FROM sige_tvp_terveipat tvp
     JOIN sige_ter_tercero ch
       ON ch.TER_IDTercero = tvp.TER_IdTerceroAsoc
+    WHERE ch.TTE_IDTipoTercero = 2
     GROUP BY ch.TER_IDTercero, ch.TER_RazonSocialTer
     ORDER BY ch.TER_RazonSocialTer
   `);
