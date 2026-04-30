@@ -46,15 +46,17 @@ export default function ViajesPage() {
   const [viajeParaChofer, setViajeParaChofer] = useState<Viaje | null>(null);
   const [noHayViajes, setNoHayViajes] = useState(false);
 
-  // Filtro por chofer
-  interface ChoferOption { id: number; nombre: string; }
-  const [choferes, setChoferes] = useState<ChoferOption[]>([]);
-  const [choferSeleccionado, setChoferSeleccionado] = useState<number | "">("");
-  const [choferTexto, setChoferTexto] = useState("");
-  const [choferDropdownAbierto, setChoferDropdownAbierto] = useState(false);
-  const [viajeIdsPorChofer, setViajeIdsPorChofer] = useState<number[] | null>(null);
-  const [loadingChoferes, setLoadingChoferes] = useState(false);
-  const [loadingChoferFiltro, setLoadingChoferFiltro] = useState(false);
+  // Buscador unificado
+  type TipoBusqueda = "cliente" | "chofer" | "transporte";
+  interface OpcionBusqueda { id: number; nombre: string; tipo: TipoBusqueda; }
+  const [opcionesBusqueda, setOpcionesBusqueda] = useState<OpcionBusqueda[]>([]);
+  const [busquedaTexto, setBusquedaTexto] = useState("");
+  const [busquedaDropdownAbierto, setBusquedaDropdownAbierto] = useState(false);
+  const [busquedaSeleccionada, setBusquedaSeleccionada] = useState<OpcionBusqueda | null>(null);
+  const [viajeIdsFiltrados, setViajeIdsFiltrados] = useState<number[] | null>(null);
+  const [loadingOpciones, setLoadingOpciones] = useState(false);
+  const [loadingBusquedaFiltro, setLoadingBusquedaFiltro] = useState(false);
+
   const [notification, setNotification] = useState<{
     type: "success" | "error" | "warning" | "info";
     title: string;
@@ -63,26 +65,38 @@ export default function ViajesPage() {
   }>({ type: "success", title: "", message: "", isVisible: false });
 
   useEffect(() => {
-    setLoadingChoferes(true);
-    fetch("/api/choferes")
-      .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setChoferes(data); })
-      .catch(() => {})
-      .finally(() => setLoadingChoferes(false));
+    setLoadingOpciones(true);
+    Promise.all([
+      fetch("/api/choferes").then((r) => r.json()).catch(() => []),
+      fetch("/api/transportistas").then((r) => r.json()).catch(() => []),
+    ]).then(([choferes, transportistas]) => {
+      const opciones: OpcionBusqueda[] = [
+        ...(Array.isArray(choferes) ? choferes.map((c: any) => ({ id: c.id, nombre: c.nombre, tipo: "chofer" as TipoBusqueda })) : []),
+        ...(Array.isArray(transportistas) ? transportistas.map((t: any) => ({ id: t.id, nombre: t.nombre, tipo: "transporte" as TipoBusqueda })) : []),
+      ];
+      setOpcionesBusqueda(opciones);
+    }).finally(() => setLoadingOpciones(false));
   }, []);
 
   useEffect(() => {
-    if (!choferSeleccionado) {
-      setViajeIdsPorChofer(null);
+    if (!busquedaSeleccionada) {
+      setViajeIdsFiltrados(null);
       return;
     }
-    setLoadingChoferFiltro(true);
-    fetch(`/api/viajes/por-chofer?choferId=${choferSeleccionado}`)
+    if (busquedaSeleccionada.tipo === "cliente") {
+      setViajeIdsFiltrados(null);
+      return;
+    }
+    setLoadingBusquedaFiltro(true);
+    const url = busquedaSeleccionada.tipo === "chofer"
+      ? `/api/viajes/por-chofer?choferId=${busquedaSeleccionada.id}`
+      : `/api/viajes/por-transportista?transportistaId=${busquedaSeleccionada.id}`;
+    fetch(url)
       .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data.ids)) setViajeIdsPorChofer(data.ids); })
-      .catch(() => setViajeIdsPorChofer([]))
-      .finally(() => setLoadingChoferFiltro(false));
-  }, [choferSeleccionado]);
+      .then((data) => { if (Array.isArray(data.ids)) setViajeIdsFiltrados(data.ids); })
+      .catch(() => setViajeIdsFiltrados([]))
+      .finally(() => setLoadingBusquedaFiltro(false));
+  }, [busquedaSeleccionada]);
 
   const dateToYMD = (d: Date) => {
     const yyyy = d.getFullYear();
@@ -91,15 +105,17 @@ export default function ViajesPage() {
     return `${yyyy}-${mm}-${dd}`;
   };
 
+  // Si la búsqueda seleccionada es un cliente, se filtra por razonSocial en el API
+  const razonSocialParam = busquedaSeleccionada?.tipo === "cliente" ? busquedaSeleccionada.nombre : razonSearch;
+
   const loadViajes = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-
       if (fechaDesde) params.append("fechaDesde", fechaDesde);
       if (fechaHasta) params.append("fechaHasta", fechaHasta);
       if (minPendientes) params.append("minCuposPendientes", minPendientes);
-      if (razonSearch) params.append("razonSocial", razonSearch);
+      if (razonSocialParam) params.append("razonSocial", razonSocialParam);
 
       const res = await fetch(`/api/viajes/GET?${params.toString()}`);
       const data = await res.json();
@@ -107,24 +123,22 @@ export default function ViajesPage() {
         setViajes(data);
         setNoHayViajes(data.length === 0);
       } else {
-        console.error("La respuesta no es un array:", data);
         setViajes([]);
       }
     } catch (error) {
-      console.error("Error al obtener viajes:", error);
       setViajes([]);
     } finally {
       setLoading(false);
     }
-  }, [fechaDesde, fechaHasta, minPendientes, razonSearch]);
+  }, [fechaDesde, fechaHasta, minPendientes, razonSocialParam]);
 
   useEffect(() => {
     loadViajes();
   }, [loadViajes]);
 
   const filtrados = Array.isArray(viajes)
-    ? viajeIdsPorChofer !== null
-      ? viajes.filter((v) => viajeIdsPorChofer.includes(v.id))
+    ? viajeIdsFiltrados !== null
+      ? viajes.filter((v) => viajeIdsFiltrados.includes(v.id))
       : viajes
     : [];
 
@@ -157,25 +171,6 @@ export default function ViajesPage() {
                 />
               </svg>
               Estadísticas
-            </a>
-            <a
-              href="/choferes"
-              className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-md hover:shadow-lg"
-            >
-              <svg
-                className="w-5 h-5 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                />
-              </svg>
-              Choferes
             </a>
           </div>
           <button
@@ -219,117 +214,152 @@ export default function ViajesPage() {
                 setFechaDesde("");
                 setFechaHasta("");
                 setMinPendientes("");
-                setChoferSeleccionado("");
-                setChoferTexto("");
-                setViajeIdsPorChofer(null);
+                setBusquedaTexto("");
+                setBusquedaSeleccionada(null);
+                setViajeIdsFiltrados(null);
                 setNoHayViajes(false);
               }}
               className="inline-flex items-center px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-md transition-colors duration-200"
             >
-              <svg
-                className="w-4 h-4 mr-1"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
               Limpiar
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Filtro por chofer */}
+          {/* Buscador unificado */}
+          <div className="relative mb-4">
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+              Buscar por razón social, chofer o transporte
+            </label>
             <div className="relative">
-              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                Chofer
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Buscar chofer..."
-                  value={choferTexto}
-                  onChange={(e) => {
-                    setChoferTexto(e.target.value);
-                    setChoferSeleccionado("");
-                    setViajeIdsPorChofer(null);
-                    setChoferDropdownAbierto(true);
-                  }}
-                  onFocus={() => setChoferDropdownAbierto(true)}
-                  onBlur={() => setTimeout(() => setChoferDropdownAbierto(false), 150)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors pr-8"
-                />
-                {loadingChoferFiltro && (
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                    <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                  </div>
-                )}
-                {choferTexto && !loadingChoferFiltro && (
-                  <button
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      setChoferTexto("");
-                      setChoferSeleccionado("");
-                      setViajeIdsPorChofer(null);
-                    }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-              {/* Dropdown sugerencias */}
-              {choferDropdownAbierto && choferTexto.length >= 1 && (
-                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-600 rounded-lg shadow-lg max-h-52 overflow-y-auto">
-                  {loadingChoferes ? (
-                    <div className="px-3 py-3 text-sm text-neutral-400">Cargando...</div>
-                  ) : choferes.filter(c => c.nombre.toLowerCase().includes(choferTexto.toLowerCase())).length === 0 ? (
-                    <div className="px-3 py-3 text-sm text-neutral-400">Sin resultados</div>
-                  ) : (
-                    choferes
-                      .filter(c => c.nombre.toLowerCase().includes(choferTexto.toLowerCase()))
-                      .slice(0, 20)
-                      .map((c) => (
-                        <button
-                          key={c.id}
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => {
-                            setChoferTexto(c.nombre);
-                            setChoferSeleccionado(c.id);
-                            setChoferDropdownAbierto(false);
-                          }}
-                          className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 dark:hover:bg-neutral-700 transition-colors ${
-                            choferSeleccionado === c.id ? "bg-blue-50 dark:bg-neutral-700 font-medium" : "text-neutral-900 dark:text-white"
-                          }`}
-                        >
-                          {c.nombre}
-                        </button>
-                      ))
-                  )}
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Escribí un nombre..."
+                value={busquedaTexto}
+                onChange={(e) => {
+                  setBusquedaTexto(e.target.value);
+                  setBusquedaSeleccionada(null);
+                  setViajeIdsFiltrados(null);
+                  setRazonSearch("");
+                  setBusquedaDropdownAbierto(true);
+                }}
+                onFocus={() => setBusquedaDropdownAbierto(true)}
+                onBlur={() => setTimeout(() => setBusquedaDropdownAbierto(false), 150)}
+                className="w-full pl-9 pr-8 py-2.5 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+              {loadingBusquedaFiltro && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                 </div>
+              )}
+              {busquedaTexto && !loadingBusquedaFiltro && (
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setBusquedaTexto("");
+                    setBusquedaSeleccionada(null);
+                    setViajeIdsFiltrados(null);
+                    setRazonSearch("");
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                Razón Social
-              </label>
-              <input
-                type="text"
-                placeholder="Buscar por razón social..."
-                value={razonSearch}
-                onChange={(e) => setRazonSearch(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              />
-            </div>
+            {/* Dropdown unificado */}
+            {busquedaDropdownAbierto && busquedaTexto.length >= 1 && (
+              <div className="absolute z-50 w-full mt-1 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-600 rounded-lg shadow-xl max-h-72 overflow-y-auto">
+                {loadingOpciones ? (
+                  <div className="px-4 py-3 text-sm text-neutral-400">Cargando...</div>
+                ) : (() => {
+                  const texto = busquedaTexto.toLowerCase();
+                  const clientes = viajes
+                    .map((v) => v.razonSocial)
+                    .filter((rs, i, arr) => rs && arr.indexOf(rs) === i && rs.toLowerCase().includes(texto))
+                    .slice(0, 5)
+                    .map((rs) => ({ id: 0, nombre: rs, tipo: "cliente" as TipoBusqueda }));
 
+                  const proveedores = opcionesBusqueda
+                    .filter((o) => o.nombre.toLowerCase().includes(texto))
+                    .slice(0, 10);
+
+                  if (clientes.length === 0 && proveedores.length === 0) {
+                    return <div className="px-4 py-3 text-sm text-neutral-400">Sin resultados</div>;
+                  }
+
+                  return (
+                    <>
+                      {clientes.length > 0 && (
+                        <>
+                          <div className="px-3 py-1.5 text-xs font-semibold text-neutral-400 uppercase tracking-wide bg-gray-50 dark:bg-neutral-700/50">
+                            Clientes
+                          </div>
+                          {clientes.map((c) => (
+                            <button
+                              key={`cliente-${c.nombre}`}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                setBusquedaTexto(c.nombre);
+                                setBusquedaSeleccionada(c);
+                                setRazonSearch(c.nombre);
+                                setBusquedaDropdownAbierto(false);
+                              }}
+                              className="w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-neutral-700 transition-colors text-neutral-900 dark:text-white flex items-center gap-2"
+                            >
+                              <svg className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                              </svg>
+                              {c.nombre}
+                            </button>
+                          ))}
+                        </>
+                      )}
+                      {proveedores.length > 0 && (
+                        <>
+                          <div className="px-3 py-1.5 text-xs font-semibold text-neutral-400 uppercase tracking-wide bg-gray-50 dark:bg-neutral-700/50 border-t border-gray-100 dark:border-neutral-700">
+                            Proveedores
+                          </div>
+                          {proveedores.map((p) => (
+                            <button
+                              key={`${p.tipo}-${p.id}`}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                setBusquedaTexto(p.nombre);
+                                setBusquedaSeleccionada(p);
+                                setBusquedaDropdownAbierto(false);
+                              }}
+                              className="w-full text-left px-4 py-2.5 text-sm hover:bg-orange-50 dark:hover:bg-neutral-700 transition-colors text-neutral-900 dark:text-white flex items-center justify-between gap-2"
+                            >
+                              <div className="flex items-center gap-2">
+                                <svg className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                                {p.nombre}
+                              </div>
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 flex-shrink-0">
+                                {p.tipo === "chofer" ? "Chofer" : "Transporte"}
+                              </span>
+                            </button>
+                          ))}
+                        </>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                 Fecha desde
@@ -341,7 +371,6 @@ export default function ViajesPage() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                 Fecha hasta
@@ -353,7 +382,6 @@ export default function ViajesPage() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                 Mín. Cupos Pendientes
@@ -370,47 +398,20 @@ export default function ViajesPage() {
           </div>
 
           {/* Indicador de filtros activos */}
-          {(razonSearch || fechaDesde || fechaHasta || minPendientes || choferSeleccionado || choferTexto) && (
-            <div className="mt-3 flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707v4.586l-4-2v-2.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                />
+          {(busquedaSeleccionada || fechaDesde || fechaHasta || minPendientes) && (
+            <div className="mt-3 flex items-center flex-wrap gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707v4.586l-4-2v-2.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
-              <span>Filtros aplicados:</span>
-              {razonSearch && (
-                <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">
-                  Razón: "{razonSearch}"
+              <span>Filtros:</span>
+              {busquedaSeleccionada && (
+                <span className={`px-2 py-1 rounded text-xs ${busquedaSeleccionada.tipo === "cliente" ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300" : "bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300"}`}>
+                  {busquedaSeleccionada.tipo === "cliente" ? "Cliente" : busquedaSeleccionada.tipo === "chofer" ? "Chofer" : "Transporte"}: {busquedaSeleccionada.nombre}
                 </span>
               )}
-              {fechaDesde && (
-                <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">
-                  Desde: {fechaDesde}
-                </span>
-              )}
-              {fechaHasta && (
-                <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">
-                  Hasta: {fechaHasta}
-                </span>
-              )}
-              {minPendientes && (
-                <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">
-                  Min. Pendientes: {minPendientes}
-                </span>
-              )}
-              {choferSeleccionado && choferTexto && (
-                <span className="bg-orange-100 dark:bg-orange-900 px-2 py-1 rounded text-xs">
-                  Chofer: {choferTexto}
-                </span>
-              )}
+              {fechaDesde && <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">Desde: {fechaDesde}</span>}
+              {fechaHasta && <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">Hasta: {fechaHasta}</span>}
+              {minPendientes && <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-xs">Min. Pendientes: {minPendientes}</span>}
             </div>
           )}
         </div>
