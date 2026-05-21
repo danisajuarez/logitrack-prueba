@@ -19,7 +19,7 @@ interface Viaje {
   cuposPendientes: number;
   postulados?: number;
   usuario: string;
-  usuarioNombre: string | null;
+  vendedorNombre: string | null;
   equipo: string;
   vendedor: string | null;
   articulo: string;
@@ -527,9 +527,9 @@ export default function ViajesPage() {
                       (Cupos/Reservados/Postulados)
                     </span>
                   </div>
-                  {v.usuarioNombre && (
+                  {v.vendedorNombre && (
                     <div className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
-                      Generado por: {v.usuarioNombre}
+                      Vendedor: {v.vendedorNombre}
                     </div>
                   )}
                 </div>
@@ -681,9 +681,9 @@ export default function ViajesPage() {
                           <span className="text-xs font-mono text-neutral-500 dark:text-neutral-400">
                             {`${v.cupos ?? 0}/${v.cuposReservados ?? 0}/${v.postulados ?? 0}`}
                           </span>
-                          {v.usuarioNombre && (
+                          {v.vendedorNombre && (
                             <span className="text-xs text-neutral-400 dark:text-neutral-500">
-                              {v.usuarioNombre}
+                              {v.vendedorNombre}
                             </span>
                           )}
                         </div>

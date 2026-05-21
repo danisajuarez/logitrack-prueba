@@ -123,14 +123,13 @@ export async function GET(req: NextRequest) {
         e.ENT_CantCuposPend AS cuposPendientes,
         e.ENT_Tarifa AS tarifa,
         e.VEN_IdVendPostula AS vendedor,
-        ter.TER_CodPostalTer AS codPostal,
-        COALESCE(usu.USU_DatosUsu, usu.USU_LogUsu) AS usuarioNombre
+        v.VEN_NomVen AS vendedorNombre,
+        ter.TER_CodPostalTer AS codPostal
       FROM sige_ent_encnegtra e
       LEFT JOIN sige_equ_equipos eq ON e.EQU_IDEquipo = eq.EQU_IDEquipo
       LEFT JOIN sige_ven_vendedor v ON e.VEN_IdVendPostula = v.VEN_IdVendedor
       LEFT JOIN sige_dnt_detnegtra dnt ON e.ENT_IdEnt = dnt.ent_ident AND dnt.dnt_renglondcp = 1
       LEFT JOIN sige_ter_tercero ter ON e.TER_IDTercero = ter.TER_IDTercero
-      LEFT JOIN sige_usu_usuario usu ON e.USU_IdUsuario = usu.USU_IdUsuario
       WHERE e.ENT_IdEnt > 0
       ${whereClauseViejos.replace("AND", "AND")}
       ORDER BY e.ENT_Fecha DESC, e.ENT_Numero DESC
