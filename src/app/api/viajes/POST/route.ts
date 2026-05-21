@@ -1,6 +1,5 @@
 import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -10,8 +9,7 @@ export async function POST(req: NextRequest) {
   // VERSION MARKER - Si ves este log, el código nuevo está activo
   console.log("[POST VIAJES] ========== VERSION 2025-11-21-v3 ==========");
 
-  const session = await auth();
-  const usuIdUsuario = session?.user?.id ? Number(session.user.id) : 1;
+  const usuIdUsuario = 1;
 
   try {
     const data = await req.json();
@@ -150,10 +148,7 @@ export async function POST(req: NextRequest) {
       console.error("[DEBUG POST] Error buscando tercero:", err);
     }
 
-    // Resolver vendedor: por id/nombre o caer al vendedorId de la sesión
-    const vendedorFromSession = (session?.user as any)?.vendedorId
-      ? Number((session?.user as any).vendedorId)
-      : null;
+    const vendedorFromSession: number | null = null;
 
     let vendedorId: number | null = null;
     try {
