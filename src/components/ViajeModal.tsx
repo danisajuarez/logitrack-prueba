@@ -790,19 +790,6 @@ export default function ViajeModal({
             />
           </div>
 
-          {/* Generado por */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-neutral-200 mb-2">
-              Generado por
-            </label>
-            <input
-              type="text"
-              readOnly
-              value={(session?.user as any)?.name || ""}
-              className="w-full px-3 py-2.5 bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-400 cursor-not-allowed text-base"
-              placeholder="Usuario de sesión"
-            />
-          </div>
 
           {/* Botones - Sticky en mobile */}
           <div className="md:col-span-2 sticky bottom-0 bg-neutral-900 border-t border-neutral-700 -mx-4 md:mx-0 px-4 md:px-0 py-4 md:py-0 md:border-0 md:static flex justify-between items-center gap-3 mt-4">

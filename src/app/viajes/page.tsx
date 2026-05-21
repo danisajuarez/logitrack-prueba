@@ -19,6 +19,7 @@ interface Viaje {
   cuposPendientes: number;
   postulados?: number;
   usuario: string;
+  usuarioNombre: string | null;
   equipo: string;
   vendedor: string | null;
   articulo: string;
@@ -517,15 +518,20 @@ export default function ViajesPage() {
                 </div>
 
                 {/* Cupos Info */}
-                <div className="flex items-center gap-2 mb-3 text-xs text-neutral-600 dark:text-neutral-400">
-                  <span className="font-mono">
-                    {`${v.cupos ?? 0}/${v.cuposReservados ?? 0}/${
-                      v.postulados ?? 0
-                    }`}
-                  </span>
-                  <span className="text-neutral-400 dark:text-neutral-500">
-                    (Cupos/Reservados/Postulados)
-                  </span>
+                <div className="mb-3">
+                  <div className="flex items-center gap-2 text-xs text-neutral-600 dark:text-neutral-400">
+                    <span className="font-mono">
+                      {`${v.cupos ?? 0}/${v.cuposReservados ?? 0}/${v.postulados ?? 0}`}
+                    </span>
+                    <span className="text-neutral-400 dark:text-neutral-500">
+                      (Cupos/Reservados/Postulados)
+                    </span>
+                  </div>
+                  {v.usuarioNombre && (
+                    <div className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
+                      Generado por: {v.usuarioNombre}
+                    </div>
+                  )}
                 </div>
 
                 {/* Botones de Acción */}
@@ -671,11 +677,16 @@ export default function ViajesPage() {
                             />
                           </svg>
                         </button>
-                        <span className="text-xs font-mono text-neutral-500 dark:text-neutral-400">
-                          {`${v.cupos ?? 0}/${v.cuposReservados ?? 0}/${
-                            v.postulados ?? 0
-                          }`}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-mono text-neutral-500 dark:text-neutral-400">
+                            {`${v.cupos ?? 0}/${v.cuposReservados ?? 0}/${v.postulados ?? 0}`}
+                          </span>
+                          {v.usuarioNombre && (
+                            <span className="text-xs text-neutral-400 dark:text-neutral-500">
+                              {v.usuarioNombre}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>
