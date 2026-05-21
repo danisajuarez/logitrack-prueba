@@ -596,6 +596,8 @@ export async function POST(req: NextRequest) {
         LOC_NomLocalidadEst,
         LOC_NomLocalidadGran,
         ECP_Tarifa,
+        ECP_TarifaTrans,
+        ENT_Tolerancia,
         TVP_Caracteristicas,
         DEP_IDDeposito,
         ENT_IdEnt,
@@ -605,28 +607,30 @@ export async function POST(req: NextRequest) {
         ECP_PreCartaPorte,
         ECP_CancCompra,
         ECP_CancVenta
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        ecpIdEcp, // Insertar el ID manualmente
+        ecpIdEcp,
         ecpNumeroStr,
         fechaSQL,
-        fechaSQL, // ECP_FechaVencimiento = ECP_Fecha
-        38, // TCP_IDTipoComp = 38 (tipo de comprobante)
-        0, // EPC_IdEpd = 0
-        terIdTercero ?? 15, // TER_IDTerceroEst - usar el ID resuelto o fallback a 15
+        fechaSQL,
+        38,
+        0,
+        terIdTercero ?? 15,
         razonSocial,
-        orig?.nombre ?? origen, // LOC_NomLocalidadEst = origen
-        dest?.nombre ?? destino, // LOC_NomLocalidadGran = destino
+        orig?.nombre ?? origen,
+        dest?.nombre ?? destino,
         tarifaNum,
-        "", // TVP_Caracteristicas - dejar vacío (NO grabar descripción de artículo)
-        1, // DEP_IDDeposito
-        entIdEnt, // Relación con sige_ent_encnegtra
+        tarifaTransNum,
+        toleranciaNum,
+        "",
+        1,
+        entIdEnt,
         vendedorId,
         usuIdUsuario,
-        1, // EQU_IDEquipo
-        "S", // ECP_PreCartaPorte = 'S' (corregido de 'N' a 'S')
-        "N", // ECP_CancCompra = 'N'
-        "N", // ECP_CancVenta = 'N'
+        1,
+        "S",
+        "N",
+        "N",
       ],
     );
 
@@ -707,71 +711,7 @@ export async function POST(req: NextRequest) {
     } catch {}
 
     // ============================================
-    // PASO 3: Insertar intermediarios en sige_icp_intcarpor
-    // ============================================
-
-    // Destinatario (orden 1)
-    console.log("[DEBUG] Insertando intermediario Destinatario para ECP:", ecpIdEcp);
-    try {
-      await connection.execute(
-        `INSERT INTO sige_icp_intcarpor (
-          ECP_IdEcp,
-          TIC_IdTic,
-          ICP_Orden,
-          TIC_DescripcionTic,
-          TER_IDTerceroTic,
-          TER_RazonSocialTerTic,
-          TER_CUITTerTic
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [
-          ecpIdEcp,
-          6, // TIC_IdTic = 6 para Destinatario (corregido)
-          1, // Orden
-          "Destinatario",
-          terIdTercero ?? 15, // Usar el TER_IDTercero resuelto
-          razonSocial,
-          terCUIT ?? "", // Usar el CUIT resuelto del tercero
-        ],
-      );
-      console.log("[DEBUG] Intermediario Destinatario insertado correctamente");
-    } catch (icpError: any) {
-      console.error(
-        "[ERROR] Falló INSERT de intermediario Destinatario:",
-        icpError?.message,
-        "Code:",
-        icpError?.code,
-      );
-      // Si es duplicado, continuar (puede pasar en reintentos)
-      if (icpError?.code !== "ER_DUP_ENTRY") {
-        throw icpError;
-      }
-      console.log("[DEBUG] Intermediario ya existía (ER_DUP_ENTRY), continuando...");
-    }
-
-    // Verificar que el intermediario se creó
-    const [verificacionIcp]: any = await connection.query(
-      "SELECT 1 FROM sige_icp_intcarpor WHERE ECP_IdEcp = ? AND TIC_IdTic = 6",
-      [ecpIdEcp],
-    );
-    if (!verificacionIcp || verificacionIcp.length === 0) {
-      console.error(
-        "[ERROR CRÍTICO] El intermediario Destinatario NO se encontró después del INSERT. ecpIdEcp:",
-        ecpIdEcp,
-      );
-      throw new Error(
-        `Error crítico: El intermediario Destinatario no se creó para la carta de porte ${ecpIdEcp}`,
-      );
-    }
-    console.log("[DEBUG] Verificación OK: Intermediario Destinatario confirmado en BD");
-
-    // Transportista (orden 2) - OPCIONAL por ahora
-    // TODO: Agregar cuando se asigne chofer/transportista (TIC_IdTic = 8)
-
-    // Chofer (orden 3) - OPCIONAL por ahora
-    // TODO: Agregar cuando se asigne chofer (TIC_IdTic = 9)
-
-    // ============================================
-    // PASO 4: Insertar detalle de producto en SIGE_DCP_DetCarPor
+    // PASO 3: Insertar detalle de producto en SIGE_DCP_DetCarPor
     // ============================================
     console.log("[DEBUG] Insertando detalle de producto para ECP:", ecpIdEcp);
     try {
