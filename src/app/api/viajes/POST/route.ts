@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
 
     // Resolver vendedor: por id/nombre o caer al vendedorId de la sesión
     const vendedorFromSession = (session?.user as any)?.vendedorId
-      ? Number((session.user as any).vendedorId)
+      ? Number((session?.user as any).vendedorId)
       : null;
 
     let vendedorId: number | null = null;
