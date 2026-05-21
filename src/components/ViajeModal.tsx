@@ -488,7 +488,7 @@ export default function ViajeModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-start md:items-center justify-center overflow-y-auto">
-      <div className="bg-neutral-900 text-white w-full md:max-w-3xl md:m-4 md:rounded-xl shadow-xl min-h-screen md:min-h-0">
+      <div className="bg-neutral-900 text-white w-full md:max-w-3xl md:m-4 md:rounded-xl shadow-xl min-h-screen md:min-h-0 md:max-h-[90vh] md:flex md:flex-col">
         {/* Header - Sticky en mobile */}
         <div className="sticky top-0 bg-neutral-900 border-b border-neutral-700 px-4 md:px-6 py-4 md:rounded-t-xl z-10">
           <div className="flex items-center justify-between">
@@ -519,7 +519,7 @@ export default function ViajeModal({
 
         <form
           onSubmit={handleSubmit}
-          className="p-4 md:p-6 space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-4 md:gap-y-6"
+          className="p-4 md:p-6 space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-4 md:gap-y-6 md:overflow-y-auto md:flex-1"
         >
           {viaje && (
             <div className="col-span-full bg-neutral-800 p-3 rounded-lg">
