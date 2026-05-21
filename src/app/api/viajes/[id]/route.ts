@@ -264,13 +264,14 @@ export async function PUT(
             TER_RazonSocialTerEst = ?,
             LOC_NomLocalidadEst = ?,
             LOC_NomLocalidadGran = ?,
-            ECP_Tarifa = ?
+            ECP_Tarifa = ?,
+            ECP_TarifaTrans = ?,
+            ENT_Tolerancia = ?
           WHERE ENT_IdEnt = ?`,
-          [razonSocial, origen, destino, tarifa, whereValue]
+          [razonSocial, origen, destino, tarifa, tarifaTransNum, toleranciaNum, whereValue]
         );
       } catch (authErr: any) {
         console.error("Error al actualizar autorizaciones relacionadas:", authErr);
-        // No fallar la actualización del viaje si falla la actualización de autorizaciones
       }
 
       try {

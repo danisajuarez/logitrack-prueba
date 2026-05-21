@@ -14,6 +14,8 @@ interface Viaje {
   origen: string;
   destino: string;
   tarifa: number;
+  tarifaTransportista?: number | null;
+  tolerancia?: number | null;
   cupos: number;
   cuposReservados: number;
   cuposPendientes: number;

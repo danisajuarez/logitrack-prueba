@@ -52,6 +52,8 @@ interface Viaje {
   origen: string;
   destino: string;
   tarifa: number;
+  tarifaTransportista?: number | null;
+  tolerancia?: number | null;
   cupos: number;
   cuposReservados: number;
   cuposPendientes: number;
@@ -129,8 +131,8 @@ export default function ViajeModal({
         reservados: viaje.cuposReservados?.toString() || "",
         pendientes: viaje.cuposPendientes?.toString() || "",
         tarifa: viaje.tarifa?.toString() || "",
-        tarifaTransportista: "",
-        tolerancia: "",
+        tarifaTransportista: viaje.tarifaTransportista?.toString() || "",
+        tolerancia: viaje.tolerancia?.toString() || "",
         vendedor: viaje.vendedor || "",
         fecha: viaje.fecha ? viaje.fecha.split("T")[0] : new Date().toISOString().split("T")[0],
       });

@@ -122,6 +122,8 @@ export async function GET(req: NextRequest) {
         e.ENT_CantCuposReser AS cuposReservados,
         e.ENT_CantCuposPend AS cuposPendientes,
         e.ENT_Tarifa AS tarifa,
+        e.ENT_TarifaTrans AS tarifaTransportista,
+        e.ENT_Tolerancia AS tolerancia,
         e.VEN_IdVendPostula AS vendedor,
         v.VEN_NomVen AS vendedorNombre,
         ter.TER_CodPostalTer AS codPostal
