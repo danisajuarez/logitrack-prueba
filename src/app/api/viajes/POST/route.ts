@@ -10,7 +10,8 @@ export async function POST(req: NextRequest) {
   // VERSION MARKER - Si ves este log, el código nuevo está activo
   console.log("[POST VIAJES] ========== VERSION 2025-11-21-v3 ==========");
 
-  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+  const token = await getToken({ req, secret: process.env.AUTH_SECRET, cookieName: "next-auth.session-token" });
+  console.log("[POST VIAJES] token:", JSON.stringify(token));
   const usuIdUsuario = token?.id ? Number(token.id) : 1;
 
   try {
