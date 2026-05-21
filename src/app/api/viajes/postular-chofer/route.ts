@@ -42,7 +42,9 @@ async function crearPrimeraCartaPorte(
       LOC_IDLocalidadDest,
       PRO_IDProvinciaDest,
       PRO_NomProvinciaDest,
-      ENT_Tarifa
+      ENT_Tarifa,
+      ENT_TarifaTrans,
+      ENT_Tolerancia
     FROM sige_ent_encnegtra
     WHERE ENT_IdEnt = ?
     LIMIT 1`,
@@ -130,6 +132,8 @@ async function crearPrimeraCartaPorte(
       PRO_IDProvinciaGran,
       PRO_NomProvinciaGran,
       ECP_Tarifa,
+      ECP_TarifaTrans,
+      ENT_Tolerancia,
       TVP_Caracteristicas,
       DEP_IDDeposito,
       ENT_IdEnt,
@@ -139,7 +143,7 @@ async function crearPrimeraCartaPorte(
       ECP_PreCartaPorte,
       ECP_CancCompra,
       ECP_CancVenta
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       ecpIdEcp,
       ecpNumeroStr,
@@ -157,7 +161,9 @@ async function crearPrimeraCartaPorte(
       viaje.LOC_IDLocalidadDest,
       viaje.PRO_IDProvinciaDest,
       viaje.PRO_NomProvinciaDest,
-      viaje.ENT_Tarifa,
+      viaje.ENT_Tarifa || 0,
+      viaje.ENT_TarifaTrans || 0,
+      viaje.ENT_Tolerancia || 0,
       "", // TVP_Caracteristicas
       1, // DEP_IDDeposito
       viajeId, // ENT_IdEnt
