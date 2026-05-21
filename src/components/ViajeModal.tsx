@@ -87,6 +87,8 @@ export default function ViajeModal({
     reservados: "",
     pendientes: "",
     tarifa: "",
+    tarifaTransportista: "",
+    tolerancia: "",
     vendedor: "",
     fecha: new Date().toISOString().split("T")[0], // Fecha por defecto: hoy
   });
@@ -127,6 +129,8 @@ export default function ViajeModal({
         reservados: viaje.cuposReservados?.toString() || "",
         pendientes: viaje.cuposPendientes?.toString() || "",
         tarifa: viaje.tarifa?.toString() || "",
+        tarifaTransportista: "",
+        tolerancia: "",
         vendedor: viaje.vendedor || "",
         fecha: viaje.fecha ? viaje.fecha.split("T")[0] : new Date().toISOString().split("T")[0],
       });
@@ -143,6 +147,8 @@ export default function ViajeModal({
         reservados: "",
         pendientes: "",
         tarifa: "",
+        tarifaTransportista: "",
+        tolerancia: "",
         vendedor: "",
         fecha: new Date().toISOString().split("T")[0], // Fecha por defecto: hoy
       });
@@ -241,6 +247,8 @@ export default function ViajeModal({
 
   const [validationErrors, setValidationErrors] = useState({
     tarifa: "",
+    tarifaTransportista: "",
+    tolerancia: "",
     cupos: "",
     reservados: "",
   });
@@ -260,6 +268,24 @@ export default function ViajeModal({
         newErrors.tarifa = "La tarifa no puede ser negativa";
       } else {
         newErrors.tarifa = "";
+      }
+    }
+
+    if (e.target.name === "tarifaTransportista") {
+      const val = Number(e.target.value);
+      if (e.target.value !== "" && val < 0) {
+        newErrors.tarifaTransportista = "La tarifa transportista no puede ser negativa";
+      } else {
+        newErrors.tarifaTransportista = "";
+      }
+    }
+
+    if (e.target.name === "tolerancia") {
+      const val = Number(e.target.value);
+      if (e.target.value !== "" && val < 0) {
+        newErrors.tolerancia = "La tolerancia no puede ser negativa";
+      } else {
+        newErrors.tolerancia = "";
       }
     }
 
@@ -305,7 +331,7 @@ export default function ViajeModal({
     if (saving) return;
 
     // Validar antes de enviar
-    if (validationErrors.tarifa || validationErrors.cupos || validationErrors.reservados) {
+    if (validationErrors.tarifa || validationErrors.tarifaTransportista || validationErrors.tolerancia || validationErrors.cupos || validationErrors.reservados) {
       setNotification({
         type: "error",
         title: "Error de validación",
@@ -675,7 +701,7 @@ export default function ViajeModal({
             </div>
           </div>
 
-          {/* Tarifa y Vendedor */}
+          {/* Tarifa (cliente) */}
           <div className="md:col-span-1">
             <label className="block text-sm font-semibold text-neutral-200 mb-2">
               Tarifa
@@ -699,6 +725,55 @@ export default function ViajeModal({
             )}
           </div>
 
+          {/* Tarifa Transportista */}
+          <div className="md:col-span-1">
+            <label className="block text-sm font-semibold text-neutral-200 mb-2">
+              Tarifa Transportista
+            </label>
+            <input
+              type="number"
+              name="tarifaTransportista"
+              value={form.tarifaTransportista}
+              onChange={handleChange}
+              placeholder="0.00"
+              step="0.01"
+              min="0"
+              className={`w-full px-3 py-2.5 bg-neutral-800 border rounded-lg text-white placeholder-neutral-500 focus:ring-2 focus:border-blue-500 text-base ${
+                validationErrors.tarifaTransportista
+                  ? "border-red-500 focus:ring-red-500"
+                  : "border-neutral-600 focus:ring-blue-500"
+              }`}
+            />
+            {validationErrors.tarifaTransportista && (
+              <p className="text-red-500 text-xs mt-1">{validationErrors.tarifaTransportista}</p>
+            )}
+          </div>
+
+          {/* Tolerancia */}
+          <div className="md:col-span-1">
+            <label className="block text-sm font-semibold text-neutral-200 mb-2">
+              Tolerancia
+            </label>
+            <input
+              type="number"
+              name="tolerancia"
+              value={form.tolerancia}
+              onChange={handleChange}
+              placeholder="0.00"
+              step="0.01"
+              min="0"
+              className={`w-full px-3 py-2.5 bg-neutral-800 border rounded-lg text-white placeholder-neutral-500 focus:ring-2 focus:border-blue-500 text-base ${
+                validationErrors.tolerancia
+                  ? "border-red-500 focus:ring-red-500"
+                  : "border-neutral-600 focus:ring-blue-500"
+              }`}
+            />
+            {validationErrors.tolerancia && (
+              <p className="text-red-500 text-xs mt-1">{validationErrors.tolerancia}</p>
+            )}
+          </div>
+
+          {/* Vendedor */}
           <div className="md:col-span-1">
             <label className="block text-sm font-semibold text-neutral-200 mb-2">
               Vendedor
@@ -712,6 +787,20 @@ export default function ViajeModal({
               placeholder="Seleccionar Vendedor"
               name="vendedor"
               loading={loadingVendedores}
+            />
+          </div>
+
+          {/* Generado por */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-semibold text-neutral-200 mb-2">
+              Generado por
+            </label>
+            <input
+              type="text"
+              readOnly
+              value={(session?.user as any)?.name || ""}
+              className="w-full px-3 py-2.5 bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-400 cursor-not-allowed text-base"
+              placeholder="Usuario de sesión"
             />
           </div>
 
@@ -775,7 +864,7 @@ export default function ViajeModal({
               </button>
               <button
                 type="submit"
-                disabled={saving || !!validationErrors.tarifa || !!validationErrors.cupos || !!validationErrors.reservados}
+                disabled={saving || !!validationErrors.tarifa || !!validationErrors.tarifaTransportista || !!validationErrors.tolerancia || !!validationErrors.cupos || !!validationErrors.reservados}
                 className="px-4 md:px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
               >
                 {saving ? (

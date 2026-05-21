@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -8,6 +9,9 @@ export async function POST(req: NextRequest) {
 
   // VERSION MARKER - Si ves este log, el código nuevo está activo
   console.log("[POST VIAJES] ========== VERSION 2025-11-21-v3 ==========");
+
+  const session = await auth();
+  const usuIdUsuario = session?.user?.id ? Number(session.user.id) : 1;
 
   try {
     const data = await req.json();
@@ -22,6 +26,8 @@ export async function POST(req: NextRequest) {
       cupos,
       cuposReservados,
       tarifa,
+      tarifaTransportista,
+      tolerancia,
       vendedor,
       fecha, // Fecha opcional desde el frontend
     } = data;
@@ -50,11 +56,27 @@ export async function POST(req: NextRequest) {
     const reservadosNum = toNumber(data?.reservados ?? cuposReservados) ?? 0;
     const pendientesNum = cuposNum - reservadosNum;
     const tarifaNum = toNumber(tarifa) ?? 0;
+    const tarifaTransNum = toNumber(tarifaTransportista) ?? 0;
+    const toleranciaNum = toNumber(tolerancia) ?? 0;
 
     // Validaciones de negocio
     if (tarifaNum < 0) {
       return NextResponse.json(
         { error: "La tarifa no puede ser negativa" },
+        { status: 400 },
+      );
+    }
+
+    if (tarifaTransNum < 0) {
+      return NextResponse.json(
+        { error: "La tarifa del transportista no puede ser negativa" },
+        { status: 400 },
+      );
+    }
+
+    if (toleranciaNum < 0) {
+      return NextResponse.json(
+        { error: "La tolerancia no puede ser negativa" },
         { status: 400 },
       );
     }
@@ -369,7 +391,7 @@ export async function POST(req: NextRequest) {
         pendientesNum,
         tarifaNum,
         vendedorId,
-        1, // USU_IdUsuario - hardcoded por ahora
+        usuIdUsuario,
       ],
     );
 
@@ -466,6 +488,19 @@ export async function POST(req: NextRequest) {
         );
       }
     } catch {}
+    try {
+      await connection.execute(
+        `UPDATE sige_ent_encnegtra SET ENT_TarifaTrans = ? WHERE ENT_IdEnt = ?`,
+        [tarifaTransNum, entIdEnt],
+      );
+    } catch {}
+    try {
+      await connection.execute(
+        `UPDATE sige_ent_encnegtra SET ENT_Tolerancia = ? WHERE ENT_IdEnt = ?`,
+        [toleranciaNum, entIdEnt],
+      );
+    } catch {}
+
     // TVP_Caracteristicas se deja vacío - NO se actualiza con el artículo
 
     // ============================================
@@ -594,7 +629,7 @@ export async function POST(req: NextRequest) {
         1, // DEP_IDDeposito
         entIdEnt, // Relación con sige_ent_encnegtra
         vendedorId,
-        1, // USU_IdUsuario
+        usuIdUsuario,
         1, // EQU_IDEquipo
         "S", // ECP_PreCartaPorte = 'S' (corregido de 'N' a 'S')
         "N", // ECP_CancCompra = 'N'

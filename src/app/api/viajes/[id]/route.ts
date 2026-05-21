@@ -145,6 +145,8 @@ export async function PUT(
       reservados,
       pendientes,
       tarifa,
+      tarifaTransportista,
+      tolerancia,
       vendedor,
     } = body;
 
@@ -152,6 +154,8 @@ export async function PUT(
     const cuposNum = cupos != null ? Number(cupos) : 0;
     const reservadosNum = reservados != null ? Number(reservados) : 0;
     const tarifaNum = tarifa != null ? Number(tarifa) : 0;
+    const tarifaTransNum = tarifaTransportista != null ? Number(tarifaTransportista) : 0;
+    const toleranciaNum = tolerancia != null ? Number(tolerancia) : 0;
 
     if (tarifaNum < 0) {
       return NextResponse.json(
@@ -268,6 +272,19 @@ export async function PUT(
         console.error("Error al actualizar autorizaciones relacionadas:", authErr);
         // No fallar la actualización del viaje si falla la actualización de autorizaciones
       }
+
+      try {
+        await db.execute(
+          `UPDATE sige_ent_encnegtra SET ENT_TarifaTrans = ? WHERE ${whereColumn} = ?`,
+          [tarifaTransNum, whereValue],
+        );
+      } catch {}
+      try {
+        await db.execute(
+          `UPDATE sige_ent_encnegtra SET ENT_Tolerancia = ? WHERE ${whereColumn} = ?`,
+          [toleranciaNum, whereValue],
+        );
+      } catch {}
 
       return NextResponse.json({ message: "Viaje actualizado correctamente" });
     }
