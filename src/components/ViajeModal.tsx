@@ -799,8 +799,9 @@ export default function ViajeModal({
               <button
                 type="button"
                 onClick={handleDelete}
-                disabled={deleting}
-                className="px-4 py-2.5 rounded-lg bg-red-700 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium flex items-center gap-2"
+                disabled={true}
+                title="Función deshabilitada temporalmente"
+                className="px-4 py-2.5 rounded-lg bg-neutral-700 cursor-not-allowed text-neutral-500 font-medium flex items-center gap-2 opacity-50"
               >
                 {deleting ? (
                   <svg
