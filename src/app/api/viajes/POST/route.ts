@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
 
 export const runtime = "nodejs";
 
@@ -9,7 +10,8 @@ export async function POST(req: NextRequest) {
   // VERSION MARKER - Si ves este log, el código nuevo está activo
   console.log("[POST VIAJES] ========== VERSION 2025-11-21-v3 ==========");
 
-  const usuIdUsuario = 1;
+  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+  const usuIdUsuario = token?.id ? Number(token.id) : 1;
 
   try {
     const data = await req.json();
@@ -148,7 +150,7 @@ export async function POST(req: NextRequest) {
       console.error("[DEBUG POST] Error buscando tercero:", err);
     }
 
-    const vendedorFromSession: number | null = null;
+    const vendedorFromSession = token?.vendedorId ? Number(token.vendedorId) : null;
 
     let vendedorId: number | null = null;
     try {
