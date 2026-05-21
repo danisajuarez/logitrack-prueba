@@ -150,19 +150,12 @@ export async function POST(req: NextRequest) {
       console.error("[DEBUG POST] Error buscando tercero:", err);
     }
 
-    // Resolver vendedor: por id/nombre o caer a la sesión
+    // Resolver vendedor: por id/nombre o caer al vendedorId de la sesión
+    const vendedorFromSession = (session?.user as any)?.vendedorId
+      ? Number((session.user as any).vendedorId)
+      : null;
+
     let vendedorId: number | null = null;
-    let vendedorFromSession: number | null = null;
-    try {
-      const raw = req.cookies.get("session")?.value;
-      if (raw) {
-        const sess = JSON.parse(raw);
-        if (sess && sess.vendedorId != null) {
-          vendedorFromSession = Number(sess.vendedorId);
-          if (!Number.isFinite(vendedorFromSession)) vendedorFromSession = null;
-        }
-      }
-    } catch {}
     try {
       const vendStr = vendedor != null ? String(vendedor).trim() : "";
       if (vendStr !== "") {
