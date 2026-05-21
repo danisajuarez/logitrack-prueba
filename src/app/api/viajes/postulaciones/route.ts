@@ -78,6 +78,7 @@ export async function GET(req: NextRequest) {
       LEFT JOIN sige_ter_tercero ter_chofer ON ter_chofer.TER_IDTercero = rel.TER_IDTercero
       LEFT JOIN sige_ter_tercero ter_asoc ON ter_asoc.TER_IDTercero = rel.TER_IDTerceroAsoc
       WHERE icp.ECP_IdEcp IN (${placeholders}) AND icp.TIC_IdTic = 9
+        AND icp.TER_IDTerceroTic IS NOT NULL AND icp.TER_IDTerceroTic > 0
       GROUP BY icp.TER_IDTerceroTic, ecp.ECP_IdEcp
       ORDER BY ecp.ECP_IdEcp ASC
     `;
